@@ -1,6 +1,6 @@
 # Authentication and authorization specification
 
-Status: **Draft v0.1**
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 
 ## Account model
 
@@ -17,14 +17,18 @@ Status: **Draft v0.1**
 - **AUT-006:** Each account MUST have exactly one role: `REQUESTER`, `TECHNICIAN`,
   or `FACILITIES_MANAGER`.
 
-## First-run bootstrap
+## Initial demo workspace
 
-- **AUT-007:** If no account exists, the application MUST open a first-run setup
-  flow that creates one Facilities Manager account.
-- **AUT-008:** First-run setup MUST use the same username, display-name, and password
-  validation as later account creation.
-- **AUT-009:** After any account exists, the first-run setup flow MUST be unavailable.
-- **AUT-010:** Creating the first Manager and recording its audit event MUST be atomic.
+- **AUT-007:** When creating a new local database, the application MUST atomically
+  seed two active accounts for each role: Requester, Technician, and Facilities
+  Manager. The User Guide MUST document the demo credentials.
+- **AUT-008:** The initial workspace MUST include representative requests across
+  every request lifecycle state so each role can demonstrate its primary workflow.
+- **AUT-009:** The seed operation MUST run only for a newly created database. The
+  application MUST NOT reseed or provide an in-app reset after persistent data
+  exists.
+- **AUT-010:** Seeding accounts, requests, and their required audit events MUST be
+  atomic; a failed seed MUST leave no partial demo workspace.
 
 ## Login and session
 
@@ -32,11 +36,9 @@ Status: **Draft v0.1**
   credentials message that does not reveal whether the username exists.
 - **AUT-012:** Inactive accounts MUST receive the same generic failure behavior as
   invalid credentials.
-- **AUT-013:** Five consecutive failed attempts for one normalized username within
-  ten minutes MUST delay further attempts for 30 seconds. This delay MAY be held
-  in memory and reset when the application restarts.
-- **AUT-014:** Successful login MUST reset that username's failed-attempt counter,
-  create an authenticated session, and open only the dashboard for the account role.
+- **AUT-013:** Withdrawn. Login-attempt throttling is outside the MVP scope.
+- **AUT-014:** Successful login MUST create an authenticated session and open only
+  the dashboard for the account role.
 - **AUT-015:** Logout MUST clear the in-memory session and return to the login screen.
 - **AUT-016:** Closing the application MUST discard the session; automatic login is
   outside MVP scope.
@@ -68,8 +70,17 @@ Status: **Draft v0.1**
   current session.
 - **AUT-027:** A deactivated Technician MUST NOT receive a new assignment; existing
   non-terminal assignments MUST remain visible to the Manager for reassignment.
-- **AUT-028:** Role changes after account creation are outside MVP scope; create a
-  new correctly scoped account and deactivate the obsolete account instead.
+- **AUT-028:** A Manager MAY change another account's role. The Manager MUST NOT
+  change their own role, and the operation MUST reject any result that leaves zero
+  active Facilities Manager accounts.
+- **AUT-029:** The system MUST reject changing a Technician's role while that
+  Technician has an `ASSIGNED` or `IN_PROGRESS` request. The Manager must first
+  reassign or cancel that work; historical authorship remains intact.
+- **AUT-030:** An active user MAY change their own password. A Manager MAY reset
+  another account's password. A Manager reset MUST invalidate the target's session
+  on its next protected service operation.
+- **AUT-031:** Account role changes and password changes or resets MUST satisfy the
+  relevant validation rules and produce audit events without storing password data.
 
 ## Acceptance scenarios
 
@@ -82,3 +93,5 @@ Status: **Draft v0.1**
   is rejected without returning its title or description.
 - Restarting the application never restores an authenticated session.
 - Inspecting the database and application logs reveals no plaintext password.
+- A Manager cannot change a Technician's role while the Technician has assigned or
+  in-progress work, and cannot leave zero active Manager accounts.

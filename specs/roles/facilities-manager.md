@@ -1,24 +1,23 @@
 # Facilities Manager role specification
 
-Status: **Draft v0.1**  
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 Team owner: **TBD**
 
 ## Role objective
 
 The Facilities Manager maintains the operational overview, controls assignment
-and priority, reviews outcomes, manages accounts, and can explain past decisions
-through reports and audit history.
+and priority, reviews outcomes, manages accounts, records reports on behalf of
+existing Requesters, and can explain past decisions through audit history.
 
 ## Required screens
 
 1. Manager dashboard with workload and status summaries
 2. All-request queue with search, filters, and sorting
-3. Request triage/detail view
+3. Request triage/detail view and record-on-behalf action
 4. Assignment/reassignment action
 5. Completed-work review action
 6. Account-management screen
-7. Reports and CSV export screen
-8. Read-only audit-event viewer
+7. Read-only audit-event viewer
 
 ## Requirements
 
@@ -43,20 +42,30 @@ through reports and audit history.
   request with a mandatory reason.
 - **MGR-011:** The Manager MUST NOT directly set a status outside the lifecycle
   operations defined in `../components/request-lifecycle.md`.
-- **MGR-012:** The Manager MUST be able to create Requester and Technician accounts,
-  deactivate/reactivate accounts, and view account status.
+- **MGR-012:** The Manager MUST be able to create accounts for any of the three
+  roles, deactivate/reactivate accounts, change another account's role subject to
+  AUT-028–029, reset another account's password subject to AUT-030, and view account
+  status.
 - **MGR-013:** The Manager MUST NOT deactivate their own active session or leave
   the system without at least one active Manager account.
 - **MGR-014:** Assignment MUST reject inactive users and users whose role is not
   Technician.
 - **MGR-015:** The dashboard MUST show counts by status and priority plus the number
   of active assignments per Technician.
-- **MGR-016:** Reports MUST support a date range and include request counts, median
-  resolution time when available, and per-Technician completed counts.
-- **MGR-017:** CSV export MUST use the currently selected report date range, include
-  a header row, escape values correctly, and avoid internal passwords or secrets.
+- **MGR-016:** Withdrawn. Advanced reports are outside the MVP scope.
+- **MGR-017:** Withdrawn. CSV export is outside the MVP scope.
 - **MGR-018:** The Manager MUST be able to search/filter audit events by request,
   actor, action type, and date range but MUST NOT edit or delete them.
+- **MGR-019:** The Manager MAY record a valid `OPEN` request on behalf of an existing
+  Requester account. The selected Requester owns the request and receives the usual
+  Requester rights; the audit event identifies the Manager as the recording actor.
+- **MGR-020:** The Manager MAY make the corrections permitted by LIF-023 in every
+  request state. The interface MUST distinguish a correction from a lifecycle action.
+- **MGR-021:** The default all-request queue order MUST place `OPEN` requests first,
+  sorting them by reported urgency from `Emergency` through `Low` and then oldest
+  creation time. Active assigned work follows, sorted by Manager priority and oldest
+  update time; `COMPLETED`, `CLOSED`, and `CANCELLED` requests follow by newest
+  update time. Display ID breaks ties.
 
 ## Acceptance scenarios
 
@@ -82,7 +91,8 @@ existing work logs are preserved, and the reason is audited.
 
 Given a `COMPLETED` request with a resolution summary, when the Manager accepts
 the work, then status becomes `CLOSED`, closure time is stored, and subsequent
-role writes are rejected unless a Manager reopens it.
+role writes are rejected except for a Manager correction permitted by LIF-023 or
+a Manager reopen action.
 
 ### MGR-A05 — return incomplete work
 
@@ -95,8 +105,14 @@ is retained historically, and the reason appears in audit history.
 Given only one active Manager account exists, when that Manager attempts to
 deactivate it, then the operation is rejected and the account remains active.
 
-### MGR-A07 — export a filtered report
+### MGR-A07 — record a request on behalf
 
-Given a valid date range and matching requests, when the Manager exports the
-report, then a readable CSV containing only the range's report rows is produced
-without credentials or internal diagnostic data.
+Given an existing Requester account, when the Manager records valid request
+details on that account's behalf, then one audited `OPEN` request belongs to that
+Requester and appears in the Requester's own list.
+
+### MGR-A08 — correct terminal request fields
+
+Given a `CLOSED` or `CANCELLED` request, when the Manager corrects a permitted
+field, then the correction is saved and audited without changing status, ownership,
+history, or completion data.

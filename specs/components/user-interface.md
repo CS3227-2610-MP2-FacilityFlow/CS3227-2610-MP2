@@ -1,6 +1,6 @@
 # User interface specification
 
-Status: **Draft v0.1**
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 
 ## Role separation and navigation
 
@@ -58,7 +58,7 @@ Status: **Draft v0.1**
 | Capability | Requester | Technician | Manager |
 |---|---:|---:|---:|
 | Own dashboard | Yes | Yes | Yes |
-| Create request | Yes | No | No |
+| Create request | Yes | No | Record on behalf of an existing Requester |
 | View all requests | No | No | Yes |
 | View assigned requests | No | Yes | Yes |
 | Add requester update | Yes | Read | Read |
@@ -66,7 +66,7 @@ Status: **Draft v0.1**
 | Assign/reprioritize | No | No | Yes |
 | Complete work | No | Yes | Review |
 | Close/reopen/cancel operationally | Own open cancellation only | No | Yes |
-| Manage accounts/audit/reports | No | No | Yes |
+| Manage accounts and audit | No | No | Yes |
 
 At least one automated UI or system-level test MUST verify that each role reaches
 the correct dashboard and cannot navigate to another role's screen.

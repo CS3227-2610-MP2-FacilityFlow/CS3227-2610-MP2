@@ -1,6 +1,6 @@
 # Request lifecycle and data specification
 
-Status: **Draft v0.1**
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 
 ## Request identity and fields
 
@@ -8,9 +8,11 @@ Status: **Draft v0.1**
   immutable display ID in the form `FF-` followed by six digits, for example
   `FF-000123`.
 - **LIF-002:** The system MUST generate display IDs; users MUST NOT choose or edit them.
-- **LIF-003:** A request MUST store its creator, title, description, location,
-  category, reported urgency, manager priority, status, current assignee, creation
-  time, last-updated time, and applicable completion/closure metadata.
+- **LIF-003:** A request MUST store its Requester owner, title, description,
+  location, category, reported urgency, manager priority, status, current assignee,
+  creation time, last-updated time, and applicable completion/closure metadata. The
+  audit trail identifies the authenticated recording actor when a Manager records
+  the request on behalf of the owner.
 - **LIF-004:** User-entered text MUST be trimmed before validation and storage while
   preserving meaningful internal whitespace and line breaks.
 - **LIF-005:** Request creation MUST satisfy all field rules below.
@@ -20,16 +22,16 @@ Status: **Draft v0.1**
 | Title | Required; 5–100 characters after trimming |
 | Description | Required; 10–2,000 characters after trimming |
 | Location | Required; 2–120 characters after trimming |
-| Category | Required enum; baseline values: Electrical, Plumbing, HVAC, Structural, Cleaning, Safety, Other |
+| Category | Required value from the configured category catalogue; the initial catalogue is Electrical, Plumbing, HVAC, Structural, Cleaning, Safety, Other |
 | Reported urgency | Required enum: Low, Normal, High, Emergency |
 | Manager priority | Null until triage; then Low, Medium, High, Critical |
 | Assignment | Null in `OPEN`; active Technician required in assigned/work/review states |
 | Resolution summary | Required for transition to `COMPLETED`; 10–2,000 characters |
 | Transition/cancellation reason | Required when specified below; 5–500 characters |
 
-The category list is a draft decision pending team confirmation. Reported urgency
-is the Requester's input; priority is the Manager's operational decision. The UI
-MUST label them distinctly.
+The category catalogue is a confirmed developer-managed configuration decision.
+Reported urgency is the Requester's input; priority is the Manager's operational
+decision. The UI MUST label them distinctly.
 
 ## Supporting records
 
@@ -61,6 +63,7 @@ Any transition not listed here MUST be rejected.
 | From | To | Actor/action | Additional conditions |
 |---|---|---|---|
 | none | `OPEN` | Requester creates | Valid request data |
+| none | `OPEN` | Manager records on behalf | Valid request data and an existing Requester owner |
 | `OPEN` | `CANCELLED` | Owning Requester cancels | Valid reason |
 | `OPEN` | `ASSIGNED` | Manager assigns | Priority and active Technician required |
 | `OPEN` | `CANCELLED` | Manager cancels | Valid reason |
@@ -80,11 +83,12 @@ Any transition not listed here MUST be rejected.
   database transaction or both roll back.
 - **LIF-013:** An edit that does not change status MUST update `updatedAt` and create
   an audit event describing the action without storing passwords or unnecessary
-  full text values.
+  full text values. This includes a permitted Manager correction.
 - **LIF-014:** A return/reopen operation MUST retain prior completion metadata for
   audit and reporting while allowing a later completion attempt.
-- **LIF-015:** A closed or cancelled request MUST reject comments, work logs, edits,
-  and normal transitions except the defined Manager reopen action from `CLOSED`.
+- **LIF-015:** A closed or cancelled request MUST reject Requester updates, work
+  logs, Requester edits or cancellation, and normal transitions except the defined
+  Manager reopen action from `CLOSED` and the Manager correction in LIF-023.
 - **LIF-016:** Service operations MUST re-read and validate the current state before
   writing so stale screens cannot bypass transition or assignment rules.
 
@@ -96,6 +100,24 @@ Any transition not listed here MUST be rejected.
   in the query as insignificant.
 - **LIF-019:** Empty search/filter results MUST be a valid result, not an error.
 - **LIF-020:** List ordering MUST be deterministic; ties MUST fall back to display ID.
+
+## Category catalogue and Manager corrections
+
+- **LIF-021:** The User Guide and Developer Guide MUST document the category
+  catalogue and its rename/removal mapping contract; the current contract is also
+  recorded in [`docs/CategoryCatalogue.md`](../../docs/CategoryCatalogue.md). A
+  configured category change is applied at application startup, not through a
+  Manager screen.
+- **LIF-022:** A valid category rename mapping MUST migrate affected requests to the
+  replacement category. A configured category removal without a replacement MUST
+  migrate affected requests to `Other`. The migration and its audit events MUST be
+  atomic. A malformed catalogue, duplicate category, or invalid mapping MUST stop
+  startup with an actionable error and leave persistent data unchanged.
+- **LIF-023:** A Manager MAY correct title, description, location, category,
+  reported urgency, and Manager priority in every request state. Display ID,
+  Requester owner, status, assignment history, timestamps, work logs, resolution
+  summaries, and audit events MUST NOT be directly overwritten. Corrections MUST
+  be audited and MUST NOT bypass named lifecycle operations.
 
 ## Transactional acceptance
 

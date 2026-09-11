@@ -1,6 +1,6 @@
 # Quality, delivery, and documentation specification
 
-Status: **Draft v0.1**
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 
 ## Automated testing
 
@@ -65,7 +65,8 @@ unchanged on every operating system.
 ## Documentation and Agentic SE evidence
 
 - **DOC-001:** `docs/UserGuide.md` MUST describe only released behavior and include
-  installation, first-run setup, role-based usage, troubleshooting, and test data guidance.
+  installation, seeded-demo-workspace credentials and guidance, role-based usage,
+  troubleshooting, and category-catalogue configuration guidance.
 - **DOC-002:** `docs/DeveloperGuide.md` MUST describe architecture, data model,
   authorization, request lifecycle, testing, CI/CD, release process, monitoring,
   and acknowledgements.

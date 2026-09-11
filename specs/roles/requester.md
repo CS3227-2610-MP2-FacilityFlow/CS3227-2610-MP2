@@ -1,6 +1,6 @@
 # Requester role specification
 
-Status: **Draft v0.1**  
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 Team owner: **TBD**
 
 ## Role objective
@@ -18,12 +18,13 @@ gaining access to other requesters' data or internal maintenance notes.
 
 ## Requirements
 
-- **REQ-001:** The dashboard MUST show only requests created by the logged-in
+- **REQ-001:** The dashboard MUST show only requests owned by the logged-in
   Requester.
 - **REQ-002:** The Requester MUST be able to create a request using the fields and
   validation rules in `../components/request-lifecycle.md`.
 - **REQ-003:** A successfully created request MUST receive a stable display ID,
-  status `OPEN`, creation time, and creator identity.
+  status `OPEN`, creation time, and the logged-in Requester as owner and recording
+  actor.
 - **REQ-004:** The own-request list MUST support case-insensitive search across
   display ID, title, and location.
 - **REQ-005:** The list MUST support filtering by status, category, and creation-date
@@ -44,6 +45,9 @@ gaining access to other requesters' data or internal maintenance notes.
   preserve the user's unsaved input and explain what can be corrected or retried.
 - **REQ-013:** The Requester MUST NOT assign, reprioritize, start, complete, close,
   reopen, or directly change the status of a request.
+- **REQ-014:** A request recorded by a Manager on behalf of the logged-in Requester
+  MUST appear in that Requester's list and have the same permitted `OPEN` edit and
+  cancellation rights as a request the Requester recorded personally.
 
 ## Acceptance scenarios
 
