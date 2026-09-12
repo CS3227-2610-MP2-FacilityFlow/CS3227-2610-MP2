@@ -1,0 +1,39 @@
+[config]
+use_repo_settings_file = true
+enable_auto_approval = false
+restricted_mode = true
+
+[pr_reviewer]
+extra_instructions = """
+Focus on correctness, bugs and regressions, edge cases, input validation,
+error handling, security issues, maintainability, unnecessary complexity,
+code quality, and test coverage. Prioritize actionable findings with file
+locations, concrete failure scenarios, and minimal suggested fixes.
+Follow FacilityFlow's AGENTS.md and specs/ as the project conventions;
+cite relevant requirement identifiers when available. Respect Java SE 25,
+JavaFX, Gradle, SQLite/JDBC, and JUnit 5. Keep UI, service, storage, model,
+and authentication responsibilities separate: no SQL in controllers and
+no JavaFX dependencies in storage. Check service-layer role and ownership
+permissions, lifecycle transitions, validation, transactional persistence,
+audit records, graceful errors, and logs that do not expose sensitive data.
+Look for normal-path, invalid-input, authorization, invalid-transition,
+and storage-failure tests, with isolated temporary databases where relevant.
+Prefer SRP and DRY with minimal abstractions; flag speculative complexity.
+Do not invent requirements or treat unresolved TBDs as approved behavior.
+"""
+
+[pr_description]
+publish_description_as_comment = true
+extra_instructions = """
+Summarize the actual changes, relevant requirement identifiers, and reported
+verification. Distinguish tests actually run from proposed tests.
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+Suggest small, targeted improvements for correctness, security, validation,
+error handling, test coverage, and maintainability. Follow AGENTS.md and
+specs/ and preserve the UI/service/storage boundaries. Avoid speculative
+abstractions, new dependencies, broad rewrites, and unrelated formatting.
+Leave suggestions for human review; do not apply changes automatically.
+"""
