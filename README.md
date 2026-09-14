@@ -76,8 +76,8 @@ The setup follows the upstream
 
 ## Team
 
-- `ngkhengyang`
-- `yooplo`
-- `yu-sutong`
+- `ngkhengyang` — Technician
+- `yooplo` — Requester
+- `yu-sutong` — Facilities Manager
 
-Individual role ownership is still to be assigned by the team.
+Role assignments were agreed by the team and confirmed on 14 September 2026.

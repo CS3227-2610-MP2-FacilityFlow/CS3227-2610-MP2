@@ -44,7 +44,8 @@ An operational administrator who sees all requests, makes triage and assignment
 decisions, reviews completed work, manages accounts, and uses a simple
 operational overview and audit view.
 
-Individual team-member ownership of these roles remains TBD.
+Team-agreed role ownership (confirmed 14 September 2026): Requester — `yooplo`;
+Technician — `ngkhengyang`; Facilities Manager — `yu-sutong`.
 
 ## MVP scope
 
