@@ -21,8 +21,14 @@ assets from either team member's MP1.
 ## Users and MVP scope
 
 This is a three-person project, so the product has three user roles. Each role
-must have a simple, clearly separate interface. Role ownership by team member
-is TBD and must be recorded here once agreed.
+must have a simple, clearly separate interface. Role ownership:
+
+- Requester: `yooplo`.
+- Technician: `ngkhengyang`.
+- Facilities Manager: `yu-sutong`.
+
+These assignments were agreed by the team, as confirmed by yooplo on
+14 September 2026.
 
 ### Requester
 

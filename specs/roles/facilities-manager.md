@@ -1,7 +1,7 @@
 # Facilities Manager role specification
 
 Status: **Draft v0.2 — requirements confirmed 12 September 2026**
-Team owner: **TBD**
+Team owner: **yu-sutong** (team agreement confirmed 14 September 2026)
 
 ## Role objective
 

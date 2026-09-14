@@ -64,8 +64,6 @@ Minor wording fixes that do not alter behavior do not require a separate proposa
 
 ## Baseline decisions still required
 
-- Assign `Requester`, `Technician`, and `Facilities Manager` ownership to the
-  three team members.
 - Confirm the exact JavaFX release-packaging strategy after a cross-platform spike.
 - Confirm with the teaching team what evidence they expect for desktop-app monitoring.
 
