@@ -1,6 +1,6 @@
 # Technician role specification
 
-Status: **Draft v0.1**  
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 Team owner: **TBD**
 
 ## Role objective
@@ -23,8 +23,9 @@ and submits completed work for managerial review without seeing unrelated work.
   to the logged-in Technician.
 - **TEC-002:** The queue MUST support case-insensitive search by display ID, title,
   and location and filtering by status, category, and priority.
-- **TEC-003:** The default queue order MUST place `IN_PROGRESS` before `ASSIGNED`,
-  then sort by priority and oldest assignment time.
+- **TEC-003:** The default queue order MUST include only the logged-in Technician's
+  assigned requests and sort by Manager priority from `Critical` through `Low`, then
+  reported urgency from `Emergency` through `Low`, then oldest assignment time.
 - **TEC-004:** A Technician MAY transition an assigned request from `ASSIGNED` to
   `IN_PROGRESS` using an explicit start-work action.
 - **TEC-005:** A Technician MAY add a work log only to a request currently assigned

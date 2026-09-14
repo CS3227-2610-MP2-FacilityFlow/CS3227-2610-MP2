@@ -1,6 +1,6 @@
 # FacilityFlow specification index
 
-Status: **Draft baseline v0.1 — awaiting team review**
+Status: **Draft baseline v0.2 — requirements confirmed 12 September 2026**
 
 These specifications are the source of truth for product behavior. They are
 written before implementation so that the three role owners can work against a
@@ -66,7 +66,6 @@ Minor wording fixes that do not alter behavior do not require a separate proposa
 
 - Assign `Requester`, `Technician`, and `Facilities Manager` ownership to the
   three team members.
-- Confirm the category list and whether it is fixed or manager-configurable.
 - Confirm the exact JavaFX release-packaging strategy after a cross-platform spike.
 - Confirm with the teaching team what evidence they expect for desktop-app monitoring.
 

@@ -1,6 +1,6 @@
 # Persistence, audit, and observability specification
 
-Status: **Draft v0.1**
+Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 
 ## SQLite persistence
 
@@ -24,23 +24,22 @@ Status: **Draft v0.1**
 - **DAT-010:** Automated repository tests MUST use isolated temporary databases and
   must never depend on a developer's real application data.
 
-## Data retention and export
+## Data retention
 
 - **DAT-011:** Requests, work logs, requester updates, and audit events MUST NOT be
   hard-deleted through application UI.
 - **DAT-012:** Account deactivation MUST preserve historical authorship.
-- **DAT-013:** CSV export MUST write to a user-selected destination, use UTF-8, add
-  a header row, and escape commas, quotation marks, and line breaks correctly.
-- **DAT-014:** If export fails, any partial output SHOULD be removed or clearly
-  identified, and persistent application data MUST remain unchanged.
+- **DAT-013:** Withdrawn. CSV export is outside the MVP scope.
+- **DAT-014:** Withdrawn. CSV export failure handling is outside the MVP scope.
 
 ## Audit trail
 
 - **DAT-015:** An audit event MUST include immutable ID, UTC timestamp, actor account
   ID, action type, target type, target ID, and safe structured details.
-- **DAT-016:** Audited actions MUST include login success, account creation/state
-  changes, request creation/edit/cancellation, priority/assignment changes, every
-  lifecycle transition, work-log creation, and report export.
+- **DAT-016:** Audited actions MUST include login success, account creation/state,
+  role changes, password changes/resets, request creation including Manager
+  record-on-behalf actions, request edits/cancellation, priority/assignment changes,
+  every lifecycle transition, work-log creation, and category migrations.
 - **DAT-017:** Failed login attempts MUST be recorded only in operational logs; do
   not create permanent audit events containing attempted passwords or usernames
   that are not known accounts.
@@ -54,7 +53,8 @@ Status: **Draft v0.1**
 - **OBS-001:** The application MUST write structured operational logs containing
   timestamp, severity, component, event name, and correlation/request ID when relevant.
 - **OBS-002:** Logs MUST include application startup/shutdown, migration results,
-  handled persistence failures, unexpected exceptions, export outcomes, and build version.
+  category-catalogue migration outcomes, handled persistence failures, unexpected
+  exceptions, and build version.
 - **OBS-003:** Passwords, password hashes, raw database connection secrets, and full
   request descriptions MUST NOT be logged.
 - **OBS-004:** Expected validation and authorization failures SHOULD avoid noisy
