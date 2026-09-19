@@ -1,0 +1,81 @@
+.root {
+    -fx-font-family: "System";
+    -fx-font-size: 14px;
+    -fx-text-fill: #173b25;
+}
+
+.application-shell,
+.manager-shell {
+    -fx-background-color: #f6fbf7;
+}
+
+.shell-title,
+.product-name {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #14532d;
+}
+
+.app-header {
+    -fx-alignment: center-left;
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #bbd8c3 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.identity-label,
+.secondary-text {
+    -fx-text-fill: #41644b;
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #173b25;
+}
+
+.detail-panel {
+    -fx-background-color: #eef8f0;
+}
+
+.button,
+.combo-box {
+    -fx-min-height: 36px;
+}
+
+.primary-button {
+    -fx-background-color: #166534;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.primary-button:hover {
+    -fx-background-color: #14532d;
+}
+
+.primary-button:focused,
+.button:focused,
+.combo-box:focused,
+.table-view:focused {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+}
+
+.feedback-label {
+    -fx-min-height: 42px;
+    -fx-padding: 8px 0 0 0;
+}
+
+.feedback-success {
+    -fx-text-fill: #166534;
+}
+
+.feedback-error {
+    -fx-text-fill: #b91c1c;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #d8eee0;
+    -fx-text-background-color: #173b25;
+}

@@ -7,9 +7,22 @@ requests through an auditable workflow.
 
 ## Current status
 
-The project is in its specification-first phase. No product implementation has
-started. The team will review and approve the baseline specifications before
-building features.
+The approved specification baseline is now being implemented. The first
+Facilities Manager foundation provides the Java 25/Gradle/JavaFX project
+structure, an authorized and transactional `OPEN`-request assignment service,
+SQLite persistence, automated tests, and an injectable Manager queue/detail
+view. The shared login flow, demo-workspace seeding, and complete cross-role
+workflow are not implemented yet.
+
+Run the full local verification with:
+
+```shell
+./gradlew check
+```
+
+The current application entry point intentionally shows an integration notice.
+It does not bypass authentication to open the Manager screen; the shared login
+module must supply an authenticated session and construct the role view.
 
 ## Product roles
 
