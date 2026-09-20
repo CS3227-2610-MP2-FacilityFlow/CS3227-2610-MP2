@@ -1,6 +1,6 @@
 # Request lifecycle and data specification
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 
 ## Request identity and fields
 
@@ -8,6 +8,10 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   immutable display ID in the form `FF-` followed by six digits, for example
   `FF-000123`.
 - **LIF-002:** The system MUST generate display IDs; users MUST NOT choose or edit them.
+  IDs MUST use a database-generated sequence displayed as `FF-000001` through
+  `FF-999999`. Gaps after failures are permitted. Creation beyond this range MUST
+  fail safely without a committed request or creation audit event; IDs MUST NOT
+  wrap around or collide. Allocate identity within the creation transaction.
 - **LIF-003:** A request MUST store its Requester owner, title, description,
   location, category, reported urgency, manager priority, status, current assignee,
   creation time, last-updated time, and applicable completion/closure metadata. The
@@ -16,6 +20,10 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 - **LIF-004:** User-entered text MUST be trimmed before validation and storage while
   preserving meaningful internal whitespace and line breaks.
 - **LIF-005:** Request creation MUST satisfy all field rules below.
+  Title, description, and location lengths count Unicode code points after
+  trimming, not UTF-16 code units or grapheme clusters. A supplementary emoji
+  counts as one code point; combining marks and joined emoji sequences may
+  contain multiple code points. Validation MUST preserve the entered text.
 
 | Field | Rule |
 |---|---|
@@ -108,6 +116,9 @@ Any transition not listed here MUST be rejected.
   recorded in [`docs/CategoryCatalogue.md`](../../docs/CategoryCatalogue.md). A
   configured category change is applied at application startup, not through a
   Manager screen.
+  The catalogue MUST use one Java `.properties` file alongside the shared database,
+  containing the category list and explicit rename/removal mappings, validated
+  at startup before applying changes.
 - **LIF-022:** A valid category rename mapping MUST migrate affected requests to the
   replacement category. A configured category removal without a replacement MUST
   migrate affected requests to `Other`. The migration and its audit events MUST be

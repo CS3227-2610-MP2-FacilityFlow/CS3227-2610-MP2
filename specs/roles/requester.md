@@ -1,7 +1,20 @@
 # Requester role specification
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 Team owner: **yooplo** (team agreement confirmed 14 September 2026)
+
+## Development starter scope
+
+The Requester branch begins with a development-only form preview for REQ-002,
+REQ-012, LIF-004–005, and UIX-007–008. It checks input and retains entered values;
+it does not submit requests, create sessions, or access persistent data. Valid
+input must never be presented as a successful save. This scaffold does not
+complete those end-to-end product requirements.
+
+The preview supplies the initial category list as a fixture. Production category
+configuration, authentication, repository extensions, and auditing now have a
+team-confirmed integration contract; their implementation is still outstanding. The existing product acceptance criteria below
+remain unchanged.
 
 ## Role objective
 
@@ -48,8 +61,22 @@ gaining access to other requesters' data or internal maintenance notes.
 - **REQ-014:** A request recorded by a Manager on behalf of the logged-in Requester
   MUST appear in that Requester's list and have the same permitted `OPEN` edit and
   cancellation rights as a request the Requester recorded personally.
+- **REQ-015:** The own-request list MUST order by creation time descending, then
+  display ID ascending for timestamp ties.
+- **REQ-016:** Creation-date filters MUST include both selected dates using the
+  app's local time zone. Implement the interval from the start date's local start
+  of day up to, but excluding, the day after the end date's local start of day.
+- **REQ-017:** Requester-visible history MUST include status changes,
+  cancellation/reopening reasons, and the owner's follow-up updates. Internal
+  Technician work logs and private Manager notes MUST remain excluded from
+  service results, not merely hidden by the UI.
 
 ## Acceptance scenarios
+
+The next planned increment is authenticated creation and own-request list/detail,
+followed by Manager assignment handoff. The
+[confirmed integration decision](../../docs/decisions/yooplo/0001-requester-integration.md)
+records implementation dependencies; it does not supersede these requirements.
 
 ### REQ-A01 — create a valid request
 
@@ -86,3 +113,28 @@ activity history, and the action is audited.
 Given valid unsaved form data and a simulated storage failure, when saving fails,
 then no partial request exists, all entered values remain visible, and the user
 receives a retryable error message without a stack trace.
+
+### REQ-A07 — persist and isolate own-request reads
+
+For REQ-003, REQ-006, AUT-018–022 and DAT-001–010: given Requesters A and B each
+own stored requests, A's list contains only A's records, and requesting B's
+record by identifier fails without exposing its details. Unauthenticated,
+wrong-role and deactivated callers are rejected. After restart and a new login,
+A can still retrieve their committed request with the same display ID.
+
+### REQ-A08 — hand a created request to the Manager
+
+For REQ-003, REQ-006, REQ-010 and LIF-011–012: given a Requester has committed a
+new request, an authorized Manager sees the same record in the shared database
+and assigns it through the existing assignment service. Refreshing the owner's
+detail shows ASSIGNED and the manager priority without exposing internal notes.
+The creation and assignment audit events retain their respective actors.
+
+### REQ-A09 — roll back failed creation
+
+For REQ-011–012 and DAT-007: given an injected audit-insert failure during
+creation, neither the request nor its creation audit event remains committed.
+The UI reports failure, retains the draft, and does not show save success.
+Retrying after that rolled-back failure creates exactly one request and its
+audit event. While a submission is pending, repeated clicks cannot start another
+submission (UIX-009).

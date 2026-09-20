@@ -19,8 +19,13 @@ java {
 }
 
 javafx {
-    version = '25'
+    version = '25.0.2'
     modules = ['javafx.controls']
+}
+
+application {
+    mainClass = providers.gradleProperty('mainClass').orElse('facilityflow.RequesterPreviewLauncher')
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 
 dependencies {
@@ -29,11 +34,6 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-application {
-    mainClass = 'sg.edu.nus.facilityflow.FacilityFlowApplication'
-    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -47,6 +47,15 @@ tasks.withType(Test).configureEach {
     finalizedBy jacocoTestReport
 }
 
+checkstyle {
+    toolVersion = '10.26.1'
+    maxWarnings = 0
+}
+
+jacoco {
+    toolVersion = '0.8.14'
+}
+
 jacocoTestReport {
     dependsOn test
     reports {
@@ -55,9 +64,10 @@ jacocoTestReport {
     }
 }
 
-checkstyle {
-    toolVersion = '10.26.1'
-    configFile = file('config/checkstyle/checkstyle.xml')
+wrapper {
+    gradleVersion = '9.1.0'
+    distributionType = Wrapper.DistributionType.BIN
+    distributionSha256Sum = 'a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806'
 }
 
 tasks.named('check') {

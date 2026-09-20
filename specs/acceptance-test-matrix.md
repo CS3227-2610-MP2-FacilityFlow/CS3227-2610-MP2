@@ -1,6 +1,6 @@
 # Acceptance test matrix
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 
 This file defines release-level scenarios. Detailed unit and integration cases
 are derived from the role/component requirements and tracked in test names or
@@ -37,6 +37,29 @@ test metadata using the listed requirement identifiers.
 | E2E-027 | Correct request fields safely | MGR-020, LIF-023 | The Manager can correct permitted fields in every state without overwriting workflow state, ownership, history, or audit records |
 
 ## Test naming convention
+
+Additional team-confirmed integration checks (20 September 2026; not yet executed):
+
+| ID | Scenario | Principal requirements | Expected result |
+|---|---|---|---|
+| E2E-028 | Password boundaries and own-password change | AUT-004–005, AUT-033 | Lengths 8/24 pass without composition rules, 7/25 fail; stored password is hashed and current session survives own-password change |
+| E2E-029 | Live role change | AUT-018–021, AUT-028–029, AUT-032 | Eligible change keeps the session, rejects now-forbidden old-role action, and routes to current role without login |
+| E2E-030 | Manager password reset | AUT-030 | Next protected call rejects the target's old session and returns to login |
+| E2E-031 | Requester order and date boundaries | REQ-015–016 | Newest creation first with ascending display-ID ties; both selected local dates included, next day's midnight excluded |
+| E2E-032 | Requester history visibility | REQ-010, REQ-017 | Status changes, cancellation/reopening reasons, and own updates are returned; internal logs/private notes never reach Requester results |
+| E2E-033 | ID exhaustion and safe creation audit | LIF-002, DAT-007, DAT-015–019 | Generated IDs stay unique and six-digit; beyond FF-999999 fails atomically; creation audit includes identity/actor/target/time/action but no full title, description, or location |
+| E2E-034 | Shared data and catalogue location | DAT-001, DAT-010, LIF-021–022 | Roles use one OS-user application-data database and adjacent properties catalogue; invalid configuration changes nothing; tests use separate temporary databases |
+
+Requester integration milestone (planned; no new pass results):
+
+| Role acceptance | Existing release scenarios | Integration evidence required |
+|---|---|---|
+| REQ-A07 | E2E-013, E2E-016, E2E-018 | Owner-only list/detail, safe denial for other users and inactive sessions, and reload after restart/login |
+| REQ-A08 | E2E-003, E2E-005 | Requester-created record reaches Manager assignment in the same database; owner sees assigned state and only permitted history |
+| REQ-A09 | E2E-003, E2E-004, E2E-017 | Creation and audit roll back together on injected failure; input survives, pending submission cannot duplicate, and retry after rollback creates one record |
+
+See the [Requester acceptance scenarios](roles/requester.md) and
+[confirmed integration decision](../docs/decisions/yooplo/0001-requester-integration.md).
 
 Automated tests SHOULD include at least one requirement identifier in the test
 name or display name, for example:

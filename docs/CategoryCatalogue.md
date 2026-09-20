@@ -11,8 +11,12 @@ catalogue. The initial catalogue contains:
 - Safety
 - Other
 
-The concrete configuration-file path and syntax will be selected during
-implementation. Its behaviour must satisfy the contract below.
+Team-confirmed on 20 September 2026: use one Java `.properties` file alongside
+the shared SQLite database in the OS user's application-data directory. It holds
+the category list and explicit rename/removal mappings and is validated at startup.
+`yu-sutong` owns configuration and migrations together. Exact filenames/property
+keys are implementation details to document when implemented; no particular keys
+or working configuration loader are claimed here.
 
 ## Changing the catalogue
 

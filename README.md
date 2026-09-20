@@ -7,22 +7,32 @@ requests through an auditable workflow.
 
 ## Current status
 
-The approved specification baseline is now being implemented. The first
-Facilities Manager foundation provides the Java 25/Gradle/JavaFX project
-structure, an authorized and transactional `OPEN`-request assignment service,
-SQLite persistence, automated tests, and an injectable Manager queue/detail
-view. The shared login flow, demo-workspace seeding, and complete cross-role
-workflow are not implemented yet.
+The Requester branch contains a development form preview and a Java 25/JavaFX
+build/test scaffold. The preview validates fields but does not log in, save
+requests, or implement the complete workflow. The team confirmed the integration contract on 20 September 2026;
+implementation and human review of generated changes remain outstanding.
 
-Run the full local verification with:
+The merged Facilities Manager foundation adds an authorized, transactional
+`OPEN`-request assignment service, SQLite persistence, automated tests, and an
+injectable queue/detail view. Shared login, demo seeding, and the complete
+cross-role workflow remain unfinished.
 
-```shell
-./gradlew check
+## Run the Requester starter
+
+Install a JDK 25 and configure `JAVA_HOME` to its installation directory. From
+the repository root in PowerShell:
+
+```powershell
+./gradlew.bat test
+./gradlew.bat check
+./gradlew.bat run
 ```
 
-The current application entry point intentionally shows an integration notice.
-It does not bypass authentication to open the Manager screen; the shared login
-module must supply an authenticated session and construct the role view.
+The wrapper downloads Gradle and dependencies on first use; no separate Gradle
+or JavaFX SDK installation is needed. On macOS/Linux use `sh ./gradlew` in place
+of `./gradlew.bat`. Linux UI tests need a display; CI uses `xvfb-run`.
+See [Requester preparation](docs/RequesterPreparation.md) for the next tasks and
+the [Developer Guide](docs/DeveloperGuide.md) for the file map and setup details.
 
 ## Product roles
 
@@ -94,3 +104,10 @@ The setup follows the upstream
 - `yu-sutong` — Facilities Manager
 
 Role assignments were agreed by the team and confirmed on 14 September 2026.
+See the [Requester preparation checklist](docs/RequesterPreparation.md) for
+`yooplo`'s scope, shared dependencies, and suggested first pull requests.
+
+Shared responsibilities (team-confirmed through yooplo, 20 September 2026):
+- `yooplo`: login, sessions, and role routing.
+- `yu-sutong`: migrations, demo seeding, and category configuration/migrations.
+See the [confirmed integration decision](docs/decisions/yooplo/0001-requester-integration.md).
