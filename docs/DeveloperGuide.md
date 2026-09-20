@@ -140,6 +140,12 @@ runtime-image packaging choices remain part of the shared release spike.
 
 ## Next integration and release work
 
+The [Requester integration proposal](decisions/yooplo/0001-requester-integration.md)
+defines the next create/list/detail milestone and shared contracts to review.
+In particular, the existing session record does not implement authentication,
+and the current Manager storage interface cannot insert a new request or query
+only one owner's requests. Proposed extensions are not implemented yet.
+
 Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
 Agree shared account/session and repository contracts before adding protected
 operations. Add isolated SQLite transaction tests, then wire create/list/detail

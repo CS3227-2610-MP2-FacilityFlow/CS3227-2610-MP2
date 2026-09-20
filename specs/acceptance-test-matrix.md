@@ -38,6 +38,17 @@ test metadata using the listed requirement identifiers.
 
 ## Test naming convention
 
+Requester integration milestone (planned; no new pass results):
+
+| Role acceptance | Existing release scenarios | Integration evidence required |
+|---|---|---|
+| REQ-A07 | E2E-013, E2E-016, E2E-018 | Owner-only list/detail, safe denial for other users and inactive sessions, and reload after restart/login |
+| REQ-A08 | E2E-003, E2E-005 | Requester-created record reaches Manager assignment in the same database; owner sees assigned state and only permitted history |
+| REQ-A09 | E2E-003, E2E-004, E2E-017 | Creation and audit roll back together on injected failure; input survives, pending submission cannot duplicate, and retry after rollback creates one record |
+
+See the [Requester acceptance scenarios](roles/requester.md) and
+[integration proposal](../docs/decisions/yooplo/0001-requester-integration.md).
+
 Automated tests SHOULD include at least one requirement identifier in the test
 name or display name, for example:
 

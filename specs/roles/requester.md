@@ -64,6 +64,11 @@ gaining access to other requesters' data or internal maintenance notes.
 
 ## Acceptance scenarios
 
+The next planned increment is authenticated creation and own-request list/detail,
+followed by Manager assignment handoff. The
+[integration proposal](../../docs/decisions/yooplo/0001-requester-integration.md)
+records implementation dependencies; it does not supersede these requirements.
+
 ### REQ-A01 — create a valid request
 
 Given an active Requester is logged in, when they submit every required field
@@ -99,3 +104,28 @@ activity history, and the action is audited.
 Given valid unsaved form data and a simulated storage failure, when saving fails,
 then no partial request exists, all entered values remain visible, and the user
 receives a retryable error message without a stack trace.
+
+### REQ-A07 — persist and isolate own-request reads
+
+For REQ-003, REQ-006, AUT-018–022 and DAT-001–010: given Requesters A and B each
+own stored requests, A's list contains only A's records, and requesting B's
+record by identifier fails without exposing its details. Unauthenticated,
+wrong-role and deactivated callers are rejected. After restart and a new login,
+A can still retrieve their committed request with the same display ID.
+
+### REQ-A08 — hand a created request to the Manager
+
+For REQ-003, REQ-006, REQ-010 and LIF-011–012: given a Requester has committed a
+new request, an authorized Manager sees the same record in the shared database
+and assigns it through the existing assignment service. Refreshing the owner's
+detail shows ASSIGNED and the manager priority without exposing internal notes.
+The creation and assignment audit events retain their respective actors.
+
+### REQ-A09 — roll back failed creation
+
+For REQ-011–012 and DAT-007: given an injected audit-insert failure during
+creation, neither the request nor its creation audit event remains committed.
+The UI reports failure, retains the draft, and does not show save success.
+Retrying after that rolled-back failure creates exactly one request and its
+audit event. While a submission is pending, repeated clicks cannot start another
+submission (UIX-009).

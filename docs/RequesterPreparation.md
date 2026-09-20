@@ -1,6 +1,6 @@
 # Requester preparation: yooplo
 
-Status: Requester starter, 14 September 2026. A Gradle/JavaFX form preview and
+Status: integration planning, 20 September 2026. A Gradle/JavaFX form preview and
 validation tests are now present. The merged Manager foundation supplies SQLite
 storage and session identity; Requester persistence and shared login are not integrated.
 Team-agreed ownership, confirmed by yooplo on
@@ -9,6 +9,12 @@ Manager — yu-sutong. Shared design decisions and generated documentation still
 need team review.
 
 ## Start here
+
+The next milestone is **authenticated create/list/detail with Manager handoff**.
+Start with the [integration proposal](decisions/yooplo/0001-requester-integration.md):
+it records the current storage/session gaps, proposed service operations,
+decisions for team review, and implementation sequence. This is a plan, not
+confirmation that the shared contracts are approved or the feature exists.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
