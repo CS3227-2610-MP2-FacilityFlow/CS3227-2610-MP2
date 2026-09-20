@@ -1,6 +1,6 @@
 # Requester role specification
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 Team owner: **yooplo** (team agreement confirmed 14 September 2026)
 
 ## Development starter scope
@@ -12,8 +12,8 @@ input must never be presented as a successful save. This scaffold does not
 complete those end-to-end product requirements.
 
 The preview supplies the initial category list as a fixture. Production category
-configuration, authentication, repository contracts, and auditing require shared
-team review before integration. The existing product acceptance criteria below
+configuration, authentication, repository extensions, and auditing now have a
+team-confirmed integration contract; their implementation is still outstanding. The existing product acceptance criteria below
 remain unchanged.
 
 ## Role objective
@@ -61,12 +61,21 @@ gaining access to other requesters' data or internal maintenance notes.
 - **REQ-014:** A request recorded by a Manager on behalf of the logged-in Requester
   MUST appear in that Requester's list and have the same permitted `OPEN` edit and
   cancellation rights as a request the Requester recorded personally.
+- **REQ-015:** The own-request list MUST order by creation time descending, then
+  display ID ascending for timestamp ties.
+- **REQ-016:** Creation-date filters MUST include both selected dates using the
+  app's local time zone. Implement the interval from the start date's local start
+  of day up to, but excluding, the day after the end date's local start of day.
+- **REQ-017:** Requester-visible history MUST include status changes,
+  cancellation/reopening reasons, and the owner's follow-up updates. Internal
+  Technician work logs and private Manager notes MUST remain excluded from
+  service results, not merely hidden by the UI.
 
 ## Acceptance scenarios
 
 The next planned increment is authenticated creation and own-request list/detail,
 followed by Manager assignment handoff. The
-[integration proposal](../../docs/decisions/yooplo/0001-requester-integration.md)
+[confirmed integration decision](../../docs/decisions/yooplo/0001-requester-integration.md)
 records implementation dependencies; it does not supersede these requirements.
 
 ### REQ-A01 — create a valid request

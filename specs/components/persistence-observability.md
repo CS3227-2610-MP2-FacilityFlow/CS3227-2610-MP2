@@ -1,11 +1,14 @@
 # Persistence, audit, and observability specification
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 
 ## SQLite persistence
 
 - **DAT-001:** Production data MUST be stored in a local SQLite database outside
   the packaged application artifact.
+  All three roles MUST use the same database in the operating-system user's
+  application-data directory. This is shared across app roles within that local
+  workspace, not a server or a database shared between OS user profiles.
 - **DAT-002:** The application MUST enable SQLite foreign-key enforcement for every
   connection.
 - **DAT-003:** Schema changes MUST be applied through ordered, versioned migrations;
@@ -23,6 +26,7 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   without displaying a raw exception or silently discarding data.
 - **DAT-010:** Automated repository tests MUST use isolated temporary databases and
   must never depend on a developer's real application data.
+  Each integration test MUST have its own temporary database.
 
 ## Data retention
 
@@ -47,6 +51,9 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   deterministically by time then immutable ID.
 - **DAT-019:** Audit detail MUST describe changed field names and workflow reasons
   without duplicating password data or full sensitive free-text fields.
+  Creation events MUST record actor, request ID, UTC timestamp, and action type,
+  together with the event identity and target metadata required by DAT-015.
+  They MUST NOT include the full title, description, or location.
 
 ## Operational logs and monitoring
 

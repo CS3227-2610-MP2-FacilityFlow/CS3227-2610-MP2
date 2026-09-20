@@ -9,8 +9,8 @@ requests through an auditable workflow.
 
 The Requester branch contains a development form preview and a Java 25/JavaFX
 build/test scaffold. The preview validates fields but does not log in, save
-requests, or implement the complete workflow. Shared integration decisions
-still require team review.
+requests, or implement the complete workflow. The team confirmed the integration contract on 20 September 2026;
+implementation and human review of generated changes remain outstanding.
 
 The merged Facilities Manager foundation adds an authorized, transactional
 `OPEN`-request assignment service, SQLite persistence, automated tests, and an
@@ -106,3 +106,8 @@ The setup follows the upstream
 Role assignments were agreed by the team and confirmed on 14 September 2026.
 See the [Requester preparation checklist](docs/RequesterPreparation.md) for
 `yooplo`'s scope, shared dependencies, and suggested first pull requests.
+
+Shared responsibilities (team-confirmed through yooplo, 20 September 2026):
+- `yooplo`: login, sessions, and role routing.
+- `yu-sutong`: migrations, demo seeding, and category configuration/migrations.
+See the [confirmed integration decision](docs/decisions/yooplo/0001-requester-integration.md).

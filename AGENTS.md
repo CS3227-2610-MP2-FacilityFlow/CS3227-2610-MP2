@@ -34,6 +34,18 @@ Each owner covers UI, service logic, persistence integration, authorization,
 tests, and documentation. Requester preparation is tracked in
 `docs/RequesterPreparation.md`.
 
+Shared responsibilities confirmed by yooplo on behalf of the team on
+20 September 2026:
+
+- `yooplo`: login, session management, and role routing, in addition to Requester.
+- `yu-sutong`: versioned database migrations, atomic demo-data seeding, and
+  category configuration including startup validation and rename/removal migrations.
+- Shared package: `sg.edu.nus.facilityflow`; reuse the Manager foundation's shared
+  models and extend its transaction boundary for Requester creation/owner-only reads.
+
+See `docs/decisions/yooplo/0001-requester-integration.md` for the confirmed contract.
+Agreement does not mean these components have been implemented or verified.
+
 ### Requester
 
 - Submit a maintenance request with validated details.

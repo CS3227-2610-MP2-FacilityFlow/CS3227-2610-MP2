@@ -2,7 +2,7 @@
 
 - Owner: `yooplo`
 - Date: 20 September 2026
-- Status: Proposed for team review; implementation not started
+- Status: Team-confirmed by yooplo on 20 September 2026; implementation not started
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
@@ -30,44 +30,54 @@ query operation. `SQLiteManagerAssignmentStore.initializeSchema()` provides
 initial tables, not versioned migrations. The audit model/schema must also be
 reviewed against DAT-015–019 before adding Requester creation events.
 
-## Proposed integration contract
+## Confirmed integration contract
 
-| Area | Proposal | Review needed |
-|---|---|---|
-| Packages/model | Move Requester classes under `sg.edu.nus.facilityflow`; reuse shared request/status/urgency/account types; retain the input-only RequestDraft and pure validator | Both role owners; preserve all existing Manager tests |
-| Session | Login supplies the shared session; each Requester service call rechecks the persisted account's active flag and role; auth owns session invalidation | Shared auth owner must be assigned; clarify password-reset invalidation |
-| Services | Add createRequest(session, draft), listOwnRequests(session), getOwnRequest(session, requestId); no owner or actor supplied by the form | Names/signatures and safe error contract to confirm |
-| Persistence | Evolve the existing transaction boundary for creation and owner-scoped reads against the same database, with prepared statements and rollback | Coordinate with yu-sutong; agree interface ownership/name before changing it |
-| Creation | Validate with the production catalogue, derive owner/actor from session, generate identity/timestamps, set OPEN with null priority/assignee, and commit request plus audit together | Agree ID allocation, display-ID exhaustion handling, and audit representation |
-| Read visibility | Check role and ownership before returning data; return only requester-visible history, even for guessed IDs | Confirm the shared history representation; UI hiding alone is insufficient |
-| JavaFX | Shared login routes to Requester navigation; database work runs off the JavaFX thread; disable submit while pending, retain input on failure, refresh only after commit | Agree routing/session-expiry callbacks with the auth owner |
+Yooplo explicitly confirmed that all answers from the decision interview were
+agreed by the team. This is a record of that report, not separate reviewer
+signatures or a claim that generated code/documentation has been reviewed.
 
-The application must not manufacture a session or add a permanent role picker
-to make integration appear complete. Test fixtures may supply sessions/accounts
-in isolated tests; they do not replace real login or demo seeding.
+| Area | Confirmed decision |
+|---|---|
+| Packages/models | Use `sg.edu.nus.facilityflow` and reuse the Manager foundation's shared request, account, status, and urgency types; retain input-only RequestDraft and pure validation |
+| Storage extension | Requester work may extend the shared SQLite transaction boundary for creation and owner-only reads while preserving Manager assignment tests |
+| Authentication owner | yooplo owns login, session management, and role routing in addition to Requester |
+| Data/configuration owner | yu-sutong owns versioned migrations, atomic demo seeding, and category configuration/startup migrations together |
+| Passwords | 8–24 characters inclusive, no composition rule; salted secure hashing remains mandatory (AUT-004–005) |
+| Deactivation/reset | Reject deactivated sessions on the next protected call; Manager password reset invalidates the affected session (AUT-022, AUT-030) |
+| Role changes | Retain session, recheck current persisted role on every protected action, reject now-forbidden old-role actions, and route to the current role without login (AUT-032) |
+| Own password change | Keep the user's current session (AUT-033) |
+| Own-list ordering | Creation time descending, display ID ascending for ties (REQ-015) |
+| Date filters | Inclusive start/end dates in the app's local time zone (REQ-016) |
+| Visible history | Status changes, cancellation/reopening reasons, and own follow-ups; no internal work logs/private Manager notes (REQ-017) |
+| IDs | Database-generated sequence, FF-000001 through FF-999999; gaps permitted; reject exhausted range without partial writes (LIF-002) |
+| Creation audit | Actor, request ID, UTC timestamp, action, and existing DAT-015 identity/target metadata; exclude full title, description, and location (DAT-019) |
+| Database | One shared local database for all app roles under the OS user's application-data directory; separate temporary database per integration test (DAT-001, DAT-010) |
+| Catalogue | One Java .properties file beside the database with categories and rename/removal mappings, validated at startup (LIF-021–022) |
 
-## Decisions to settle before dependent implementation
+The earlier suggestion to allocate categories to ngkhengyang was not adopted.
+Category configuration stays with yu-sutong's database responsibilities.
 
-- [ ] Both role owners review the package/model and transaction-boundary proposal.
-- [ ] Assign owners for shared authentication/routing, migrations, catalogue, and
-  atomic demo seeding. No teammate is assigned new work by this proposal.
-- [ ] Define session trust and invalidation, including deactivation, role changes,
-  and password reset. Re-reading an account alone does not detect password reset.
-- [ ] Resolve AUT-004 versus the 12 September requirements log's password policy
-  before implementing login. Record the agreed policy in the spec deliberately.
-- [ ] Agree versioned schema migration and the path to reuse the same database
-  across all roles without deleting existing requests or audit records.
-- [ ] Agree atomic ID allocation and audit fields (actor, target, time, action,
-  safe details), including failure/rollback and display-ID uniqueness.
-- [ ] Agree production category configuration format/location and startup wiring.
-- [ ] Agree deterministic own-list ordering and requester-visible history fields.
-  Date-filter boundaries can be settled with the later filtering increment.
+## Implementation boundaries
 
-Only decisions essential to a particular increment block that increment. Review
-and test planning can proceed now; do not mark this proposal approved or claim
-team agreement until reviewers actually confirm it.
+Start with createRequest(session, draft), listOwnRequests(session), and
+getOwnRequest(session, requestId). The form must not supply owner, actor, status,
+or generated identity. Login supplies a trusted session; services re-read the
+persisted active flag and role and enforce ownership. Atomic creation includes
+validation, ID allocation, OPEN status, null priority/assignee, timestamps, and
+one creation audit event. Neither write remains after rollback.
 
-## Implementation sequence after the relevant review
+Database work runs off the JavaFX thread; pending submission disables repeated
+clicks, failed saves retain input, and successful saves refresh persisted data.
+Do not manufacture sessions or introduce a permanent role picker as a login
+replacement. Isolated test fixtures do not establish real authentication.
+
+The password-policy discrepancy is resolved in AUT-004. The team decisions
+above are no longer review blockers. Implementation still needs concrete schema
+versions, configuration filenames/property keys, and a way to detect Manager
+password-reset invalidation; reading the account's role alone cannot detect it.
+Document these details as implemented and preserve existing data and tests.
+
+## Implementation sequence
 
 1. Consolidate Requester packages and urgency type, adjust launcher/test imports,
    and run both role suites to establish no behavior regression.
@@ -83,10 +93,12 @@ Use small PRs on topic branches; no shared API rename or schema replacement
 should silently break the incoming Manager slice. The current preview remains
 available while authentication integration is incomplete.
 
-## Review record
+## Confirmation record
 
-| Reviewer | Decision/date | Notes |
-|---|---|---|
-| yooplo | Pending | Review generated proposal and Requester scope |
-| yu-sutong | Pending | Shared storage, audit, model, and Manager handoff |
-| ngkhengyang | Pending | Shared model, session, and later Technician handoff |
+- Source: yooplo's explicit statement, "all are confirmed by the team", in the
+  20 September 2026 decision interview.
+- Scope: shared package/models and storage extension, responsibilities, password
+  and session behavior, ordering/filtering/history, IDs/audit, and data/config location.
+- This confirmation supersedes the earlier pending decision/reviewer placeholders.
+- Human review of the resulting documentation and future code remains required;
+  no individual teammate signature or implementation completion is asserted.

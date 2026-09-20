@@ -53,7 +53,8 @@ application shell (an integration notice, not an authenticated Manager screen):
 | [RequestValidatorTest](../src/test/java/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
-`facilityflow` is the starter package; review this shared choice with teammates.
+`facilityflow` is the existing preview package; the team has agreed to migrate
+it to the shared `sg.edu.nus.facilityflow` package and reuse shared models.
 The incoming Manager foundation uses `sg.edu.nus.facilityflow` and provides
 session identity and storage components. These are not yet wired to the
 Requester preview; the two package trees are retained during this merge.
@@ -138,17 +139,39 @@ The current classpath-based JavaFX test emits an upstream warning that JavaFX
 classes are loaded from an unnamed module; the control test passes. Module and
 runtime-image packaging choices remain part of the shared release spike.
 
+## Confirmed integration responsibilities and behavior
+
+Team agreement reported by yooplo on 20 September 2026:
+
+- yooplo owns login, session management, and routing; yu-sutong owns versioned
+  migrations, demo seeding, and category configuration/migrations.
+- Passwords use 8–24 characters without composition rules and remain salted/hashed.
+- Role changes retain sessions, reauthorize each operation, and reroute; own-password
+  changes retain the current session. Deactivation and Manager resets require login
+  on the next protected operation (AUT-022, AUT-030, AUT-032–033).
+- All app roles share one SQLite database in the OS user's application-data
+  directory. Each integration test gets a separate temporary database.
+- The category catalogue is one Java .properties file beside that database.
+  See [CategoryCatalogue.md](CategoryCatalogue.md) for validation/migration rules.
+- Display IDs are database-generated FF-000001 through FF-999999, with gaps allowed
+  and safe rejection at exhaustion. Audit records omit full request text/location.
+- Requester lists use creation descending/display ID ascending; date filters are
+  inclusive local dates; history includes status/reasons/follow-ups but no private notes.
+
+These are implementation contracts, not claims of implemented or released features.
+Exact configuration filenames/keys and schema/session-version details are to be
+recorded when implemented, consistently with the confirmed requirements.
+
 ## Next integration and release work
 
-The [Requester integration proposal](decisions/yooplo/0001-requester-integration.md)
-defines the next create/list/detail milestone and shared contracts to review.
+The [confirmed Requester integration decision](decisions/yooplo/0001-requester-integration.md)
+defines the next create/list/detail milestone and team-agreed shared contracts.
 In particular, the existing session record does not implement authentication,
 and the current Manager storage interface cannot insert a new request or query
-only one owner's requests. Proposed extensions are not implemented yet.
+only one owner's requests. Agreed extensions are not implemented yet.
 
 Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
-Agree shared account/session and repository contracts before adding protected
-operations. Add isolated SQLite transaction tests, then wire create/list/detail
+Implement the confirmed account/session and repository contracts. Add isolated SQLite transaction tests, then wire create/list/detail
 to authenticated navigation. Add edit/cancel, visible history, and filters next.
 The Manager slice still needs authenticated routing, search/filter/reset,
 the remaining transitions, account administration, summaries, and audit browsing.

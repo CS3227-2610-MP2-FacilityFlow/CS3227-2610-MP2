@@ -1,6 +1,6 @@
 # Authentication and authorization specification
 
-Status: **Draft v0.2 — requirements confirmed 12 September 2026**
+Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
 
 ## Account model
 
@@ -9,8 +9,8 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 - **AUT-002:** Usernames MUST be 3–32 characters, use only letters, digits, `.`, `_`,
   or `-`, and be unique case-insensitively.
 - **AUT-003:** Display names MUST contain 2–80 non-blank characters after trimming.
-- **AUT-004:** Passwords MUST contain at least 10 characters and at least three of:
-  lowercase letters, uppercase letters, digits, and symbols.
+- **AUT-004:** Passwords MUST contain 8–24 characters inclusive. No character-class
+  composition rule applies. Salted hashing under AUT-005 remains required.
 - **AUT-005:** Passwords MUST be salted and hashed using a maintained password
   hashing function. Plaintext or reversibly encrypted passwords MUST NOT be stored
   or written to logs.
@@ -81,8 +81,22 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   on its next protected service operation.
 - **AUT-031:** Account role changes and password changes or resets MUST satisfy the
   relevant validation rules and produce audit events without storing password data.
+- **AUT-032:** A role change MUST retain the authenticated session. Every protected
+  action MUST recheck the persisted active flag and current role. An action no
+  longer permitted by the new role MUST be rejected without business changes;
+  the UI MUST route to the current role's screen without requiring another login.
+- **AUT-033:** A successful change of the user's own password MUST retain their
+  current authenticated session. This does not override deactivation rejection
+  under AUT-022 or Manager-reset invalidation under AUT-030.
 
 ## Acceptance scenarios
+
+- Passwords of 8 and 24 characters pass the length rule without requiring mixed
+  character classes; lengths 7 and 25 fail. Hashing remains mandatory.
+- Changing an eligible account's role retains its session, rejects an old-role
+  action that is no longer permitted, and routes to the new role without login.
+- Changing one's own password retains the current session; a Manager reset
+  instead rejects the affected session on its next protected operation.
 
 - A valid active account reaches exactly its role dashboard.
 - An incorrect password, unknown username, and inactive account produce the same

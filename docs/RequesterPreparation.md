@@ -5,16 +5,16 @@ validation tests are now present. The merged Manager foundation supplies SQLite
 storage and session identity; Requester persistence and shared login are not integrated.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
-Manager — yu-sutong. Shared design decisions and generated documentation still
-need team review.
+Manager — yu-sutong. Integration decisions were confirmed by yooplo on behalf of the team on
+20 September 2026. Generated documentation and future code still need human review.
 
 ## Start here
 
 The next milestone is **authenticated create/list/detail with Manager handoff**.
-Start with the [integration proposal](decisions/yooplo/0001-requester-integration.md):
-it records the current storage/session gaps, proposed service operations,
-decisions for team review, and implementation sequence. This is a plan, not
-confirmation that the shared contracts are approved or the feature exists.
+Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
+Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
+migrations, demo seeding, and category configuration together. The decisions are
+agreed; feature implementation is still outstanding.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
@@ -25,9 +25,9 @@ confirmation that the shared contracts are approved or the feature exists.
    The preview must keep your input and explicitly say nothing was saved.
 4. Read `RequestDraft`, `RequestValidator`, and their tests, then `RequesterForm`.
    The [Developer Guide](DeveloperGuide.md) links each file and explains its role.
-5. Ask ngkhengyang and yu-sutong to review the shared build and proposed model/
-   validator before building on it. Agree who supplies the session, category
-   catalogue, and request repository. Resolve the authentication discrepancy below.
+5. Consolidate Requester packages/models under `sg.edu.nus.facilityflow` and
+   coordinate storage changes with yu-sutong. Follow the confirmed session and
+   password contract; preserve the existing Manager tests.
 6. Your first complete feature is **create and view my own request**: implement
    the authenticated service operation and atomic request/audit transaction, test
    rollback and cross-user denial, then wire the form to it and add list/detail.
@@ -52,35 +52,30 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 
 - [x] Confirm team role ownership: yooplo (Requester), ngkhengyang (Technician),
   and yu-sutong (Facilities Manager).
-- [ ] Have the team review relevant shared specifications and assign owners for
-  shared setup work.
+- [x] Confirm integration decisions and shared owners, as reported by yooplo.
+- [ ] Human-review the resulting documentation and implementation changes.
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
 - [ ] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR.
 - [ ] Integrate Requester persistence with the incoming SQLite foundation;
   JDBC and Manager rollback tests now exist, but versioned migrations and
   Requester transaction tests still need implementation.
-- [ ] Agree the base package, shared request/account model, session contract,
-  service operations, repository schema/migrations, and atomic audit writes.
-  Share these components across roles; controllers must call services, not SQL.
-- [ ] Agree how login routes to your Requester screens and how protected calls
-  reject inactive sessions. Use two Requester accounts in test/demo data so
-  ownership isolation can be demonstrated (AUT-007, AUT-018–022).
-- [ ] Agree the category configuration format/location using the existing
-  [catalogue contract](CategoryCatalogue.md), plus list ordering and date-range
-  boundary/time-zone semantics before implementing filters.
-- [ ] Resolve the password-policy discrepancy before authentication work:
-  AUT-004 requires at least 10 characters and three character classes, while the
-  [12 September session log](../logs/2026-09-12-requirements-grilling-and-documentation.md)
-  records 8–24 characters without composition rules. Record the team's decision
-  deliberately; this checklist does not change either source.
+- [x] Confirm shared package/models and creation/owner-read storage extensions.
+- [x] Confirm login/session/routing ownership and session rules (AUT-032–033).
+- [x] Confirm category properties-file format/location, owner, and startup rules.
+- [x] Confirm own-list ordering, inclusive local dates, and visible history
+  (REQ-015–017).
+- [x] Resolve password discrepancy: AUT-004 now requires 8–24 characters and no
+  composition rule; AUT-005 hashing still applies.
+- [x] Confirm database location, sequential six-digit IDs, and creation audit fields.
+- [ ] Implement the agreed schema migrations, catalogue loader, and session-reset
+  detection; record concrete filenames/property keys and schema versions.
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Repository setup and test-harness preparation can proceed while team decisions
-are pending. Do not implement behavior whose essential contract is unresolved.
-Shared setup is team work; taking Requester ownership does not automatically
-assign all infrastructure and authentication work to yooplo.
+Begin the package/model consolidation next, then implement the agreed services
+and storage integration. Shared responsibilities follow the confirmed ownership
+above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests
 
@@ -121,7 +116,6 @@ same field rules. Finish the full workflow before decorative dashboard work.
   record each substantial AI session under `logs/` with human review pending
   until a team member actually verifies it.
 
-Agree a substantial team-level contribution in addition to the role slice.
-One candidate is helping develop and evaluate the required role-permission test
-generator skill using Requester isolation and transition cases; ownership of
-that contribution is not assigned by this checklist.
+Your confirmed team-level contribution is login, session management, and role
+routing. The required agent-skill development/evaluation work still needs to be
+tracked separately; this decision does not assign all three skills to you.
