@@ -12,6 +12,10 @@ Choose **Check details**. Invalid fields receive guidance, and entered values
 remain in the form. Valid details produce a message confirming only validation;
 nothing is saved. Closing the window discards all input.
 
+Title, description, and location limits count Unicode code points after trimming.
+A supplementary emoji counts once; combining marks and joined emoji sequences
+can count as multiple characters even when displayed as one symbol.
+
 The preview uses the seven initial categories from the
 [category catalogue contract](CategoryCatalogue.md). Production catalogue
 configuration and migration are not available yet.

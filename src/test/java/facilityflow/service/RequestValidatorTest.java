@@ -15,6 +15,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RequestValidatorTest {
     private final RequestValidator validator = new RequestValidator(Set.of("Electrical", "Other"));
 
+    @ParameterizedTest
+    @CsvSource({"5,10,2", "100,2000,120"})
+    @DisplayName("LIF-005 counts supplementary Unicode as single code points at valid boundaries")
+    void acceptsUnicodeBoundaries(int titleLength, int descriptionLength, int locationLength) {
+        var draft = new RequestDraft(" 😀" + "😀".repeat(titleLength - 1) + " ",
+                "😀".repeat(descriptionLength), "😀".repeat(locationLength),
+                "Other", ReportedUrgency.NORMAL);
+        assertTrue(validator.validate(draft).isEmpty());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"3,10,2,title", "4,10,2,title", "101,10,2,title",
+        "5,9,2,description", "5,2001,2,description", "5,10,1,location", "5,10,121,location"})
+    @DisplayName("LIF-005 rejects Unicode inputs outside code-point boundaries")
+    void rejectsUnicodeBoundaries(int titleLength, int descriptionLength, int locationLength, String field) {
+        var draft = new RequestDraft("😀".repeat(titleLength), "😀".repeat(descriptionLength),
+                "😀".repeat(locationLength), "Other", ReportedUrgency.NORMAL);
+        assertEquals(Set.of(field), validator.validate(draft).keySet());
+    }
+
+    @Test
+    @DisplayName("LIF-005 counts combining marks separately without normalizing the input")
+    void combiningMarksAreCodePoints() {
+        String title = "e\u0301e\u0301x";
+        var draft = new RequestDraft(title, "The light flickers.", "Room 12",
+                "Other", ReportedUrgency.NORMAL);
+        assertTrue(validator.validate(draft).isEmpty());
+        assertEquals(title, draft.title());
+    }
+
     @Test
     @DisplayName("LIF-004 trims boundaries while preserving internal spaces and line breaks")
     void trimsInput() {

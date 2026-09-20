@@ -33,7 +33,8 @@ public final class RequestValidator {
 
     private static void checkLength(Map<String, String> errors, String field,
                                     String label, String value, int min, int max) {
-        if (value.length() < min || value.length() > max) {
+        int length = value.codePointCount(0, value.length());
+        if (length < min || length > max) {
             errors.put(field, label + " must contain " + min + "–" + max
                     + " characters after trimming.");
         }

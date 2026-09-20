@@ -20,6 +20,10 @@ Status: **Baseline with team-confirmed integration amendments, 20 September 2026
 - **LIF-004:** User-entered text MUST be trimmed before validation and storage while
   preserving meaningful internal whitespace and line breaks.
 - **LIF-005:** Request creation MUST satisfy all field rules below.
+  Title, description, and location lengths count Unicode code points after
+  trimming, not UTF-16 code units or grapheme clusters. A supplementary emoji
+  counts as one code point; combining marks and joined emoji sequences may
+  contain multiple code points. Validation MUST preserve the entered text.
 
 | Field | Rule |
 |---|---|

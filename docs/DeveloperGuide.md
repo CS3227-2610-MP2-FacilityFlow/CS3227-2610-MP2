@@ -116,6 +116,15 @@ that an injected audit failure rolls back request state and audit writes.
 
 ## Verification and CI
 
+Request title, description, and location validation counts Unicode code points
+after trimming (LIF-005), not UTF-16 units or visual grapheme clusters. Tests
+cover supplementary emoji boundaries and combining marks without normalization.
+
+JavaFX tests share `facilityflow.ui.JavaFxTestSupport.runOnFxThread`. It starts
+or reuses the toolkit, disables implicit exit, and returns assertion failures to
+JUnit. Do not call `Platform.exit()` in individual tests; the Gradle test-worker
+JVM owns shutdown. Tests should close their own windows without ending JavaFX.
+
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
 distributions. Reports are written to:
