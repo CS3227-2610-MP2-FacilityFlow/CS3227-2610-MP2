@@ -7,9 +7,27 @@ requests through an auditable workflow.
 
 ## Current status
 
-The project is in its specification-first phase. No product implementation has
-started. The team will review and approve the baseline specifications before
-building features.
+The Requester branch contains a development form preview and a Java 25/JavaFX
+build/test scaffold. The preview validates fields but does not log in, save
+requests, or implement the complete workflow. Shared integration decisions
+still require team review.
+
+## Run the Requester starter
+
+Install a JDK 25 and configure `JAVA_HOME` to its installation directory. From
+the repository root in PowerShell:
+
+```powershell
+./gradlew.bat test
+./gradlew.bat check
+./gradlew.bat run
+```
+
+The wrapper downloads Gradle and dependencies on first use; no separate Gradle
+or JavaFX SDK installation is needed. On macOS/Linux use `sh ./gradlew` in place
+of `./gradlew.bat`. Linux UI tests need a display; CI uses `xvfb-run`.
+See [Requester preparation](docs/RequesterPreparation.md) for the next tasks and
+the [Developer Guide](docs/DeveloperGuide.md) for the file map and setup details.
 
 ## Product roles
 
@@ -81,3 +99,5 @@ The setup follows the upstream
 - `yu-sutong` — Facilities Manager
 
 Role assignments were agreed by the team and confirmed on 14 September 2026.
+See the [Requester preparation checklist](docs/RequesterPreparation.md) for
+`yooplo`'s scope, shared dependencies, and suggested first pull requests.

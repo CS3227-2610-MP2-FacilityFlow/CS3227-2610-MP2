@@ -3,6 +3,19 @@
 Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 Team owner: **yooplo** (team agreement confirmed 14 September 2026)
 
+## Development starter scope
+
+The Requester branch begins with a development-only form preview for REQ-002,
+REQ-012, LIF-004–005, and UIX-007–008. It checks input and retains entered values;
+it does not submit requests, create sessions, or access persistent data. Valid
+input must never be presented as a successful save. This scaffold does not
+complete those end-to-end product requirements.
+
+The preview supplies the initial category list as a fixture. Production category
+configuration, authentication, repository contracts, and auditing require shared
+team review before integration. The existing product acceptance criteria below
+remain unchanged.
+
 ## Role objective
 
 The Requester reports a facilities problem and follows its progress without

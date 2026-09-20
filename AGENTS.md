@@ -30,6 +30,10 @@ must have a simple, clearly separate interface. Role ownership:
 These assignments were agreed by the team, as confirmed by yooplo on
 14 September 2026.
 
+Each owner covers UI, service logic, persistence integration, authorization,
+tests, and documentation. Requester preparation is tracked in
+`docs/RequesterPreparation.md`.
+
 ### Requester
 
 - Submit a maintenance request with validated details.
