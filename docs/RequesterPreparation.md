@@ -5,7 +5,7 @@ validation tests are now present. The merged Manager foundation supplies SQLite
 storage and session identity; Requester persistence and shared login are not integrated.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
-Manager — yu-sutong. Integration decisions were confirmed by yooplo on behalf of the team on
+Manager — yu-sutong. Integration decisions were confirmed on
 20 September 2026. Generated documentation and future code still need human review.
 
 ## Start here

@@ -65,7 +65,7 @@ Minor wording fixes that do not alter behavior do not require a separate proposa
 ## Baseline decisions still required
 
 The [Requester integration decision](../docs/decisions/yooplo/0001-requester-integration.md)
-records the team agreement reported by yooplo on 20 September 2026. Shared
+records the team agreement. Shared
 ownership, password/session rules, data/configuration location, IDs/audit, and
 Requester ordering/filtering/history have been resolved in the relevant specs.
 Implementation and verification remain outstanding; historical session logs

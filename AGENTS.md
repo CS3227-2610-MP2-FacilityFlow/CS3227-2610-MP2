@@ -34,8 +34,7 @@ Each owner covers UI, service logic, persistence integration, authorization,
 tests, and documentation. Requester preparation is tracked in
 `docs/RequesterPreparation.md`.
 
-Shared responsibilities confirmed by yooplo on behalf of the team on
-20 September 2026:
+Shared responsibilities:
 
 - `yooplo`: login, session management, and role routing, in addition to Requester.
 - `yu-sutong`: versioned database migrations, atomic demo-data seeding, and

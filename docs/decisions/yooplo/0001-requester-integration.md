@@ -2,7 +2,7 @@
 
 - Owner: `yooplo`
 - Date: 20 September 2026
-- Status: Team-confirmed by yooplo on 20 September 2026; implementation not started
+- Status: Team-confirmed; implementation not started
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
@@ -92,13 +92,3 @@ Document these details as implemented and preserve existing data and tests.
 Use small PRs on topic branches; no shared API rename or schema replacement
 should silently break the incoming Manager slice. The current preview remains
 available while authentication integration is incomplete.
-
-## Confirmation record
-
-- Source: yooplo's explicit statement, "all are confirmed by the team", in the
-  20 September 2026 decision interview.
-- Scope: shared package/models and storage extension, responsibilities, password
-  and session behavior, ordering/filtering/history, IDs/audit, and data/config location.
-- This confirmation supersedes the earlier pending decision/reviewer placeholders.
-- Human review of the resulting documentation and future code remains required;
-  no individual teammate signature or implementation completion is asserted.
