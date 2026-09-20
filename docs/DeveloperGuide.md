@@ -1,6 +1,6 @@
 # FacilityFlow Developer Guide
 
-Status: Requester development starter, 14 September 2026. This guide describes
+Status: Requester starter and Manager foundation, merged 20 September 2026. This guide describes
 the scaffold in this branch, not a released maintenance-management application.
 
 ## Setup and commands
@@ -25,10 +25,20 @@ Gradle and JavaFX download automatically on first use, which requires network
 access. Do not add local JDK paths or IDE state to the repository.
 
 The build pins Gradle 9.1.0, JavaFX 25.0.2, the OpenJFX plugin 0.1.0,
-JUnit 5.13.4, Checkstyle 10.26.1, and JaCoCo 0.8.14. The wrapper verifies the
+JUnit 5.13.4, SQLite JDBC 3.50.3.0, Checkstyle 10.26.1, and JaCoCo 0.8.14. The wrapper verifies the
 Gradle distribution SHA-256. Gradle's
 [compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html)
 lists Java 25 support from Gradle 9.1.0.
+
+The incoming Foojay resolver is retained to download a Java 25 toolchain when
+needed. A compatible Java runtime is still required to start Gradle itself.
+
+The default `run` task launches the Requester preview. To launch the incoming
+application shell (an integration notice, not an authenticated Manager screen):
+
+```powershell
+./gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.FacilityFlowApplication"
+```
 
 ## Implemented structure
 
@@ -44,7 +54,11 @@ lists Java 25 support from Gradle 9.1.0.
 | [RequesterFormTest](../src/test/java/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
 `facilityflow` is the starter package; review this shared choice with teammates.
-There is no `auth` or `storage` implementation yet. A valid draft is not an
+The incoming Manager foundation uses `sg.edu.nus.facilityflow` and provides
+session identity and storage components. These are not yet wired to the
+Requester preview; the two package trees are retained during this merge.
+Consolidate the duplicated urgency types when integrating the roles.
+A valid draft is not an
 authorized or persisted request. The eventual create service must enforce
 AUT-018–022, derive owner/actor from the authenticated session, run validation,
 generate the ID/status/timestamps, and commit request plus audit atomically.
@@ -55,6 +69,49 @@ The preview category list is a fixture, not a configuration implementation.
 The validator accepts the catalogue as input to allow later integration without
 duplicating field rules. The [category catalogue contract](CategoryCatalogue.md)
 still governs production startup, rename/removal mapping, and atomic migration.
+
+## Manager foundation architecture
+
+The package boundaries follow `AGENTS.md`:
+
+- `model` contains immutable request, account, audit, status, urgency, and
+  priority values.
+- `auth` contains the authenticated-session identity passed to protected use
+  cases.
+- `service` owns Manager authorization, validation, queue ordering, and the
+  named assignment transition.
+- `storage` owns the transaction interface, schema foundation, and SQLite/JDBC
+  implementation. It does not depend on JavaFX.
+- `ui.manager` contains the Manager JavaFX view and thin presentation adapter.
+  It contains no SQL or lifecycle rules.
+
+`ManagerRequestService.assignOpenRequest` implements the first complete use
+case. It validates the persisted actor, request state, priority, and assignee
+inside one storage transaction. It then updates the request and appends one
+`REQUEST_ASSIGNED` audit event. Any runtime or database failure rolls the
+transaction back.
+
+The Manager queue uses the deterministic ordering in MGR-021. The initial view
+shows the queue, request detail, active-Technician selection, Manager-priority
+selection, actionable feedback, visible identity/role, and logout action. It is
+an injectable component rather than a route that bypasses authentication.
+
+## Database foundation
+
+`SQLiteManagerAssignmentStore.initializeSchema()` currently creates the three
+tables required by the assignment slice: `user_accounts`,
+`maintenance_requests`, and `audit_events`. This is a schema foundation, not the
+final migration or AUT-007–010 demo-seeding implementation.
+
+The transaction interface is deliberately callback-based. Services re-read the
+persisted state within the callback before writing, while SQLite controls the
+commit or rollback. Other role services should reuse or evolve this shared
+boundary rather than adding SQL to controllers.
+
+
+Manager service tests cover valid assignment, invalid/inactive assignees,
+unauthorized actors, invalid state, and missing priority. SQLite tests verify
+that an injected audit failure rolls back request state and audit writes.
 
 ## Verification and CI
 
@@ -87,8 +144,10 @@ Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
 Agree shared account/session and repository contracts before adding protected
 operations. Add isolated SQLite transaction tests, then wire create/list/detail
 to authenticated navigation. Add edit/cancel, visible history, and filters next.
+The Manager slice still needs authenticated routing, search/filter/reset,
+the remaining transitions, account administration, summaries, and audit browsing.
 
-Operational logging, migrations, production error boundaries, demo accounts,
+Operational logging, versioned migrations, production error boundaries, demo accounts,
 release installers, and cross-platform launch verification are not implemented.
 Gradle development distributions use host-specific JavaFX libraries and require
 Java; they are not the final universal release artifact. Resolve packaging and

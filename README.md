@@ -12,6 +12,11 @@ build/test scaffold. The preview validates fields but does not log in, save
 requests, or implement the complete workflow. Shared integration decisions
 still require team review.
 
+The merged Facilities Manager foundation adds an authorized, transactional
+`OPEN`-request assignment service, SQLite persistence, automated tests, and an
+injectable queue/detail view. Shared login, demo seeding, and the complete
+cross-role workflow remain unfinished.
+
 ## Run the Requester starter
 
 Install a JDK 25 and configure `JAVA_HOME` to its installation directory. From

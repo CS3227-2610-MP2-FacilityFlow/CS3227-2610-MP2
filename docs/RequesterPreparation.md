@@ -1,7 +1,8 @@
 # Requester preparation: yooplo
 
 Status: Requester starter, 14 September 2026. A Gradle/JavaFX form preview and
-validation tests are now present; login and persistence are not implemented.
+validation tests are now present. The merged Manager foundation supplies SQLite
+storage and session identity; Requester persistence and shared login are not integrated.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
 Manager — yu-sutong. Shared design decisions and generated documentation still
@@ -50,8 +51,9 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
 - [ ] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR.
-- [ ] Add SQLite JDBC with reviewed migrations and transaction integration tests
-  when implementing persistence. The preview has no storage dependency.
+- [ ] Integrate Requester persistence with the incoming SQLite foundation;
+  JDBC and Manager rollback tests now exist, but versioned migrations and
+  Requester transaction tests still need implementation.
 - [ ] Agree the base package, shared request/account model, session contract,
   service operations, repository schema/migrations, and atomic audit writes.
   Share these components across roles; controllers must call services, not SQL.

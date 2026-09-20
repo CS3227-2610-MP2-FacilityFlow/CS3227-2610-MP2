@@ -12,5 +12,8 @@
         <module name="NeedBraces"/>
         <module name="OuterTypeFilename"/>
         <module name="OneStatementPerLine"/>
+        <module name="EmptyStatement"/>
+        <module name="EqualsHashCode"/>
+        <module name="UnusedLocalVariable"/>
     </module>
 </module>
