@@ -1,12 +1,12 @@
 # Requester preparation: yooplo
 
-Status: integration planning, 20 September 2026. A Gradle/JavaFX form preview and
-validation tests are now present. The merged Manager foundation supplies SQLite
-storage and session identity; Requester persistence and shared login are not integrated.
+Status: backend integration, 22 September 2026. Requester create/list/detail,
+atomic SQLite persistence, migrations, and Manager handoff have automated tests.
+Shared login and Requester UI persistence integration are still outstanding.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
 Manager — yu-sutong. Integration decisions were confirmed on
-20 September 2026. Generated documentation and future code still need human review.
+20 September 2026. Generated documentation and implementation still need human review.
 
 ## Start here
 
@@ -14,7 +14,7 @@ The next milestone is **authenticated create/list/detail with Manager handoff**.
 Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
 Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
 migrations, demo seeding, and category configuration together. The decisions are
-agreed; feature implementation is still outstanding.
+agreed; the backend is implemented, while authenticated UI integration is outstanding.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
@@ -28,9 +28,9 @@ agreed; feature implementation is still outstanding.
 5. Requester packages now use `sg.edu.nus.facilityflow` and the shared urgency
    enum. Coordinate storage changes with yu-sutong. Follow the confirmed session and
    password contract; preserve the existing Manager tests.
-6. Your first complete feature is **create and view my own request**: implement
-   the authenticated service operation and atomic request/audit transaction, test
-   rollback and cross-user denial, then wire the form to it and add list/detail.
+6. Your first complete feature is **create and view my own request**: the service,
+   atomic request/audit transaction, rollback, and owner-isolation tests now exist.
+   Implement real login/session handling, wire the form, and add list/detail.
    Only then replace the preview entry point with authenticated role navigation.
 
 The preview contains no fake save, hardcoded logged-in account, or database.
@@ -57,9 +57,9 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
 - [ ] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR.
-- [ ] Integrate Requester persistence with the incoming SQLite foundation;
-  JDBC and Manager rollback tests now exist, but versioned migrations and
-  Requester transaction tests still need implementation.
+- [x] Implement Requester backend persistence with the SQLite foundation,
+  versioned migrations, owner-read queries, and rollback/handoff tests.
+- [ ] Connect backend operations to authenticated Requester screens.
 - [x] Confirm shared package/models and creation/owner-read storage extensions.
 - [x] Confirm login/session/routing ownership and session rules (AUT-032–033).
 - [x] Confirm category properties-file format/location, owner, and startup rules.
@@ -68,13 +68,15 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Resolve password discrepancy: AUT-004 now requires 8–24 characters and no
   composition rule; AUT-005 hashing still applies.
 - [x] Confirm database location, sequential six-digit IDs, and creation audit fields.
-- [ ] Implement the agreed schema migrations, catalogue loader, and session-reset
-  detection; record concrete filenames/property keys and schema versions.
+- [x] Implement schema versions 1–2 for the baseline, ID sequence, and request
+  audit target metadata; legacy upgrade tests pass. Team review remains pending.
+- [ ] Implement the catalogue loader, demo seeding, and session-reset detection;
+  record concrete filenames/property keys and additional schema versions.
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Package/urgency consolidation is implemented; next implement the agreed services
-and storage integration. Shared responsibilities follow the confirmed ownership
+Package consolidation and backend create/list/detail are implemented; next add
+real authentication/session handling and UI integration. Shared responsibilities follow the confirmed ownership
 above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests

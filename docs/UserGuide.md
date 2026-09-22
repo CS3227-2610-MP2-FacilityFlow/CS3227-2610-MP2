@@ -4,6 +4,9 @@ No finished product release is available from this branch. The current build
 is a development-only Requester form preview; it cannot submit or save requests
 and has no login, demo credentials, or request history.
 
+Request creation and owner-only reads now have backend services and automated
+database tests, but these operations are not yet available through the preview.
+
 To try the preview, follow the [developer setup](DeveloperGuide.md#setup-and-commands)
 and run `./gradlew.bat run` on Windows, or `sh ./gradlew run` on macOS/Linux.
 

@@ -12,8 +12,10 @@ input must never be presented as a successful save. This scaffold does not
 complete those end-to-end product requirements.
 
 The preview supplies the initial category list as a fixture. Production category
-configuration, authentication, repository extensions, and auditing now have a
-team-confirmed integration contract; their implementation is still outstanding. The existing product acceptance criteria below
+configuration and authentication remain outstanding. Repository extensions and
+creation auditing now have backend implementations and automated tests (22 September
+2026); the preview is not wired to them. Visible history remains outstanding.
+The existing product acceptance criteria below
 remain unchanged.
 
 ## Role objective

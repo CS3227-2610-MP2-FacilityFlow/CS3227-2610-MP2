@@ -10,7 +10,13 @@ requests through an auditable workflow.
 The Requester branch contains a development form preview and a Java 25/JavaFX
 build/test scaffold. The preview validates fields but does not log in, save
 requests, or implement the complete workflow. The team confirmed the integration contract on 20 September 2026;
-implementation and human review of generated changes remain outstanding.
+authenticated UI integration and human review of generated changes remain outstanding.
+
+Requester create/list/detail services and SQLite integration are now implemented
+behind the preview: owner-scoped reads, atomic creation/audit, six-digit IDs,
+versioned schema upgrades, and Manager assignment handoff have automated tests.
+The preview is not yet connected to these services. Real login/session lifecycle,
+production startup/configuration, and requester-visible history remain unfinished.
 
 The merged Facilities Manager foundation adds an authorized, transactional
 `OPEN`-request assignment service, SQLite persistence, automated tests, and an

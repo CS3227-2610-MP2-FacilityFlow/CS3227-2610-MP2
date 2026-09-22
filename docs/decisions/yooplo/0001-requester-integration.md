@@ -2,8 +2,8 @@
 
 - Owner: `yooplo`
 - Date: 20 September 2026
-- Status: Team-confirmed; package/urgency consolidation implemented 22 September
-  2026; authenticated create/list/detail remains outstanding
+- Status: Team-confirmed; package consolidation and backend create/list/detail
+  implemented 22 September 2026; authenticated UI integration remains outstanding
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
@@ -25,11 +25,13 @@ authorize or save.
 
 `AuthenticatedSession` currently holds only an account ID. It is not a login
 implementation or evidence that an arbitrary caller has authenticated.
-`ManagerAssignmentStore` has transaction callbacks, account/request reads,
-request updates, and audit insertion, but no request creation or owner-scoped
-query operation. `SQLiteManagerAssignmentStore.initializeSchema()` provides
-initial tables, not versioned migrations. The audit model/schema must also be
-reviewed against DAT-015–019 before adding Requester creation events.
+`ManagerAssignmentStore` now has request creation and owner-scoped reads alongside
+the existing Manager operations. `RequesterRequestService` validates, rechecks
+the account's active flag/role, and commits creation with a safe audit event.
+`SQLiteManagerAssignmentStore.initializeSchema()` applies schema versions 1–2;
+the ID sequence and request-specific audit target columns preserve legacy records.
+Rollback, ownership, restart, migration, and Manager handoff tests exist. This
+does not complete login, password-reset invalidation, visible history, or UI wiring.
 
 ## Confirmed integration contract
 
@@ -73,10 +75,19 @@ Do not manufacture sessions or introduce a permanent role picker as a login
 replacement. Isolated test fixtures do not establish real authentication.
 
 The password-policy discrepancy is resolved in AUT-004. The team decisions
-above are no longer review blockers. Implementation still needs concrete schema
-versions, configuration filenames/property keys, and a way to detect Manager
+above are no longer review blockers. Schema versions 1–2 are documented in the
+Developer Guide. Implementation still needs configuration filenames/property keys
+and a way to detect Manager
 password-reset invalidation; reading the account's role alone cannot detect it.
 Document these details as implemented and preserve existing data and tests.
+
+The 22 September backend increment supplies request-only audit target metadata
+through generated `target_type`/`target_id` columns, plus a transactional singleton
+ID sequence that also advances for explicit demo inserts. These concrete shared
+schema changes still need yu-sutong's review; account/category audit targets and
+demo seeding remain their own integration work. Test sessions are fixtures, not
+evidence of authentication. No permanent role picker or manufactured UI session
+has been introduced.
 
 ## Implementation sequence
 

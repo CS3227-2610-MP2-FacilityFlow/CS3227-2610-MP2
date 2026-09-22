@@ -1,6 +1,6 @@
 # FacilityFlow Developer Guide
 
-Status: Requester starter and Manager foundation, merged 20 September 2026. This guide describes
+Status: Requester backend and Manager foundation, updated 22 September 2026. This guide describes
 the scaffold in this branch, not a released maintenance-management application.
 
 ## Setup and commands
@@ -50,6 +50,8 @@ application shell (an integration notice, not an authenticated Manager screen):
 | [RequestDraft](../src/main/java/sg/edu/nus/facilityflow/model/RequestDraft.java) | Normalized, still-untrusted input; no caller-supplied ownership or status |
 | [ReportedUrgency](../src/main/java/sg/edu/nus/facilityflow/model/ReportedUrgency.java) | The four reported urgency values from LIF-005 |
 | [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
+| [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, atomic creation/audit, and owner-only list/detail |
+| [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–2 and schema compatibility checks |
 | [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
@@ -58,10 +60,12 @@ Requester and Manager code now share `sg.edu.nus.facilityflow` and the same
 `RequestDraft` remains input-only and `RequestValidator` remains pure validation.
 The Manager foundation provides session identity and storage components, which
 are not yet wired to the Requester preview.
-A valid draft is not an
-authorized or persisted request. The eventual create service must enforce
-AUT-018–022, derive owner/actor from the authenticated session, run validation,
-generate the ID/status/timestamps, and commit request plus audit atomically.
+A valid draft is not an authorized or persisted request. `RequesterRequestService`
+rechecks the session account's persisted active flag and role, derives owner/actor
+from that account, validates the draft, and commits the request plus audit
+atomically. The session record is still only an identity carrier: login issuance,
+logout and Manager-reset invalidation are not implemented. Do not construct
+sessions from UI-supplied account IDs to bypass that integration gap.
 Follow [the lifecycle specification](../specs/components/request-lifecycle.md)
 and [persistence contract](../specs/components/persistence-observability.md).
 
@@ -98,20 +102,57 @@ an injectable component rather than a route that bypasses authentication.
 
 ## Database foundation
 
-`SQLiteManagerAssignmentStore.initializeSchema()` currently creates the three
-tables required by the assignment slice: `user_accounts`,
-`maintenance_requests`, and `audit_events`. This is a schema foundation, not the
-final migration or AUT-007–010 demo-seeding implementation.
+`SQLiteManagerAssignmentStore.initializeSchema()` runs `SchemaMigrations` in one
+transaction, using SQLite `PRAGMA user_version`:
+
+- Version 1 creates/adopts the original `user_accounts`, `maintenance_requests`,
+  and `audit_events` tables. Existing unversioned Manager databases upgrade in place.
+- Version 2 adds a singleton `request_identity_sequence`, an owner index, and
+  request audit target metadata. The sequence starts above existing internal and
+  display IDs; an insert trigger advances it for explicitly seeded IDs too.
+- Versions newer than 2, missing required columns, and missing/invalid sequence
+  rows stop initialization with a safe error. Failed migrations roll back schema,
+  data, and version together; repeated initialization does not reset data.
+
+Creation increments the database sequence in the same transaction as request and
+audit insertion. SQLite formats `FF-000001` through `FF-999999`; exhaustion fails
+without partial writes. New requests use `OPEN`, null priority/assignee, and the
+injected clock's UTC Instant for both timestamps. Creation audit details contain
+only structured status metadata, not title, description, or location.
+
+The existing request-only audit schema exposes `target_type = REQUEST` and
+`target_id = request_id` as generated columns. Existing audit IDs/details remain
+unchanged. Account/login/category audit targets will require a later migration;
+this increment does not implement all of DAT-016. Yu-sutong remains the migration
+owner and should review these schema changes before merging. Demo seeding,
+application-data path resolution, and category startup configuration are pending.
 
 The transaction interface is deliberately callback-based. Services re-read the
 persisted state within the callback before writing, while SQLite controls the
 commit or rollback. Other role services should reuse or evolve this shared
 boundary rather than adding SQL to controllers.
 
+`RequesterRequestService.createRequest(session, draft)`, `listOwnRequests(session)`
+and `getOwnRequest(session, requestId)` reuse that transaction boundary. Owner reads
+are scoped in SQL and checked in the service. Lists order by creation Instant
+descending, then display ID ascending; absent and inaccessible details have the
+same safe error. Returned records contain no audit details or internal notes.
+Visible activity history under REQ-017 is not implemented yet. The configured
+category set is supplied through `RequestValidator`; the production loader remains
+separate work. No JavaFX controller calls these new operations yet.
+
 
 Manager service tests cover valid assignment, invalid/inactive assignees,
 unauthorized actors, invalid state, and missing priority. SQLite tests verify
 that an injected audit failure rolls back request state and audit writes.
+
+`SQLiteRequesterRequestServiceTest` covers valid/invalid creation, all three
+operations' role checks, live deactivation/role changes, owner isolation and
+ordering, reopening the database, Manager handoff, request/audit failure rollback,
+ID exhaustion, foreign keys, and safe read errors. `SchemaMigrationsTest` covers
+fresh/repeated startup, legacy preservation, seed identity advancement, rollback,
+and incompatible schemas. Every integration test uses a temporary database;
+session fixtures do not claim successful login or password-reset invalidation.
 
 ## Verification and CI
 
@@ -175,16 +216,16 @@ recorded when implemented, consistently with the confirmed requirements.
 The [confirmed Requester integration decision](decisions/yooplo/0001-requester-integration.md)
 defines the next create/list/detail milestone and team-agreed shared contracts.
 In particular, the existing session record does not implement authentication,
-and the current Manager storage interface cannot insert a new request or query
-only one owner's requests. Agreed extensions are not implemented yet.
+while the shared storage interface now supports creation and owner-only reads.
+The backend handoff is tested; the authenticated UI milestone remains incomplete.
 
 Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
-Implement the confirmed account/session and repository contracts. Add isolated SQLite transaction tests, then wire create/list/detail
+Implement the confirmed account/session contract, then wire create/list/detail
 to authenticated navigation. Add edit/cancel, visible history, and filters next.
 The Manager slice still needs authenticated routing, search/filter/reset,
 the remaining transitions, account administration, summaries, and audit browsing.
 
-Operational logging, versioned migrations, production error boundaries, demo accounts,
+Operational logging, production error boundaries, demo accounts,
 release installers, and cross-platform launch verification are not implemented.
 Gradle development distributions use host-specific JavaFX libraries and require
 Java; they are not the final universal release artifact. Resolve packaging and
@@ -203,3 +244,9 @@ JavaFX control usage was checked against the
 CI uses the official actions/checkout, actions/setup-java, gradle/actions,
 and actions/upload-artifact projects. These tools and libraries retain their
 respective upstream licenses. No MP1 source or assets were reused.
+
+SQLite migration/transaction behavior was checked through Context7 and the
+official [generated-column](https://www.sqlite.org/gencol.html) and
+[transaction](https://www.sqlite.org/lang_transaction.html) documentation.
+The legacy migration test fixture preserves this repository's pre-migration
+Manager schema; it is not imported from MP1.
