@@ -1,8 +1,8 @@
-package facilityflow.ui.requester;
+package sg.edu.nus.facilityflow.ui.requester;
 
-import facilityflow.model.ReportedUrgency;
-import facilityflow.model.RequestDraft;
-import facilityflow.service.RequestValidator;
+import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.RequestDraft;
+import sg.edu.nus.facilityflow.service.RequestValidator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +15,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 /** REQ-002/012 form foundation; validation only, with no submission operation. */
 public final class RequesterForm extends VBox {
@@ -40,6 +41,22 @@ public final class RequesterForm extends VBox {
         description.setWrapText(true);
         category.getItems().setAll(categories);
         urgency.getItems().setAll(ReportedUrgency.values());
+        urgency.setConverter(new StringConverter<ReportedUrgency>() {
+            @Override
+            public String toString(ReportedUrgency value) {
+                return value == null ? "" : switch (value) {
+                    case LOW -> "Low";
+                    case NORMAL -> "Normal";
+                    case HIGH -> "High";
+                    case EMERGENCY -> "Emergency";
+                };
+            }
+
+            @Override
+            public ReportedUrgency fromString(String value) {
+                throw new UnsupportedOperationException("Urgency must be selected from the list");
+            }
+        });
         addField("title", "Title * (5–100 characters)", title);
         addField("description", "Description * (10–2,000 characters)", description);
         addField("location", "Location * (2–120 characters)", location);

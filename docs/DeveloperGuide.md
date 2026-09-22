@@ -44,21 +44,20 @@ application shell (an integration notice, not an authenticated Manager screen):
 
 | File | Responsibility |
 |---|---|
-| [RequesterPreviewLauncher](../src/main/java/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
-| [RequesterPreview](../src/main/java/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
-| [RequesterForm](../src/main/java/facilityflow/ui/requester/RequesterForm.java) | Input controls and field feedback; no SQL, authentication, or persistence |
-| [RequestDraft](../src/main/java/facilityflow/model/RequestDraft.java) | Normalized, still-untrusted input; no caller-supplied ownership or status |
-| [ReportedUrgency](../src/main/java/facilityflow/model/ReportedUrgency.java) | The four reported urgency values from LIF-005 |
-| [RequestValidator](../src/main/java/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
-| [RequestValidatorTest](../src/test/java/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
-| [RequesterFormTest](../src/test/java/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
+| [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
+| [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
+| [RequesterForm](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterForm.java) | Input controls and field feedback; no SQL, authentication, or persistence |
+| [RequestDraft](../src/main/java/sg/edu/nus/facilityflow/model/RequestDraft.java) | Normalized, still-untrusted input; no caller-supplied ownership or status |
+| [ReportedUrgency](../src/main/java/sg/edu/nus/facilityflow/model/ReportedUrgency.java) | The four reported urgency values from LIF-005 |
+| [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
+| [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
+| [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
-`facilityflow` is the existing preview package; the team has agreed to migrate
-it to the shared `sg.edu.nus.facilityflow` package and reuse shared models.
-The incoming Manager foundation uses `sg.edu.nus.facilityflow` and provides
-session identity and storage components. These are not yet wired to the
-Requester preview; the two package trees are retained during this merge.
-Consolidate the duplicated urgency types when integrating the roles.
+Requester and Manager code now share `sg.edu.nus.facilityflow` and the same
+`ReportedUrgency` enum. The Requester form supplies its own display labels;
+`RequestDraft` remains input-only and `RequestValidator` remains pure validation.
+The Manager foundation provides session identity and storage components, which
+are not yet wired to the Requester preview.
 A valid draft is not an
 authorized or persisted request. The eventual create service must enforce
 AUT-018–022, derive owner/actor from the authenticated session, run validation,
@@ -120,7 +119,7 @@ Request title, description, and location validation counts Unicode code points
 after trimming (LIF-005), not UTF-16 units or visual grapheme clusters. Tests
 cover supplementary emoji boundaries and combining marks without normalization.
 
-JavaFX tests share `facilityflow.ui.JavaFxTestSupport.runOnFxThread`. It starts
+JavaFX tests share `sg.edu.nus.facilityflow.ui.JavaFxTestSupport.runOnFxThread`. It starts
 or reuses the toolkit, disables implicit exit, and returns assertion failures to
 JUnit. Do not call `Platform.exit()` in individual tests; the Gradle test-worker
 JVM owns shutdown. Tests should close their own windows without ending JavaFX.

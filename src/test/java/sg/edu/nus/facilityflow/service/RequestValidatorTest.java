@@ -1,7 +1,7 @@
-package facilityflow.service;
+package sg.edu.nus.facilityflow.service;
 
-import facilityflow.model.ReportedUrgency;
-import facilityflow.model.RequestDraft;
+import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.RequestDraft;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

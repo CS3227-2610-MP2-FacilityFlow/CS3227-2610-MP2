@@ -1,6 +1,6 @@
-package facilityflow;
+package sg.edu.nus.facilityflow;
 
-import facilityflow.ui.requester.RequesterPreview;
+import sg.edu.nus.facilityflow.ui.requester.RequesterPreview;
 import javafx.application.Application;
 
 /** Development entry point; this is not an authenticated application session. */

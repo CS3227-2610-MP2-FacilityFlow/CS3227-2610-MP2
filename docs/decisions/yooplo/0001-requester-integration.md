@@ -2,7 +2,8 @@
 
 - Owner: `yooplo`
 - Date: 20 September 2026
-- Status: Team-confirmed; implementation not started
+- Status: Team-confirmed; package/urgency consolidation implemented 22 September
+  2026; authenticated create/list/detail remains outstanding
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
@@ -18,9 +19,9 @@ edit/cancel, and follow-ups are subsequent increments, not dropped requirements.
 
 ## Existing foundation and gaps
 
-The Requester preview uses `facilityflow`; the Manager foundation uses
-`sg.edu.nus.facilityflow`. Both define a reported-urgency enum. The Requester
-validator checks fields but does not authorize or save.
+Requester and Manager code now use `sg.edu.nus.facilityflow` and share the
+reported-urgency enum. The Requester validator checks fields but does not
+authorize or save.
 
 `AuthenticatedSession` currently holds only an account ID. It is not a login
 implementation or evidence that an arbitrary caller has authenticated.

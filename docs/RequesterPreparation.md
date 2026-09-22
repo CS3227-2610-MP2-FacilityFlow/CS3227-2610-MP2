@@ -25,8 +25,8 @@ agreed; feature implementation is still outstanding.
    The preview must keep your input and explicitly say nothing was saved.
 4. Read `RequestDraft`, `RequestValidator`, and their tests, then `RequesterForm`.
    The [Developer Guide](DeveloperGuide.md) links each file and explains its role.
-5. Consolidate Requester packages/models under `sg.edu.nus.facilityflow` and
-   coordinate storage changes with yu-sutong. Follow the confirmed session and
+5. Requester packages now use `sg.edu.nus.facilityflow` and the shared urgency
+   enum. Coordinate storage changes with yu-sutong. Follow the confirmed session and
    password contract; preserve the existing Manager tests.
 6. Your first complete feature is **create and view my own request**: implement
    the authenticated service operation and atomic request/audit transaction, test
@@ -73,7 +73,7 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Begin the package/model consolidation next, then implement the agreed services
+Package/urgency consolidation is implemented; next implement the agreed services
 and storage integration. Shared responsibilities follow the confirmed ownership
 above; packaging and monitoring questions remain separate release work.
 
