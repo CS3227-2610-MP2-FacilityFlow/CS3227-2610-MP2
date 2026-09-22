@@ -44,7 +44,10 @@ class AuthenticatedWorkflowTest {
             router = new ApplicationRouter(fixture.auth, fixture.requester, fixture.manager,
                     List.of("Plumbing"), new UiTasks(work::add));
             stage = new Stage();
-            stage.setScene(new Scene(router, 1024, 700));
+            // Keep layout dimensions independent of native window limits and resize events.
+            router.setManaged(false);
+            router.resize(1024, 700);
+            stage.setScene(new Scene(new javafx.scene.layout.Pane(router), 1024, 700));
             stage.getScene().getStylesheets().add(getClass()
                     .getResource("/sg/edu/nus/facilityflow/ui/facilityflow.css").toExternalForm());
             stage.show();
@@ -272,7 +275,7 @@ class AuthenticatedWorkflowTest {
             return;
         }
         fx(() -> {
-            var image = stage.getScene().snapshot(null);
+            var image = router.snapshot(null, null);
             var pixels = new java.awt.image.BufferedImage((int) image.getWidth(), (int) image.getHeight(),
                     java.awt.image.BufferedImage.TYPE_INT_ARGB);
             for (int y = 0; y < pixels.getHeight(); y++) {
@@ -291,17 +294,19 @@ class AuthenticatedWorkflowTest {
 
     private void resize(int width, int height) throws Exception {
         fx(() -> {
-            stage.setWidth(width + stage.getWidth() - stage.getScene().getWidth());
-            stage.setHeight(height + stage.getHeight() - stage.getScene().getHeight());
+            router.resize(width, height);
+            router.layout();
+            assertEquals(width, router.getWidth());
+            assertEquals(height, router.getHeight());
         });
         fx(() -> { });
     }
 
     private void assertInsideScene(javafx.scene.Node node) {
         var bounds = node.localToScene(node.getBoundsInLocal());
-        assertTrue(bounds.getMinX() >= 0 && bounds.getMaxX() <= stage.getScene().getWidth() + 1,
+        assertTrue(bounds.getMinX() >= 0 && bounds.getMaxX() <= router.getWidth() + 1,
                 node.getId() + " must fit horizontally");
-        assertTrue(bounds.getMinY() >= 0 && bounds.getMaxY() <= stage.getScene().getHeight() + 1,
+        assertTrue(bounds.getMinY() >= 0 && bounds.getMaxY() <= router.getHeight() + 1,
                 node.getId() + " must fit vertically");
     }
 

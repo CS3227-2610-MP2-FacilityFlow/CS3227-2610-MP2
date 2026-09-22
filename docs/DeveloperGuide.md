@@ -296,6 +296,9 @@ scrolling so columns remain readable. Requester forms are capped at 800 pixels
 and scroll vertically. Layout changes preserve existing control instances and
 input. `AuthenticatedWorkflowTest` loads the production stylesheet and exercises
 760 × 600, 1,024 × 700 and 1,440 × 900 content sizes.
+These tests explicitly size an unmanaged application root inside a scene, avoiding
+native window-size limits and asynchronous resize events on CI runners. They
+verify JavaFX content layout; native window resizing still needs platform checks.
 Set `FACILITYFLOW_UI_SNAPSHOTS` to a temporary output directory when running
 these UI tests to export PNGs containing only test-fixture data for visual review.
 
