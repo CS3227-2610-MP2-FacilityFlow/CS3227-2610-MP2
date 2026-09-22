@@ -2,8 +2,8 @@
 
 - Owner: `yooplo`
 - Date: 20 September 2026
-- Status: Team-confirmed; package consolidation and backend create/list/detail
-  implemented 22 September 2026; authenticated UI integration remains outstanding
+- Status: Team-confirmed; authenticated create/list/detail and Manager handoff
+  implemented 22 September 2026; visible history and remaining workflow pending
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
@@ -23,15 +23,18 @@ Requester and Manager code now use `sg.edu.nus.facilityflow` and share the
 reported-urgency enum. The Requester validator checks fields but does not
 authorize or save.
 
-`AuthenticatedSession` currently holds only an account ID. It is not a login
-implementation or evidence that an arbitrary caller has authenticated.
+`AuthenticatedSession` is now an opaque capability issued by verified login after
+its audit commits. Both services share `SessionManager` checks for issuance,
+persisted active flag, role, and password-reset session version.
 `ManagerAssignmentStore` now has request creation and owner-scoped reads alongside
 the existing Manager operations. `RequesterRequestService` validates, rechecks
 the account's active flag/role, and commits creation with a safe audit event.
-`SQLiteManagerAssignmentStore.initializeSchema()` applies schema versions 1–2;
+`SQLiteManagerAssignmentStore.initializeSchema()` applies schema versions 1–3;
 the ID sequence and request-specific audit target columns preserve legacy records.
 Rollback, ownership, restart, migration, and Manager handoff tests exist. This
-does not complete login, password-reset invalidation, visible history, or UI wiring.
+now includes login, password-reset invalidation, and UI wiring; visible history
+remains incomplete. General Manager account administration and Technician work UI
+remain separate role work.
 
 ## Confirmed integration contract
 
@@ -75,21 +78,41 @@ Do not manufacture sessions or introduce a permanent role picker as a login
 replacement. Isolated test fixtures do not establish real authentication.
 
 The password-policy discrepancy is resolved in AUT-004. The team decisions
-above are no longer review blockers. Schema versions 1–2 are documented in the
-Developer Guide. Implementation still needs configuration filenames/property keys
-and a way to detect Manager
-password-reset invalidation; reading the account's role alone cannot detect it.
-Document these details as implemented and preserve existing data and tests.
+above are no longer review blockers. Schema versions 1–3, `session_version`, and
+`categories.properties`/`categories` are documented in the Developer Guide.
+Manager reset increments the persisted session version; each protected call checks
+it. Preserve these contracts and existing data/tests in subsequent role work.
 
-The 22 September backend increment supplies request-only audit target metadata
+The earlier 22 September backend increment supplied request-only audit target metadata
 through generated `target_type`/`target_id` columns, plus a transactional singleton
 ID sequence that also advances for explicit demo inserts. These concrete shared
-schema changes still need yu-sutong's review; account/category audit targets and
-demo seeding remain their own integration work. Test sessions are fixtures, not
-evidence of authentication. No permanent role picker or manufactured UI session
+schema changes still need yu-sutong's review. The authentication increment replaces
+generated audit targets with ordinary account/request targets and adds atomic
+fresh-workspace account seeding. Category audits and representative demo requests
+remain pending. Legacy service fixtures use a test-only issuer; new authentication
+and UI tests use real hashed credentials. No role picker or manufactured UI session
 has been introduced.
 
 ## Implementation sequence
+
+### Authentication/UI increment (implemented, 22 September 2026; human review pending)
+
+Use Java's PBKDF2WithHmacSHA256 provider (600,000 iterations, random 16-byte
+salt, 256-bit output) with a versioned hash representation. Issue opaque
+in-memory sessions only after credential verification and login audit commit.
+Every protected service uses the same session registry and rereads the active
+flag, role, and persisted session version. Manager resets increment that version;
+own-password changes and role changes do not. Logout/shutdown revoke sessions.
+Schema version 3 adds session versions and general account/request audit targets,
+preserving existing events. Shared schema changes require teammate review before
+merge, as with the preceding migrations.
+
+JavaFX login and role navigation use background tasks for database/hash work.
+Requester submission retains invalid/failed drafts and disables pending saves;
+successful creation opens the persisted detail and refreshes the own-request list.
+The Technician route identifies its role and reports the unimplemented work UI
+explicitly. It does not offer another role's controls or claim a complete workflow.
+
 
 1. Consolidate Requester packages and urgency type, adjust launcher/test imports,
    and run both role suites to establish no behavior regression.

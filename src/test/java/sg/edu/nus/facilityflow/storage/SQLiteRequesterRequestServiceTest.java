@@ -26,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.TestSessions;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
@@ -41,8 +42,8 @@ import sg.edu.nus.facilityflow.service.ValidationException;
 class SQLiteRequesterRequestServiceTest {
     private static final Instant NOW = Instant.parse("2026-09-22T10:00:00Z");
     // Test fixtures exercise service authorization, not real login.
-    private static final AuthenticatedSession OWNER = new AuthenticatedSession(1);
-    private static final AuthenticatedSession OTHER = new AuthenticatedSession(2);
+    private AuthenticatedSession OWNER;
+    private AuthenticatedSession OTHER;
     private static final RequestDraft DRAFT = new RequestDraft(
             "  Leaking pipe  ", "  Water leaks.\nPlease inspect.  ", "  Block A  pantry  ",
             " Plumbing ", ReportedUrgency.HIGH);
@@ -55,6 +56,8 @@ class SQLiteRequesterRequestServiceTest {
 
     @BeforeEach
     void setUp() throws SQLException {
+        OWNER = TestSessions.issue(1);
+        OTHER = TestSessions.issue(2);
         jdbcUrl = "jdbc:sqlite:" + directory.resolve("requester.db");
         store = new SQLiteManagerAssignmentStore(jdbcUrl);
         store.initializeSchema();
@@ -131,8 +134,8 @@ class SQLiteRequesterRequestServiceTest {
     }
 
     static Stream<AuthenticatedSession> unauthorizedSessions() {
-        return Stream.of(null, new AuthenticatedSession(3), new AuthenticatedSession(4),
-                new AuthenticatedSession(5), new AuthenticatedSession(999));
+        return Stream.of(null, TestSessions.issue(3), TestSessions.issue(4),
+                TestSessions.issue(5), TestSessions.issue(999));
     }
 
     @ParameterizedTest
@@ -199,17 +202,17 @@ class SQLiteRequesterRequestServiceTest {
         var reopened = new SQLiteManagerAssignmentStore(jdbcUrl);
         reopened.initializeSchema();
         var afterRestart = requesterService(reopened, NOW);
-        assertEquals(created, afterRestart.getOwnRequest(new AuthenticatedSession(1), created.id()));
-        assertEquals(List.of(created), afterRestart.listOwnRequests(new AuthenticatedSession(1)));
-        assertEquals("FF-000002", afterRestart.createRequest(new AuthenticatedSession(1), DRAFT).displayId());
+        assertEquals(created, afterRestart.getOwnRequest(TestSessions.issue(1), created.id()));
+        assertEquals(List.of(created), afterRestart.listOwnRequests(TestSessions.issue(1)));
+        assertEquals("FF-000002", afterRestart.createRequest(TestSessions.issue(1), DRAFT).displayId());
     }
 
     @Test
     @DisplayName("REQ-A08 MGR-005 LIF-012 same-database handoff preserves owner, identity and audit actors")
     void handsOffToManager() throws SQLException {
         var created = service.createRequest(OWNER, DRAFT);
-        var manager = new ManagerRequestService(store, Clock.fixed(NOW.plusSeconds(60), ZoneOffset.UTC));
-        var managerSession = new AuthenticatedSession(3);
+        var manager = new ManagerRequestService(store, Clock.fixed(NOW.plusSeconds(60), ZoneOffset.UTC), TestSessions.MANAGER);
+        var managerSession = TestSessions.issue(3);
         assertEquals(List.of(created), manager.listAllRequests(managerSession));
         var assigned = manager.assignOpenRequest(managerSession, created.id(), 4, ManagerPriority.HIGH);
         assertEquals(assigned, service.getOwnRequest(OWNER, created.id()));
@@ -307,7 +310,7 @@ class SQLiteRequesterRequestServiceTest {
 
     private static RequesterRequestService requesterService(SQLiteManagerAssignmentStore source, Instant time) {
         return new RequesterRequestService(source, new RequestValidator(Set.of("Plumbing")),
-                Clock.fixed(time, ZoneOffset.UTC));
+                Clock.fixed(time, ZoneOffset.UTC), TestSessions.MANAGER);
     }
 
     private void assertEmptyBusinessData() throws SQLException {

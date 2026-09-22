@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.TestSessions;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
@@ -41,11 +41,11 @@ class SchemaMigrationsTest {
     }
 
     @Test
-    @DisplayName("DAT-003/004 creates schema version 2 and repeated initialization is idempotent")
+    @DisplayName("DAT-003/004 creates schema version 3 and repeated initialization is idempotent")
     void initializesNewDatabase() throws SQLException {
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(2, scalar("PRAGMA user_version"));
+        assertEquals(3, scalar("PRAGMA user_version"));
         assertEquals(1, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(0, scalar("SELECT COUNT(*) FROM maintenance_requests"));
     }
@@ -60,7 +60,7 @@ class SchemaMigrationsTest {
         }
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(2, scalar("PRAGMA user_version"));
+        assertEquals(3, scalar("PRAGMA user_version"));
         assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM user_accounts WHERE password_hash = 'unchanged-hash'"));
         assertEquals(1, scalar("""
@@ -76,12 +76,36 @@ class SchemaMigrationsTest {
                     AND target_type = 'REQUEST' AND target_id = 10
                 """));
         var service = new RequesterRequestService(store, new RequestValidator(Set.of("Plumbing")),
-                Clock.fixed(Instant.parse("2026-09-22T00:00:00Z"), ZoneOffset.UTC));
-        var created = service.createRequest(new AuthenticatedSession(1), new RequestDraft(
+                Clock.fixed(Instant.parse("2026-09-22T00:00:00Z"), ZoneOffset.UTC), TestSessions.MANAGER);
+        var created = service.createRequest(TestSessions.issue(1), new RequestDraft(
                 "Leaking again", "Water leaks below another sink.", "Room 12", "Plumbing", ReportedUrgency.HIGH));
         assertEquals("FF-000021", created.displayId());
         assertEquals(21, created.id());
-        assertEquals(2, service.listOwnRequests(new AuthenticatedSession(1)).size());
+        assertEquals(2, service.listOwnRequests(TestSessions.issue(1)).size());
+    }
+
+    @Test
+    @DisplayName("DAT-003/004/015 version 2 upgrades to account audits and session versions without losing prior data")
+    void upgradesVersionTwo() throws Exception {
+        createLegacyWorkspace();
+        try (var resource = getClass().getResourceAsStream("/version-two-migration.sql")) {
+            if (resource == null) {
+                throw new IOException("Missing version-two fixture");
+            }
+            for (String sql : new String(resource.readAllBytes(), StandardCharsets.UTF_8).split("-- migration-statement")) {
+                execute(sql);
+            }
+        }
+        store.initializeSchema();
+        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(0, scalar("SELECT session_version FROM user_accounts WHERE id = 1"));
+        assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7 AND target_id = 10"));
+        store.inTransaction(transaction -> {
+            transaction.appendAccountAudit(1, 1, "LOGIN_SUCCEEDED", Instant.parse("2026-09-22T00:00:00Z"));
+            return null;
+        });
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE target_type = 'ACCOUNT' AND request_id IS NULL"));
     }
 
     @Test
@@ -139,7 +163,7 @@ class SchemaMigrationsTest {
         execute("DELETE FROM request_identity_sequence");
         assertThrows(StorageException.class, store::initializeSchema);
         assertEquals(0, scalar("SELECT COUNT(*) FROM request_identity_sequence"));
-        assertEquals(2, scalar("PRAGMA user_version"));
+        assertEquals(3, scalar("PRAGMA user_version"));
     }
 
     private void createLegacyWorkspace() throws IOException, SQLException {

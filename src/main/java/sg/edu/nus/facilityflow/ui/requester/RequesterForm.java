@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -27,14 +28,21 @@ public final class RequesterForm extends VBox {
     private final Map<String, Label> fieldErrors = new LinkedHashMap<>();
     private final Label feedback = new Label();
     private final RequestValidator validator;
+    private final Consumer<RequestDraft> submit;
 
     public RequesterForm(List<String> categories) {
+        this(categories, null);
+    }
+
+    public RequesterForm(List<String> categories, Consumer<RequestDraft> submit) {
         super(8);
+        this.submit = submit;
         validator = new RequestValidator(Set.copyOf(categories));
         setPadding(new Insets(24));
         var heading = new Label("New maintenance request");
         heading.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
-        var notice = new Label("Development preview — checks fields only. Nothing is saved.");
+        var notice = new Label(submit == null ? "Development preview — checks fields only. Nothing is saved."
+                : "Describe the problem. Required fields are marked *.");
         notice.setWrapText(true);
         getChildren().addAll(heading, notice);
         description.setPrefRowCount(4);
@@ -62,7 +70,7 @@ public final class RequesterForm extends VBox {
         addField("location", "Location * (2–120 characters)", location);
         addField("category", "Category *", category);
         addField("urgency", "Reported urgency *", urgency);
-        var validate = new Button("Check details");
+        var validate = new Button(submit == null ? "Check details" : "Submit request");
         validate.setId("validate");
         validate.setOnAction(event -> validateDetails());
         feedback.setId("feedback");
@@ -79,6 +87,7 @@ public final class RequesterForm extends VBox {
         error.setId(id + "Error");
         error.setWrapText(true);
         error.setVisible(false);
+        error.setStyle("-fx-text-fill: #a32121;");
         error.managedProperty().bind(error.visibleProperty());
         fieldErrors.put(id, error);
         getChildren().addAll(label, control, error);
@@ -89,11 +98,26 @@ public final class RequesterForm extends VBox {
                 location.getText(), category.getValue(), urgency.getValue());
         var errors = validator.validate(draft);
         fieldErrors.forEach((field, label) -> {
-            label.setText(errors.getOrDefault(field, ""));
+            label.setText(errors.containsKey(field) ? "Error: " + errors.get(field) : "");
             label.setVisible(errors.containsKey(field));
         });
+        if (errors.isEmpty() && submit != null) {
+            setSubmitting(true);
+            submit.accept(draft);
+            return;
+        }
         feedback.setText(errors.isEmpty()
                 ? "Details are valid. Nothing has been saved in this preview."
                 : "Check the guidance beside each field. Your entries have been kept.");
+    }
+
+    public void setSubmitting(boolean busy) {
+        setDisable(busy);
+        feedback.setText(busy ? "Saving request…" : "");
+    }
+
+    public void showFailure(String message) {
+        setSubmitting(false);
+        feedback.setText(message);
     }
 }

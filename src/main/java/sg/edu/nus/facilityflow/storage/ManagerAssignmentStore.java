@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import sg.edu.nus.facilityflow.model.AuditEvent;
+import sg.edu.nus.facilityflow.model.AccountCredentials;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.UserAccount;
@@ -19,6 +20,12 @@ public interface ManagerAssignmentStore {
 
     interface TransactionContext {
         Optional<UserAccount> findAccount(long accountId);
+
+        Optional<AccountCredentials> findCredentials(String username);
+
+        void updatePassword(long accountId, String hash, boolean invalidateSessions, Instant changedAt);
+
+        void appendAccountAudit(long actorId, long targetId, String action, Instant occurredAt);
 
         Optional<MaintenanceRequest> findRequest(long requestId);
 

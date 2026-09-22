@@ -36,3 +36,13 @@ the database, if the catalogue is malformed, contains duplicate category names,
 or includes an invalid rename/removal mapping.
 
 Facilities Managers do not manage categories through the MVP interface.
+
+## Current implementation (22 September 2026)
+
+The application loads UTF-8 `categories.properties` beside `facilityflow.db` with
+one key, `categories`, containing comma-separated names. A new file receives the
+initial catalogue. Startup rejects empty/duplicate names, missing `Other`, unknown
+keys, and catalogues omitting a stored request's category. Rename/removal mapping
+syntax and migrations are not yet implemented; supplying mapping keys stops
+startup instead of silently applying an incomplete change. The agreed complete
+contract above remains required for LIF-021–022.

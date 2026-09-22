@@ -16,7 +16,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.TestSessions;
+import sg.edu.nus.facilityflow.model.AccountCredentials;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
@@ -44,14 +45,14 @@ class ManagerRequestServiceTest {
         store.requests.put(10L, openRequest(10));
         store.requests.put(11L, openRequest(11).assignTo(2, ManagerPriority.MEDIUM, CREATED_AT));
         service = new ManagerRequestService(
-                store, Clock.fixed(ASSIGNED_AT, ZoneOffset.UTC));
+                store, Clock.fixed(ASSIGNED_AT, ZoneOffset.UTC), TestSessions.MANAGER);
     }
 
     @Test
     @DisplayName("MGR-004 MGR-005 LIF-011 assigns an OPEN request and audits it")
     void assignsOpenRequestAndAuditsTransition() {
         MaintenanceRequest result = service.assignOpenRequest(
-                new AuthenticatedSession(1), 10, 2, ManagerPriority.HIGH);
+                TestSessions.issue(1), 10, 2, ManagerPriority.HIGH);
 
         assertEquals(RequestStatus.ASSIGNED, result.status());
         assertEquals(ManagerPriority.HIGH, result.managerPriority());
@@ -69,7 +70,7 @@ class ManagerRequestServiceTest {
         ValidationException error = assertThrows(
                 ValidationException.class,
                 () -> service.assignOpenRequest(
-                        new AuthenticatedSession(1), 10, 3, ManagerPriority.HIGH));
+                        TestSessions.issue(1), 10, 3, ManagerPriority.HIGH));
 
         assertEquals("Assignee must be an active Technician.", error.getMessage());
         assertRequestRemainsOpen();
@@ -81,7 +82,7 @@ class ManagerRequestServiceTest {
         assertThrows(
                 ValidationException.class,
                 () -> service.assignOpenRequest(
-                        new AuthenticatedSession(1), 10, 4, ManagerPriority.HIGH));
+                        TestSessions.issue(1), 10, 4, ManagerPriority.HIGH));
 
         assertRequestRemainsOpen();
     }
@@ -92,10 +93,10 @@ class ManagerRequestServiceTest {
         AuthorizationException error = assertThrows(
                 AuthorizationException.class,
                 () -> service.assignOpenRequest(
-                        new AuthenticatedSession(3), 10, 2, ManagerPriority.HIGH));
+                        TestSessions.issue(3), 10, 2, ManagerPriority.HIGH));
 
         assertEquals(
-                "Your session is not authorized for this operation. Please sign in again.",
+                "Your current role cannot perform this action.",
                 error.getMessage());
         assertRequestRemainsOpen();
     }
@@ -106,7 +107,7 @@ class ManagerRequestServiceTest {
         ValidationException error = assertThrows(
                 ValidationException.class,
                 () -> service.assignOpenRequest(
-                        new AuthenticatedSession(1), 11, 2, ManagerPriority.HIGH));
+                        TestSessions.issue(1), 11, 2, ManagerPriority.HIGH));
 
         assertEquals("Request must be OPEN before it can be assigned.", error.getMessage());
         assertEquals(RequestStatus.ASSIGNED, store.requests.get(11L).status());
@@ -118,7 +119,7 @@ class ManagerRequestServiceTest {
     void rejectsMissingPriority() {
         ValidationException error = assertThrows(
                 ValidationException.class,
-                () -> service.assignOpenRequest(new AuthenticatedSession(1), 10, 2, null));
+                () -> service.assignOpenRequest(TestSessions.issue(1), 10, 2, null));
 
         assertEquals("Manager priority is required before assignment.", error.getMessage());
         assertRequestRemainsOpen();
@@ -140,7 +141,7 @@ class ManagerRequestServiceTest {
                 15, RequestStatus.COMPLETED, ReportedUrgency.NORMAL, ManagerPriority.LOW, 2L,
                 CREATED_AT, CREATED_AT.plusSeconds(2400)));
 
-        String orderedIds = service.listAllRequests(new AuthenticatedSession(1)).stream()
+        String orderedIds = service.listAllRequests(TestSessions.issue(1)).stream()
                 .map(MaintenanceRequest::displayId)
                 .collect(Collectors.joining(","));
 
@@ -205,6 +206,21 @@ class ManagerRequestServiceTest {
         @Override
         public <T> T inTransaction(TransactionWork<T> work) {
             return work.execute(new TransactionContext() {
+                @Override
+                public Optional<AccountCredentials> findCredentials(String username) {
+                    throw new AssertionError("Assignment must not read password hashes");
+                }
+
+                @Override
+                public void updatePassword(long id, String hash, boolean invalidate, Instant time) {
+                    throw new AssertionError("Assignment must not change passwords");
+                }
+
+                @Override
+                public void appendAccountAudit(long actor, long target, String action, Instant time) {
+                    throw new AssertionError("Assignment must not write account audits");
+                }
+
                 @Override
                 public Optional<UserAccount> findAccount(long accountId) {
                     return Optional.ofNullable(accounts.get(accountId));

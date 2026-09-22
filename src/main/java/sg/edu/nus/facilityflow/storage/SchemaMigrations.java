@@ -61,7 +61,7 @@ final class SchemaMigrations {
                 }
                 version = result.getInt(1);
             }
-            if (version < 0 || version > 2) {
+            if (version < 0 || version > 3) {
                 throw new SQLException("Unsupported schema version; use a compatible FacilityFlow build.");
             }
             if (version == 0) {
@@ -106,9 +106,34 @@ final class SchemaMigrations {
                         """);
                 statement.execute("PRAGMA user_version = 2");
             }
+            if (version < 3) {
+                statement.execute("ALTER TABLE user_accounts ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0");
+                statement.execute("""
+                        CREATE TABLE audit_events_v3 (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            request_id INTEGER REFERENCES maintenance_requests(id),
+                            actor_id INTEGER NOT NULL REFERENCES user_accounts(id),
+                            action TEXT NOT NULL,
+                            detail TEXT NOT NULL,
+                            occurred_at TEXT NOT NULL,
+                            target_type TEXT NOT NULL CHECK (target_type IN ('REQUEST', 'ACCOUNT')),
+                            target_id INTEGER NOT NULL CHECK (target_id > 0),
+                            CHECK ((target_type = 'REQUEST' AND request_id IS NOT NULL AND request_id = target_id)
+                                OR (target_type = 'ACCOUNT' AND request_id IS NULL))
+                        )
+                        """);
+                statement.execute("""
+                        INSERT INTO audit_events_v3
+                        SELECT id, request_id, actor_id, action, detail, occurred_at, target_type, target_id
+                        FROM audit_events
+                        """);
+                statement.execute("DROP TABLE audit_events");
+                statement.execute("ALTER TABLE audit_events_v3 RENAME TO audit_events");
+                statement.execute("PRAGMA user_version = 3");
+            }
             // Fail at startup rather than accepting a version marker on an incompatible schema.
             statement.executeQuery("""
-                    SELECT id, username, display_name, role, password_hash, active, created_at, updated_at
+                    SELECT id, username, display_name, role, password_hash, active, created_at, updated_at, session_version
                     FROM user_accounts LIMIT 0
                     """).close();
             statement.executeQuery("""

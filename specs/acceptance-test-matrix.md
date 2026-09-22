@@ -50,8 +50,8 @@ Additional team-confirmed integration checks (20 September 2026; not yet execute
 | E2E-033 | ID exhaustion and safe creation audit | LIF-002, DAT-007, DAT-015–019 | Generated IDs stay unique and six-digit; beyond FF-999999 fails atomically; creation audit includes identity/actor/target/time/action but no full title, description, or location |
 | E2E-034 | Shared data and catalogue location | DAT-001, DAT-010, LIF-021–022 | Roles use one OS-user application-data database and adjacent properties catalogue; invalid configuration changes nothing; tests use separate temporary databases |
 
-Requester integration milestone (backend evidence added 22 September 2026;
-authenticated UI acceptance remains outstanding):
+Requester integration milestone (backend and authenticated JavaFX evidence added
+22 September 2026; release acceptance and visible history remain outstanding):
 
 | Role acceptance | Existing release scenarios | Integration evidence required |
 |---|---|---|
@@ -66,9 +66,14 @@ See the [Requester acceptance scenarios](roles/requester.md) and
 owner-scoped reads, role/deactivation checks, database reopening, Manager handoff,
 creation rollback/retry, deterministic own-list order, and ID exhaustion with safe
 audit metadata. `SchemaMigrationsTest` verifies versioned startup and preservation
-of legacy Manager data. These are not full E2E passes: login/session lifecycle,
-visible history, form save/recovery, and duplicate-click prevention are not yet
-integrated. Neither date filtering nor production catalogue startup is implemented.
+of legacy Manager data. `AuthenticationServiceTest` adds real login/session,
+password change/reset and audit rollback evidence. `AuthenticatedWorkflowTest`
+covers each role route, login/logout, one pending submission, recovery, same-owner
+draft restoration, and Requester-to-Manager handoff through real controls.
+`WorkspaceTest` covers initial account seeding and category startup validation.
+These are local automated results, not signed release-level E2E passes. Visible
+history, date filtering, representative lifecycle demo requests, category mappings,
+and the complete Technician/Manager workflow remain outstanding.
 
 Automated tests SHOULD include at least one requirement identifier in the test
 name or display name, for example:

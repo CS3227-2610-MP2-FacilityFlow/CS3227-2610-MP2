@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.SessionManager;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestDraft;
@@ -19,16 +20,18 @@ public final class RequesterRequestService {
     private final ManagerAssignmentStore store;
     private final RequestValidator validator;
     private final Clock clock;
+    private final SessionManager sessions;
 
-    public RequesterRequestService(ManagerAssignmentStore store, RequestValidator validator, Clock clock) {
+    public RequesterRequestService(ManagerAssignmentStore store, RequestValidator validator, Clock clock, SessionManager sessions) {
         this.store = Objects.requireNonNull(store, "store");
         this.validator = Objects.requireNonNull(validator, "validator");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.sessions = Objects.requireNonNull(sessions, "sessions");
     }
 
     public MaintenanceRequest createRequest(AuthenticatedSession session, RequestDraft draft) {
         return store.inTransaction(transaction -> {
-            UserAccount actor = requireActiveRequester(transaction, session);
+            UserAccount actor = sessions.requireRole(transaction, session, Role.REQUESTER);
             if (draft == null) {
                 throw new ValidationException("Request details are required.");
             }
@@ -45,7 +48,7 @@ public final class RequesterRequestService {
 
     public List<MaintenanceRequest> listOwnRequests(AuthenticatedSession session) {
         return store.inTransaction(transaction -> {
-            UserAccount actor = requireActiveRequester(transaction, session);
+            UserAccount actor = sessions.requireRole(transaction, session, Role.REQUESTER);
             return transaction.listOwnRequests(actor.id()).stream()
                     .filter(request -> request.requesterId() == actor.id())
                     .sorted(Comparator.comparing(MaintenanceRequest::createdAt).reversed()
@@ -56,26 +59,11 @@ public final class RequesterRequestService {
 
     public MaintenanceRequest getOwnRequest(AuthenticatedSession session, long requestId) {
         return store.inTransaction(transaction -> {
-            UserAccount actor = requireActiveRequester(transaction, session);
+            UserAccount actor = sessions.requireRole(transaction, session, Role.REQUESTER);
             return transaction.findOwnRequest(actor.id(), requestId)
                     .filter(request -> request.requesterId() == actor.id())
                     .orElseThrow(() -> new AuthorizationException("Request is unavailable."));
         });
     }
 
-    private static UserAccount requireActiveRequester(
-            ManagerAssignmentStore.TransactionContext transaction, AuthenticatedSession session) {
-        if (session == null) {
-            throw unauthorized();
-        }
-        return transaction.findAccount(session.accountId())
-                .filter(UserAccount::active)
-                .filter(account -> account.role() == Role.REQUESTER)
-                .orElseThrow(RequesterRequestService::unauthorized);
-    }
-
-    private static AuthorizationException unauthorized() {
-        return new AuthorizationException(
-                "Your session is not authorized for this operation.");
-    }
 }

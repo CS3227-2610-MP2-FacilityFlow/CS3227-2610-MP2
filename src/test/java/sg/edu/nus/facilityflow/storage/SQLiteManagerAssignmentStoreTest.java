@@ -18,7 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.TestSessions;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
 
@@ -56,12 +56,12 @@ class SQLiteManagerAssignmentStoreTest {
                     """);
         }
         ManagerRequestService service = new ManagerRequestService(
-                store, Clock.fixed(NOW, ZoneOffset.UTC));
+                store, Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER);
 
         assertThrows(
                 StorageException.class,
                 () -> service.assignOpenRequest(
-                        new AuthenticatedSession(1), 10, 2, ManagerPriority.CRITICAL));
+                        TestSessions.issue(1), 10, 2, ManagerPriority.CRITICAL));
 
         try (Connection connection = DriverManager.getConnection(jdbcUrl);
                 PreparedStatement request = connection.prepareStatement(
@@ -83,10 +83,10 @@ class SQLiteManagerAssignmentStoreTest {
     @DisplayName("MGR-005 LIF-012 QLT-003 commits assignment and one audit event")
     void commitsAssignmentAndAuditTogether() throws SQLException {
         ManagerRequestService service = new ManagerRequestService(
-                store, Clock.fixed(NOW, ZoneOffset.UTC));
+                store, Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER);
 
         service.assignOpenRequest(
-                new AuthenticatedSession(1), 10, 2, ManagerPriority.HIGH);
+                TestSessions.issue(1), 10, 2, ManagerPriority.HIGH);
 
         try (Connection connection = DriverManager.getConnection(jdbcUrl);
                 PreparedStatement request = connection.prepareStatement(

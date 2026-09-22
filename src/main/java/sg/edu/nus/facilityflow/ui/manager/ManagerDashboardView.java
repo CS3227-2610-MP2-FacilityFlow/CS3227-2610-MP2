@@ -16,16 +16,16 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
+import sg.edu.nus.facilityflow.ui.UiTasks;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.UserAccount;
-import sg.edu.nus.facilityflow.service.AuthorizationException;
-import sg.edu.nus.facilityflow.service.ValidationException;
-import sg.edu.nus.facilityflow.storage.StorageException;
+import java.util.function.Consumer;
+
+
 
 /**
  * Accessible Manager request queue and assignment view for MGR-001 and MGR-004–005.
@@ -33,7 +33,10 @@ import sg.edu.nus.facilityflow.storage.StorageException;
  */
 public final class ManagerDashboardView {
     private final ManagerDashboardController controller;
-    private final Runnable logoutAction;
+    private final UiTasks tasks;
+    private final Consumer<Throwable> failure;
+    private boolean busy;
+    private final Button refreshButton = new Button("Refresh requests");
     private final BorderPane root = new BorderPane();
     private final TableView<MaintenanceRequest> requestTable = new TableView<>();
     private final ComboBox<UserAccount> technicianBox = new ComboBox<>();
@@ -43,44 +46,23 @@ public final class ManagerDashboardView {
     private final Label selectedId = new Label("Select a request");
     private final Label selectedDescription = new Label("Choose a row to inspect its details.");
 
-    public ManagerDashboardView(
-            ManagerDashboardController controller,
-            String managerDisplayName,
-            Runnable logoutAction) {
+    public ManagerDashboardView(ManagerDashboardController controller, UiTasks tasks, Consumer<Throwable> failure) {
         this.controller = Objects.requireNonNull(controller, "controller");
-        this.logoutAction = Objects.requireNonNull(logoutAction, "logoutAction");
-        Objects.requireNonNull(managerDisplayName, "managerDisplayName");
-        configureRoot(managerDisplayName);
+        this.tasks = tasks;
+        this.failure = failure;
+        root.setId("managerDashboard");
+        root.getStyleClass().add("manager-shell");
         configureTable();
         configureAssignmentPanel();
         refresh();
     }
-
     public Parent root() {
         return root;
     }
 
-    private void configureRoot(String managerDisplayName) {
-        root.getStyleClass().add("manager-shell");
-        root.setMinSize(1024, 700);
-
-        Label product = new Label("FacilityFlow");
-        product.getStyleClass().add("product-name");
-        Label identity = new Label(managerDisplayName + "  ·  Facilities Manager");
-        identity.getStyleClass().add("identity-label");
-        Button logout = new Button("_Log out");
-        logout.setMnemonicParsing(true);
-        logout.setOnAction(event -> logoutAction.run());
-        HBox spacer = new HBox();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(16, product, spacer, identity, logout);
-        header.setPadding(new Insets(16, 24, 16, 24));
-        header.getStyleClass().add("app-header");
-        root.setTop(header);
-    }
-
     @SuppressWarnings("unchecked")
     private void configureTable() {
+        requestTable.setId("managerRequests");
         TableColumn<MaintenanceRequest, String> idColumn = textColumn(
                 "Request ID", request -> request.displayId());
         idColumn.setPrefWidth(110);
@@ -120,7 +102,8 @@ public final class ManagerDashboardView {
                 "OPEN requests are ordered by reported urgency and age. Select one to triage it.");
         queueHelp.getStyleClass().add("secondary-text");
         queueHelp.setWrapText(true);
-        VBox tableArea = new VBox(6, queueTitle, queueHelp, requestTable);
+        refreshButton.setOnAction(event -> refresh());
+        VBox tableArea = new VBox(6, queueTitle, queueHelp, refreshButton, requestTable);
         VBox.setVgrow(requestTable, Priority.ALWAYS);
         tableArea.setPadding(new Insets(24, 12, 24, 24));
 
@@ -132,6 +115,7 @@ public final class ManagerDashboardView {
         technicianLabel.setMnemonicParsing(true);
         technicianLabel.setLabelFor(technicianBox);
         technicianBox.setAccessibleText("Active Technician");
+        technicianBox.setId("assignee");
         technicianBox.setPromptText("Select an active Technician");
         technicianBox.setMaxWidth(Double.MAX_VALUE);
         technicianBox.setConverter(new UserAccountStringConverter());
@@ -140,11 +124,13 @@ public final class ManagerDashboardView {
         priorityLabel.setMnemonicParsing(true);
         priorityLabel.setLabelFor(priorityBox);
         priorityBox.setAccessibleText("Manager priority");
+        priorityBox.setId("managerPriority");
         priorityBox.setPromptText("Select priority");
         priorityBox.setItems(FXCollections.observableArrayList(ManagerPriority.values()));
         priorityBox.setMaxWidth(Double.MAX_VALUE);
 
         assignButton.setMnemonicParsing(true);
+        assignButton.setId("assignRequest");
         assignButton.setDefaultButton(true);
         assignButton.getStyleClass().add("primary-button");
         assignButton.setMaxWidth(Double.MAX_VALUE);
@@ -188,18 +174,42 @@ public final class ManagerDashboardView {
         root.setCenter(content);
     }
 
-    private void refresh() {
-        try {
-            requestTable.setItems(FXCollections.observableArrayList(controller.loadRequests()));
-            technicianBox.setItems(
-                    FXCollections.observableArrayList(controller.loadActiveTechnicians()));
-            feedback.setText("");
-            feedback.getStyleClass().removeAll("feedback-success", "feedback-error");
-        } catch (AuthorizationException | StorageException exception) {
-            showError(safeMessage(exception));
-        }
+    private record QueueData(java.util.List<MaintenanceRequest> requests, java.util.List<UserAccount> technicians) {
     }
 
+    private void setBusy(boolean value) {
+        busy = value;
+        refreshButton.setDisable(value);
+        requestTable.setDisable(value);
+        technicianBox.setDisable(value);
+        priorityBox.setDisable(value);
+        updateAssignState();
+    }
+
+    private void refresh() {
+        refresh("");
+    }
+
+    private void refresh(String confirmation) {
+        var selected = requestTable.getSelectionModel().getSelectedItem();
+        setBusy(true);
+        feedback.setText("Loading requests…");
+        tasks.run(() -> new QueueData(controller.loadRequests(), controller.loadActiveTechnicians()), data -> {
+            requestTable.setItems(FXCollections.observableArrayList(data.requests()));
+            technicianBox.setItems(FXCollections.observableArrayList(data.technicians()));
+            if (selected != null) {
+                data.requests().stream().filter(request -> request.id() == selected.id())
+                        .findFirst().ifPresent(requestTable.getSelectionModel()::select);
+            }
+            setBusy(false);
+            feedback.setText(confirmation);
+        }, error -> {
+            setBusy(false);
+            showError(confirmation.isEmpty() ? UiTasks.safeMessage(error)
+                    : confirmation + " The queue could not be refreshed. Please refresh it again.");
+            failure.accept(error);
+        });
+    }
     private void showSelection(MaintenanceRequest request) {
         if (request == null) {
             selectedId.setText("Select a request");
@@ -214,44 +224,38 @@ public final class ManagerDashboardView {
     private void updateAssignState() {
         MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
         assignButton.setDisable(
-                selected == null
+                busy || selected == null
                         || selected.status() != RequestStatus.OPEN
                         || technicianBox.getValue() == null
                         || priorityBox.getValue() == null);
     }
 
     private void assignSelectedRequest() {
-        assignButton.setDisable(true);
-        try {
-            MaintenanceRequest assigned = controller.assign(
-                    requestTable.getSelectionModel().getSelectedItem(),
-                    technicianBox.getValue(),
-                    priorityBox.getValue());
-            refresh();
-            requestTable.getItems().stream()
-                    .filter(request -> request.id() == assigned.id())
-                    .findFirst()
-                    .ifPresent(requestTable.getSelectionModel()::select);
+        var selected = requestTable.getSelectionModel().getSelectedItem();
+        var technician = technicianBox.getValue();
+        var priority = priorityBox.getValue();
+        setBusy(true);
+        feedback.setText("Assigning request…");
+        tasks.run(() -> controller.assign(selected, technician, priority), assigned -> {
+            int index = requestTable.getItems().indexOf(selected);
+            if (index >= 0) {
+                requestTable.getItems().set(index, assigned);
+            }
+            requestTable.getSelectionModel().select(assigned);
+            setBusy(false);
+            feedback.getStyleClass().removeAll("feedback-error");
             feedback.getStyleClass().add("feedback-success");
-            feedback.setText(assigned.displayId() + " was assigned successfully.");
-        } catch (ValidationException | AuthorizationException | StorageException exception) {
-            showError(safeMessage(exception));
-        } finally {
-            updateAssignState();
-        }
+            refresh(assigned.displayId() + " was assigned successfully.");
+        }, error -> {
+            setBusy(false);
+            showError(UiTasks.safeMessage(error));
+            failure.accept(error);
+        });
     }
-
     private void showError(String message) {
         feedback.getStyleClass().removeAll("feedback-success", "feedback-error");
         feedback.getStyleClass().add("feedback-error");
         feedback.setText(message);
-    }
-
-    private static String safeMessage(RuntimeException exception) {
-        if (exception instanceof StorageException) {
-            return "FacilityFlow could not save the change. Check the local database and try again.";
-        }
-        return exception.getMessage();
     }
 
     private static TableColumn<MaintenanceRequest, String> textColumn(
