@@ -2,6 +2,7 @@ package sg.edu.nus.facilityflow.ui;
 
 import java.util.function.BiConsumer;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -18,6 +19,8 @@ public final class LoginView extends VBox {
         super(12);
         setId("loginView");
         setPadding(new Insets(32));
+        setAlignment(Pos.CENTER);
+        getStyleClass().add("login-page");
         username.setId("username");
         username.setAccessibleText("Username");
         password.setId("password");
@@ -36,8 +39,23 @@ public final class LoginView extends VBox {
             setBusy(true);
             submit.accept(username.getText(), entered);
         });
-        getChildren().addAll(new Label("FacilityFlow — Sign in"), usernameLabel, username,
+        var brand = new Label("FacilityFlow");
+        brand.getStyleClass().add("product-name");
+        var heading = new Label("Welcome back");
+        heading.getStyleClass().add("section-title");
+        var help = new Label("Sign in to your maintenance workspace.");
+        help.getStyleClass().add("secondary-text");
+        help.setWrapText(true);
+        username.setPromptText("Enter your username");
+        password.setPromptText("Enter your password");
+        login.getStyleClass().add("primary-button");
+        login.setMaxWidth(Double.MAX_VALUE);
+        feedback.getStyleClass().add("feedback-label");
+        var card = new VBox(12, brand, heading, help, usernameLabel, username,
                 passwordLabel, password, login, feedback);
+        card.getStyleClass().add("card");
+        card.setMaxWidth(440);
+        getChildren().add(card);
     }
 
     public void setBusy(boolean busy) {

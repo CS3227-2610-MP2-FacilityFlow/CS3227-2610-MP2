@@ -10,7 +10,11 @@ public final class TechnicianDashboardView extends VBox {
         super(12);
         setId("technicianDashboard");
         setPadding(new Insets(24));
-        getChildren().addAll(new Label("Technician"),
-                new Label("Technician work management is not available in this development build."));
+        var heading = new Label("Technician");
+        heading.getStyleClass().add("page-title");
+        var notice = new Label("Technician work management is not available in this development build.");
+        notice.setWrapText(true);
+        notice.getStyleClass().add("secondary-text");
+        getChildren().addAll(heading, notice);
     }
 }

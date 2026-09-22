@@ -39,15 +39,25 @@ public final class RequesterForm extends VBox {
         this.submit = submit;
         validator = new RequestValidator(Set.copyOf(categories));
         setPadding(new Insets(24));
+        getStyleClass().add("card");
+        setMaxWidth(800);
         var heading = new Label("New maintenance request");
-        heading.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        heading.getStyleClass().add("section-title");
+        heading.setWrapText(true);
         var notice = new Label(submit == null ? "Development preview — checks fields only. Nothing is saved."
                 : "Describe the problem. Required fields are marked *.");
         notice.setWrapText(true);
+        notice.getStyleClass().add("secondary-text");
         getChildren().addAll(heading, notice);
         description.setPrefRowCount(4);
         description.setWrapText(true);
         category.getItems().setAll(categories);
+        category.setMaxWidth(Double.MAX_VALUE);
+        category.setPromptText("Choose a category");
+        urgency.setMaxWidth(Double.MAX_VALUE);
+        urgency.setPromptText("Choose urgency");
+        title.setPromptText("e.g. Leaking tap in the pantry");
+        location.setPromptText("Building, floor and room");
         urgency.getItems().setAll(ReportedUrgency.values());
         urgency.setConverter(new StringConverter<ReportedUrgency>() {
             @Override
@@ -72,6 +82,7 @@ public final class RequesterForm extends VBox {
         addField("urgency", "Reported urgency *", urgency);
         var validate = new Button(submit == null ? "Check details" : "Submit request");
         validate.setId("validate");
+        validate.getStyleClass().add("primary-button");
         validate.setOnAction(event -> validateDetails());
         feedback.setId("feedback");
         feedback.setWrapText(true);
@@ -87,7 +98,7 @@ public final class RequesterForm extends VBox {
         error.setId(id + "Error");
         error.setWrapText(true);
         error.setVisible(false);
-        error.setStyle("-fx-text-fill: #a32121;");
+        error.getStyleClass().add("feedback-error");
         error.managedProperty().bind(error.visibleProperty());
         fieldErrors.put(id, error);
         getChildren().addAll(label, control, error);

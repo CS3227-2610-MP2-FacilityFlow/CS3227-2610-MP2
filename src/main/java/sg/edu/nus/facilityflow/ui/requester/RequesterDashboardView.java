@@ -11,7 +11,8 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
@@ -43,15 +44,36 @@ public final class RequesterDashboardView extends BorderPane {
         list.setAccessibleText("My requests: ID, title, status");
         list.setPlaceholder(new Label("You have no requests yet."));
         list.setCellFactory(ignored -> new ListCell<>() {
+            private final Label title = new Label();
+            private final Label summary = new Label();
+            private final VBox content = new VBox(5, title, summary);
+
+            {
+                title.getStyleClass().add("request-title");
+                summary.getStyleClass().add("secondary-text");
+                title.setWrapText(true);
+                summary.setWrapText(true);
+                content.maxWidthProperty().bind(list.widthProperty().subtract(64));
+            }
+
             @Override
             protected void updateItem(MaintenanceRequest request, boolean empty) {
                 super.updateItem(request, empty);
-                setText(empty || request == null ? null : request.displayId() + " — "
-                        + request.title() + " — " + request.status());
+                setText(null);
+                if (empty || request == null) {
+                    setGraphic(null);
+                    setAccessibleText(null);
+                } else {
+                    title.setText(request.title());
+                    summary.setText(request.displayId() + "  ·  " + request.status() + "  ·  " + request.location());
+                    setGraphic(content);
+                    setAccessibleText(title.getText() + ". " + summary.getText());
+                }
             }
         });
         var create = new Button("New request");
         create.setId("newRequest");
+        create.getStyleClass().add("primary-button");
         create.setOnAction(event -> showForm());
         var refresh = new Button("Refresh requests");
         refresh.setId("refreshRequests");
@@ -62,8 +84,14 @@ public final class RequesterDashboardView extends BorderPane {
         open.setOnAction(event -> loadDetail(list.getSelectionModel().getSelectedItem().id()));
         feedback.setId("requesterFeedback");
         feedback.setWrapText(true);
-        listPane = new VBox(12, new Label("My requests — ID, title, status"),
-                new HBox(10, create, refresh, open), list, feedback);
+        var heading = new Label("My requests");
+        heading.getStyleClass().add("page-title");
+        var help = new Label("Track your maintenance requests. Select a request to see its details.");
+        help.setWrapText(true);
+        help.getStyleClass().add("secondary-text");
+        feedback.getStyleClass().add("feedback-label");
+        listPane = new VBox(12, heading, help,
+                new FlowPane(10, 10, create, refresh, open), list, feedback);
         VBox.setVgrow(list, Priority.ALWAYS);
         setCenter(listPane);
         refresh();
@@ -95,7 +123,9 @@ public final class RequesterDashboardView extends BorderPane {
         back.setOnAction(event -> showList());
         // The entire form/navigation is disabled while saving, so input cannot be discarded mid-submit.
         back.disableProperty().bind(form.disabledProperty());
-        var scroll = new ScrollPane(form);
+        var container = new StackPane(form);
+        container.setPadding(new Insets(16, 0, 0, 0));
+        var scroll = new ScrollPane(container);
         scroll.setFitToWidth(true);
         var pane = new BorderPane(scroll);
         pane.setTop(back);
@@ -136,20 +166,26 @@ public final class RequesterDashboardView extends BorderPane {
         var refresh = new Button("Refresh detail");
         refresh.setOnAction(event -> loadDetail(request.id()));
         var dates = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm z").withZone(ZoneId.systemDefault());
-        var detail = new Label(request.displayId() + " — " + request.title()
+        var heading = new Label(request.title());
+        heading.setWrapText(true);
+        heading.getStyleClass().add("page-title");
+        var description = new Label(request.description());
+        description.setWrapText(true);
+        var detail = new Label(request.displayId()
                 + "\nStatus: " + request.status() + "\nReported urgency: " + request.reportedUrgency()
                 + "\nManager priority: " + (request.managerPriority() == null ? "Not set" : request.managerPriority())
                 + "\nCategory: " + request.category() + "\nLocation: " + request.location()
-                + "\nCreated: " + dates.format(request.createdAt()) + "\nUpdated: " + dates.format(request.updatedAt())
-                + "\n\n" + request.description());
+                + "\nCreated: " + dates.format(request.createdAt()) + "\nUpdated: " + dates.format(request.updatedAt()));
         detail.setWrapText(true);
         detail.setId("requestDetail");
+        detail.getStyleClass().add("request-detail");
+        detail.setMaxWidth(Double.MAX_VALUE);
         feedback.setText(message);
         // Feedback belongs to only one parent at a time.
         if (feedback.getParent() instanceof VBox parent) {
             parent.getChildren().remove(feedback);
         }
-        var pane = new VBox(15, new HBox(10, back, refresh), detail, feedback);
+        var pane = new VBox(15, new FlowPane(10, 10, back, refresh), heading, detail, description, feedback);
         var scroll = new ScrollPane(pane);
         scroll.setFitToWidth(true);
         setCenter(scroll);

@@ -45,6 +45,14 @@ restores the draft in memory. Explicit logout or closing the app discards unsave
 
 ## Manager handoff
 
+The refreshed interface uses teal primary actions, labelled inline errors and
+scrollable forms. Resize the window to suit your workspace: account actions wrap
+on narrower windows, and the Manager assignment panel moves below the queue.
+Use the panel's scrollbar to reach assignment controls on a shorter window;
+the queue scrolls horizontally to show all columns. Resizing keeps form input
+and selections. The default content area is 1,024 × 700, with layouts also
+checked at 760 × 600 and 1,440 × 900.
+
 Log out, then sign in as `manager1`. Select the Requester's `OPEN` request, choose
 an active Technician and Manager priority, then choose **Assign request**. The
 confirmed result becomes `ASSIGNED`. Sign back in as the owning Requester to

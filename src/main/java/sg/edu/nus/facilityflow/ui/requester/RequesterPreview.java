@@ -16,7 +16,10 @@ public final class RequesterPreview extends Application {
         stage.setTitle("FacilityFlow — Requester preview");
         var content = new ScrollPane(new RequesterForm(categories));
         content.setFitToWidth(true);
-        stage.setScene(new Scene(content, 1024, 700));
+        var scene = new Scene(content, 1024, 700);
+        scene.getStylesheets().add(getClass()
+                .getResource("/sg/edu/nus/facilityflow/ui/facilityflow.css").toExternalForm());
+        stage.setScene(scene);
         stage.setMinWidth(800);
         stage.setMinHeight(650);
         stage.show();

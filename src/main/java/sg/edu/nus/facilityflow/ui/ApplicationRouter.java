@@ -6,7 +6,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.auth.AuthenticationService;
@@ -38,6 +40,7 @@ public final class ApplicationRouter extends BorderPane {
         this.manager = manager;
         this.categories = categories;
         this.tasks = tasks;
+        getStyleClass().add("application-shell");
         showLogin("");
     }
 
@@ -93,8 +96,14 @@ public final class ApplicationRouter extends BorderPane {
         var password = new Button("Change password");
         password.setId("changePassword");
         password.setOnAction(event -> showPasswordChange());
-        var header = new HBox(14, new Label(account.displayName() + " — " + account.role()),
-                refresh, password, logout);
+        var brand = new Label("FacilityFlow");
+        brand.getStyleClass().add("product-name");
+        var identity = new Label(account.displayName() + " — " + account.role());
+        identity.setWrapText(true);
+        identity.setMaxWidth(320);
+        identity.getStyleClass().add("identity-label");
+        var header = new FlowPane(12, 10, brand, identity, refresh, password, logout);
+        header.getStyleClass().add("app-header");
         header.setPadding(new Insets(16));
         header.disableProperty().bind(tasks.busy());
         setTop(header);
@@ -158,6 +167,10 @@ public final class ApplicationRouter extends BorderPane {
         var form = new VBox(10, new Label("Current password"), oldPassword,
                 new Label("New password (8–24 characters)"), replacement, save, back, feedback);
         form.setPadding(new Insets(24));
+        form.getStyleClass().add("card");
+        form.setMaxWidth(560);
+        save.getStyleClass().add("primary-button");
+        feedback.getStyleClass().add("feedback-label");
         save.setOnAction(event -> {
             char[] current = oldPassword.getText().toCharArray();
             char[] next = replacement.getText().toCharArray();
@@ -177,6 +190,10 @@ public final class ApplicationRouter extends BorderPane {
                 handleFailure(error);
             });
         });
-        setCenter(form);
+        var container = new StackPane(form);
+        container.setPadding(new Insets(24));
+        var scroll = new ScrollPane(container);
+        scroll.setFitToWidth(true);
+        setCenter(scroll);
     }
 }

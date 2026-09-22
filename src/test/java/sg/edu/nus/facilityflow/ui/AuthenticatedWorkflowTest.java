@@ -45,6 +45,8 @@ class AuthenticatedWorkflowTest {
                     List.of("Plumbing"), new UiTasks(work::add));
             stage = new Stage();
             stage.setScene(new Scene(router, 1024, 700));
+            stage.getScene().getStylesheets().add(getClass()
+                    .getResource("/sg/edu/nus/facilityflow/ui/facilityflow.css").toExternalForm());
             stage.show();
         });
     }
@@ -102,6 +104,7 @@ class AuthenticatedWorkflowTest {
             assertEquals(1, work.size());
         });
         drain();
+        snapshot("requester-detail");
         fx(() -> {
             assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("FF-000001"));
             assertTrue(((Label) router.lookup("#requesterFeedback")).getText().contains("saved successfully"));
@@ -111,6 +114,7 @@ class AuthenticatedWorkflowTest {
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests"));
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events WHERE action = 'REQUEST_CREATED'"));
         fx(() -> assertEquals(1, ((ListView<?>) router.lookup("#ownRequests")).getItems().size()));
+        snapshot("requester-list");
     }
 
     @Test
@@ -207,6 +211,98 @@ class AuthenticatedWorkflowTest {
             button("login").fire();
         });
         drain();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"760, 600", "1024, 700", "1440, 900"})
+    @DisplayName("UIX-003/007/008/021 resizing preserves input and keeps actions reachable")
+    void responsiveRequester(int width, int height) throws Exception {
+        resize(width, height);
+        fx(() -> assertInsideScene(button("login")));
+        snapshot("login-" + width);
+        login("owner");
+        fx(() -> {
+            assertInsideScene(button("logout"));
+            assertInsideScene(button("newRequest"));
+        });
+        fillForm();
+        resize(width == 760 ? 1440 : 760, height);
+        fx(() -> assertEquals("  Leaking pipe  ", ((TextField) router.lookup("#title")).getText()));
+        resize(width, height);
+        fx(() -> {
+            ((TextField) router.lookup("#title")).clear();
+            button("validate").fire();
+        });
+        fx(() -> {
+            assertTrue(router.lookup("#titleError").isVisible());
+            var scroll = (javafx.scene.control.ScrollPane) router.lookup(".scroll-pane");
+            assertTrue(scroll.getContent().getBoundsInLocal().getWidth() <= scroll.getViewportBounds().getWidth() + 1);
+            scroll.setVvalue(1);
+            router.layout();
+            assertInsideScene(button("validate"));
+        });
+        snapshot("requester-form-" + width);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"760, 600", "1024, 700", "1440, 900"})
+    @DisplayName("UIX-021 Manager panels reflow without losing assignment selections")
+    void responsiveManager(int width, int height) throws Exception {
+        login("manager");
+        fx(() -> ((ComboBox<?>) router.lookup("#assignee")).getSelectionModel().selectFirst());
+        resize(width, height);
+        fx(() -> {
+            assertInsideScene(button("logout"));
+            var layout = (javafx.scene.control.SplitPane) router.lookup("#managerLayout");
+            assertEquals(width < 1100 ? javafx.geometry.Orientation.VERTICAL : javafx.geometry.Orientation.HORIZONTAL,
+                    layout.getOrientation());
+            assertNotNull(((ComboBox<?>) router.lookup("#assignee")).getValue());
+            var scroll = (javafx.scene.control.ScrollPane) layout.getItems().get(1);
+            scroll.setVvalue(1);
+            router.layout();
+            assertInsideScene(button("assignRequest"));
+        });
+        snapshot("manager-" + width);
+    }
+
+    // Optional review artifacts use fixture data only; normal test runs write no screenshots.
+    private void snapshot(String name) throws Exception {
+        String output = System.getenv("FACILITYFLOW_UI_SNAPSHOTS");
+        if (output == null || output.isBlank()) {
+            return;
+        }
+        fx(() -> {
+            var image = stage.getScene().snapshot(null);
+            var pixels = new java.awt.image.BufferedImage((int) image.getWidth(), (int) image.getHeight(),
+                    java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            for (int y = 0; y < pixels.getHeight(); y++) {
+                for (int x = 0; x < pixels.getWidth(); x++) {
+                    pixels.setRGB(x, y, image.getPixelReader().getArgb(x, y));
+                }
+            }
+            try {
+                java.nio.file.Files.createDirectories(Path.of(output));
+                javax.imageio.ImageIO.write(pixels, "png", Path.of(output, name + ".png").toFile());
+            } catch (java.io.IOException error) {
+                throw new java.io.UncheckedIOException(error);
+            }
+        });
+    }
+
+    private void resize(int width, int height) throws Exception {
+        fx(() -> {
+            stage.setWidth(width + stage.getWidth() - stage.getScene().getWidth());
+            stage.setHeight(height + stage.getHeight() - stage.getScene().getHeight());
+        });
+        fx(() -> { });
+    }
+
+    private void assertInsideScene(javafx.scene.Node node) {
+        var bounds = node.localToScene(node.getBoundsInLocal());
+        assertTrue(bounds.getMinX() >= 0 && bounds.getMaxX() <= stage.getScene().getWidth() + 1,
+                node.getId() + " must fit horizontally");
+        assertTrue(bounds.getMinY() >= 0 && bounds.getMaxY() <= stage.getScene().getHeight() + 1,
+                node.getId() + " must fit vertically");
     }
 
     private void fillForm() throws Exception {

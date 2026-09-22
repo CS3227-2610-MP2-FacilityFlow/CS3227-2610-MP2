@@ -12,6 +12,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
@@ -87,7 +88,8 @@ public final class ManagerDashboardView {
 
         requestTable.getColumns().addAll(
                 idColumn, titleColumn, locationColumn, urgencyColumn, priorityColumn, statusColumn);
-        requestTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        requestTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        requestTable.setMinHeight(140);
         requestTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         requestTable.setPlaceholder(new Label("No maintenance requests are available."));
         requestTable.setAccessibleText("All maintenance requests");
@@ -106,8 +108,11 @@ public final class ManagerDashboardView {
         VBox tableArea = new VBox(6, queueTitle, queueHelp, refreshButton, requestTable);
         VBox.setVgrow(requestTable, Priority.ALWAYS);
         tableArea.setPadding(new Insets(24, 12, 24, 24));
+        tableArea.setMinWidth(0);
+        tableArea.setMinHeight(240);
 
         selectedId.getStyleClass().add("section-title");
+        selectedId.setWrapText(true);
         selectedDescription.setWrapText(true);
         selectedDescription.getStyleClass().add("secondary-text");
 
@@ -164,12 +169,24 @@ public final class ManagerDashboardView {
                 new Separator(Orientation.HORIZONTAL),
                 new Label("Assignment"),
                 form);
-        detailArea.setPadding(new Insets(24, 24, 24, 12));
-        detailArea.setMinWidth(310);
-        detailArea.setMaxWidth(380);
+        detailArea.setPadding(new Insets(24));
+        detailArea.setMinWidth(0);
         detailArea.getStyleClass().add("detail-panel");
 
-        SplitPane content = new SplitPane(tableArea, detailArea);
+        var detailScroll = new ScrollPane(detailArea);
+        detailScroll.setFitToWidth(true);
+        detailScroll.setMinWidth(300);
+        detailScroll.setMinHeight(160);
+        SplitPane content = new SplitPane(tableArea, detailScroll);
+        content.setId("managerLayout");
+        content.setOrientation(Orientation.VERTICAL);
+        root.widthProperty().addListener((observable, previous, width) -> {
+            var orientation = width.doubleValue() < 1100 ? Orientation.VERTICAL : Orientation.HORIZONTAL;
+            if (content.getOrientation() != orientation) {
+                content.setOrientation(orientation);
+                content.setDividerPositions(orientation == Orientation.HORIZONTAL ? 0.7 : 0.5);
+            }
+        });
         content.setDividerPositions(0.7);
         root.setCenter(content);
     }

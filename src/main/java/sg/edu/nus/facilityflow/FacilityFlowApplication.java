@@ -31,8 +31,8 @@ public final class FacilityFlowApplication extends Application {
                 .getResource("/sg/edu/nus/facilityflow/ui/facilityflow.css").toExternalForm());
         stage.setTitle("FacilityFlow");
         stage.setScene(scene);
-        stage.setMinWidth(1024);
-        stage.setMinHeight(700);
+        stage.setMinWidth(780);
+        stage.setMinHeight(640);
         stage.show();
         var tasks = new UiTasks(executor);
         tasks.run(() -> Workspace.open(Workspace.defaultDirectory()), workspace -> {
