@@ -32,6 +32,16 @@ launch target as evidence. No application behavior changed.
 
 ## Outcome requiring human review
 
-The guide now describes the form preview and its limits. A team member still
-needs to review these generated edits and this summary. No human approval or
-verification is claimed here.
+The guide now describes the form preview and its limits. The follow-up
+configuration also adds a Claude Code project subagent and makes both Codex and
+Claude delegation explicit in `AGENTS.md`. A team member still needs to review
+these generated edits and this summary. No human approval or verification is
+claimed here.
+
+Added `CLAUDE.md` with an `@AGENTS.md` import so Claude sessions that use a
+project-level Claude instruction file retain the shared delegation rule.
+
+The configuration is shared only after this branch is merged or cherry-picked
+into the branch used by groupmates. Codex and Claude can still choose not to
+delegate, so the feature-completion instruction and the subagent description
+both make the documentation pass mandatory and proactive.

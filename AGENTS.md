@@ -101,10 +101,18 @@ For a new feature or behavior change:
 4. Add automated tests referencing the relevant requirement identifiers.
 5. Update user/developer documentation and the verified AI-session log.
 
-After implementing a new feature or changing user-visible behavior, invoke the
-project's `user_guide_reviewer` agent in `.codex/agents/` to review and update
-`docs/UserGuide.md` before treating the feature as done. Give it the changed
-behavior and relevant requirement IDs. A team member must review its edits.
+After implementing a new feature or changing user-visible behavior, immediately
+delegate the documentation pass before treating the feature as done:
+
+- In Codex, invoke the project's `user_guide_reviewer` agent in
+  `.codex/agents/`.
+- In Claude Code, invoke the project's `user-guide-reviewer` subagent in
+  `.claude/agents/` (or mention it with `@user-guide-reviewer`).
+
+Give the documentation agent the changed behavior and relevant requirement IDs.
+It must review and update `docs/UserGuide.md`, even when the implementation
+agent believes no documentation change is needed; it should record that finding
+in its response. A team member must review the resulting edits.
 
 Do not silently change implementation behavior when it conflicts with a spec.
 Resolve the inconsistency by updating the spec deliberately and recording the
