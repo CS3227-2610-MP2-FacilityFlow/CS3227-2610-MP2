@@ -39,7 +39,9 @@ entered details.
 
 ## Features
 
-### Check maintenance report details
+### Requester
+
+#### Check maintenance report details
 
 The **New maintenance request** window shows five required fields. Complete them
 and select **Check details**.
@@ -60,12 +62,23 @@ the form. When every field is valid, the preview confirms the check.
 No maintenance request, history, or other application data is created by this
 preview.
 
+### Facilities Manager
+
+The current preview has no Facilities Manager sign-in or dashboard, so there
+are no Manager actions to take.
+
+### Technician
+
+The current preview has no Technician sign-in or work queue, so there are no
+Technician actions to take.
+
 ## Current limitations
 
 The preview cannot submit, edit, cancel, search, or show maintenance requests.
-It has no sign-in, saved data, Requester request history, Technician work queue,
-or Facilities Manager workflow. The categories are fixed for this preview and
-cannot be changed through the window.
+It has no sign-in, saved data, Requester request history, or Technician work
+queue. Facilities Managers cannot yet view a request queue, choose a priority,
+or assign an open request to an active Technician. The categories are fixed for
+this preview and cannot be changed through the window.
 
 ## Disclaimers
 

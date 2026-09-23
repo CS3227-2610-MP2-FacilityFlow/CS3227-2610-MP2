@@ -20,8 +20,17 @@ documentation.
 Keep the guide concise, user-oriented, and free of unnecessary technical terms.
 Use this section order: Overview; Setup and launch; Features; Current
 limitations when supported gaps exist; Disclaimers when a concrete caution is
-needed. Describe controls, user tasks, required or optional fields, validation,
-visible results, persistence, and role-specific behavior in plain English.
+needed. Organize Features under separate Requester, Technician, and Facilities
+Manager headings. Under each heading, list every reachable user action at a
+granular level, including controls, user tasks, required or optional fields,
+validation, visible results, and persistence. State clearly when a role has no
+currently reachable actions.
+
+Trace each proposed feature claim to code, a test or an observed run, and its
+applicable requirement ID. Include a requirement in Features only when a person
+can complete its action through a documented application launch path. Treat
+test-only code, services, and unconnected user interfaces as a supported gap in
+Current limitations, expressed in plain language.
 
 Check the entire guide for stale claims, broken links, contradictions, and
 instructions that imply unfinished features work. Use targeted tests or a UI
