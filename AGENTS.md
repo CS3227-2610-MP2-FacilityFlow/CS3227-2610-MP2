@@ -101,6 +101,11 @@ For a new feature or behavior change:
 4. Add automated tests referencing the relevant requirement identifiers.
 5. Update user/developer documentation and the verified AI-session log.
 
+After implementing a new feature or changing user-visible behavior, invoke the
+project's `user_guide_reviewer` agent in `.codex/agents/` to review and update
+`docs/UserGuide.md` before treating the feature as done. Give it the changed
+behavior and relevant requirement IDs. A team member must review its edits.
+
 Do not silently change implementation behavior when it conflicts with a spec.
 Resolve the inconsistency by updating the spec deliberately and recording the
 decision. Do not begin proper feature implementation while an essential
