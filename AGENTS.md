@@ -123,6 +123,19 @@ test workflow before treating the implementation task as complete:
 Leave all generated tests, production fixes, and findings for team-member
 review.
 
+After implementing a new feature or changing user-visible behavior, immediately
+delegate the documentation pass before treating the feature as done:
+
+- In Codex, invoke the project's `user_guide_reviewer` agent in
+  `.codex/agents/`.
+- In Claude Code, invoke the project's `user-guide-reviewer` subagent in
+  `.claude/agents/` (or mention it with `@user-guide-reviewer`).
+
+Give the documentation agent the changed behavior and relevant requirement IDs.
+It must review and update `docs/UserGuide.md`, even when the implementation
+agent believes no documentation change is needed; it should record that finding
+in its response. A team member must review the resulting edits.
+
 Do not silently change implementation behavior when it conflicts with a spec.
 Resolve the inconsistency by updating the spec deliberately and recording the
 decision. Do not begin proper feature implementation while an essential
