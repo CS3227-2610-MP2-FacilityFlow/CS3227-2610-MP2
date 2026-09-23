@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.auth.SessionManager;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
@@ -16,27 +17,26 @@ import sg.edu.nus.facilityflow.storage.ManagerAssignmentStore;
 
 /** Manager request use cases. Authorization and lifecycle rules belong here, not in UI code. */
 public final class ManagerRequestService {
-    private static final String AUTHORIZATION_FAILURE =
-            "Your session is not authorized for this operation. Please sign in again.";
-
-    private final ManagerAssignmentStore store;
+private final ManagerAssignmentStore store;
     private final Clock clock;
+    private final SessionManager sessions;
 
-    public ManagerRequestService(ManagerAssignmentStore store, Clock clock) {
+    public ManagerRequestService(ManagerAssignmentStore store, Clock clock, SessionManager sessions) {
         this.store = Objects.requireNonNull(store, "store");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.sessions = Objects.requireNonNull(sessions, "sessions");
     }
 
     public List<MaintenanceRequest> listAllRequests(AuthenticatedSession session) {
         return store.inTransaction(transaction -> {
-            requireActiveManager(transaction, session);
+            sessions.requireRole(transaction, session, Role.FACILITIES_MANAGER);
             return transaction.listRequests().stream().sorted(managerQueueOrder()).toList();
         });
     }
 
     public List<UserAccount> listActiveTechnicians(AuthenticatedSession session) {
         return store.inTransaction(transaction -> {
-            requireActiveManager(transaction, session);
+            sessions.requireRole(transaction, session, Role.FACILITIES_MANAGER);
             return List.copyOf(transaction.listActiveTechnicians());
         });
     }
@@ -47,7 +47,7 @@ public final class ManagerRequestService {
             long technicianId,
             ManagerPriority priority) {
         return store.inTransaction(transaction -> {
-            UserAccount actor = requireActiveManager(transaction, session);
+            UserAccount actor = sessions.requireRole(transaction, session, Role.FACILITIES_MANAGER);
             if (priority == null) {
                 throw new ValidationException("Manager priority is required before assignment.");
             }
@@ -74,18 +74,6 @@ public final class ManagerRequestService {
                     assignedAt));
             return assigned;
         });
-    }
-
-    private static UserAccount requireActiveManager(
-            ManagerAssignmentStore.TransactionContext transaction,
-            AuthenticatedSession session) {
-        if (session == null) {
-            throw new AuthorizationException(AUTHORIZATION_FAILURE);
-        }
-        return transaction.findAccount(session.accountId())
-                .filter(UserAccount::active)
-                .filter(account -> account.role() == Role.FACILITIES_MANAGER)
-                .orElseThrow(() -> new AuthorizationException(AUTHORIZATION_FAILURE));
     }
 
     private static Comparator<MaintenanceRequest> managerQueueOrder() {

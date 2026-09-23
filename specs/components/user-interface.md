@@ -48,6 +48,11 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 - **UIX-020:** Normal text and controls SHOULD meet WCAG AA contrast guidance.
 - **UIX-021:** The UI MUST remain usable at a 1,024 × 700 content area and SHOULD
   adapt cleanly when enlarged.
+  Responsive acceptance: login and authenticated views also support a 760 × 600
+  content area. Action bars wrap; forms and request details scroll vertically;
+  the Manager queue and assignment panel stack below 1,100 pixels of available
+  width. At 1,440 × 900 they appear side by side. Resizing preserves selections
+  and unsaved input. Shared styling distinguishes primary actions and field errors.
 - **UIX-022:** Dialogs MUST identify a default safe action; destructive actions MUST
   never be the implicit default.
 - **UIX-023:** Dates MUST display local date, time, and time-zone abbreviation where

@@ -10,7 +10,13 @@ public record UserAccount(
         Role role,
         boolean active,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        long sessionVersion) {
+
+    public UserAccount(long id, String username, String displayName, Role role,
+                       boolean active, Instant createdAt, Instant updatedAt) {
+        this(id, username, displayName, role, active, createdAt, updatedAt, 0);
+    }
 
     public UserAccount {
         if (id <= 0) {

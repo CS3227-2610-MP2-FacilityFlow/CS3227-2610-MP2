@@ -1,6 +1,6 @@
-package facilityflow.service;
+package sg.edu.nus.facilityflow.service;
 
-import facilityflow.model.RequestDraft;
+import sg.edu.nus.facilityflow.model.RequestDraft;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;

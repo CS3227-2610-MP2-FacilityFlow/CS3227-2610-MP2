@@ -5,16 +5,13 @@ Team owner: **yooplo** (team agreement confirmed 14 September 2026)
 
 ## Development starter scope
 
-The Requester branch begins with a development-only form preview for REQ-002,
-REQ-012, LIF-004–005, and UIX-007–008. It checks input and retains entered values;
-it does not submit requests, create sessions, or access persistent data. Valid
-input must never be presented as a successful save. This scaffold does not
-complete those end-to-end product requirements.
-
-The preview supplies the initial category list as a fixture. Production category
-configuration, authentication, repository extensions, and auditing now have a
-team-confirmed integration contract; their implementation is still outstanding. The existing product acceptance criteria below
-remain unchanged.
+The default application now provides real login and Requester create/list/detail
+through the shared SQLite services (22 September 2026). The optional validation-only
+preview remains available separately and must never describe validation as a save.
+Backend and JavaFX tests cover role isolation, rollback/retry, retained input,
+duplicate-click prevention, and Manager handoff. Visible history, edit/cancel,
+follow-ups, filtering, and dashboard summaries remain outstanding. The requirements
+and complete product acceptance criteria below remain unchanged.
 
 ## Role objective
 

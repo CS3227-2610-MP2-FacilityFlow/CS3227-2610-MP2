@@ -1,6 +1,7 @@
-package facilityflow.ui.requester;
+package sg.edu.nus.facilityflow.ui.requester;
 
-import facilityflow.ui.JavaFxTestSupport;
+import sg.edu.nus.facilityflow.ui.JavaFxTestSupport;
+import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import java.util.List;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -25,6 +26,7 @@ class RequesterFormTest {
             var location = (TextField) form.lookup("#location");
             var category = (ComboBox<?>) form.lookup("#category");
             var urgency = (ComboBox<?>) form.lookup("#urgency");
+            assertEquals(List.of(ReportedUrgency.values()), urgency.getItems());
             var button = (Button) form.lookup("#validate");
             title.setText("  Keep my input  ");
             button.fire();

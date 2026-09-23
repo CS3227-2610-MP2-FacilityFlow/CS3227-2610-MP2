@@ -1,4 +1,4 @@
-package facilityflow.ui;
+package sg.edu.nus.facilityflow.ui;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
