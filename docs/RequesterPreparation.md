@@ -1,12 +1,12 @@
 # Requester preparation: yooplo
 
-Status: integration planning, 20 September 2026. A Gradle/JavaFX form preview and
-validation tests are now present. The merged Manager foundation supplies SQLite
-storage and session identity; Requester persistence and shared login are not integrated.
+Status: authenticated UI integration, 22 September 2026. Login/session lifecycle,
+Requester submission/list/detail, and Manager assignment are connected. Password
+reset is a tested Manager-only service; its administration screen remains pending.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
 Manager — yu-sutong. Integration decisions were confirmed on
-20 September 2026. Generated documentation and future code still need human review.
+20 September 2026. Generated documentation and implementation still need human review.
 
 ## Start here
 
@@ -14,24 +14,25 @@ The next milestone is **authenticated create/list/detail with Manager handoff**.
 Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
 Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
 migrations, demo seeding, and category configuration together. The decisions are
-agreed; feature implementation is still outstanding.
+agreed; authenticated create/list/detail is implemented. Visible history remains
+part of the milestone still to complete.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
 2. Run `./gradlew.bat test`, `./gradlew.bat check`, then `./gradlew.bat run`
    in PowerShell. Use `sh ./gradlew` on macOS/Linux; headless Linux requires
    `xvfb-run -a sh ./gradlew test` for the focused JavaFX test.
-3. Try the blank form, then enter valid details and select category/urgency.
-   The preview must keep your input and explicitly say nothing was saved.
+3. Sign in with a demo Requester from the User Guide. Try invalid submission,
+   then save valid details, inspect the persisted detail/list, and test Manager handoff.
+   The optional validation-only preview remains available through its launcher override.
 4. Read `RequestDraft`, `RequestValidator`, and their tests, then `RequesterForm`.
    The [Developer Guide](DeveloperGuide.md) links each file and explains its role.
-5. Consolidate Requester packages/models under `sg.edu.nus.facilityflow` and
-   coordinate storage changes with yu-sutong. Follow the confirmed session and
+5. Requester packages now use `sg.edu.nus.facilityflow` and the shared urgency
+   enum. Coordinate storage changes with yu-sutong. Follow the confirmed session and
    password contract; preserve the existing Manager tests.
-6. Your first complete feature is **create and view my own request**: implement
-   the authenticated service operation and atomic request/audit transaction, test
-   rollback and cross-user denial, then wire the form to it and add list/detail.
-   Only then replace the preview entry point with authenticated role navigation.
+6. Login/session handling and form/list/detail now call the tested backend.
+   Next add **edit/cancel own OPEN requests**, then requester-visible history and
+   follow-ups. Preserve the authenticated handoff and role-isolation tests.
 
 The preview contains no fake save, hardcoded logged-in account, or database.
 Do not treat its successful field check as permission to create a request.
@@ -57,9 +58,11 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
 - [ ] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR.
-- [ ] Integrate Requester persistence with the incoming SQLite foundation;
-  JDBC and Manager rollback tests now exist, but versioned migrations and
-  Requester transaction tests still need implementation.
+- [x] Implement Requester backend persistence with the SQLite foundation,
+  versioned migrations, owner-read queries, and rollback/handoff tests.
+- [x] Connect backend operations to authenticated Requester screens.
+- [x] Implement login/logout, role routing, own-password change, and Manager-reset
+  session invalidation; keep Manager reset UI ownership with account administration.
 - [x] Confirm shared package/models and creation/owner-read storage extensions.
 - [x] Confirm login/session/routing ownership and session rules (AUT-032–033).
 - [x] Confirm category properties-file format/location, owner, and startup rules.
@@ -68,20 +71,25 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Resolve password discrepancy: AUT-004 now requires 8–24 characters and no
   composition rule; AUT-005 hashing still applies.
 - [x] Confirm database location, sequential six-digit IDs, and creation audit fields.
-- [ ] Implement the agreed schema migrations, catalogue loader, and session-reset
-  detection; record concrete filenames/property keys and schema versions.
+- [x] Implement schema versions 1–3, including account audit targets and session
+  versions; legacy upgrade tests pass. Team review remains pending.
+- [x] Load the `categories` key in `categories.properties` and seed six accounts
+  atomically on fresh workspace creation. Document shared workspace paths.
+- [ ] Finish category rename/removal migrations and representative lifecycle demo
+  requests with yu-sutong; the current initial request list is empty.
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Begin the package/model consolidation next, then implement the agreed services
-and storage integration. Shared responsibilities follow the confirmed ownership
+Authenticated create/list/detail is implemented; next add eligible edit/cancel,
+visible history and follow-ups. Shared responsibilities follow the confirmed ownership
 above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests
 
 Create topic branches from `master`, for example `yooplo/requester-create`, and
-request a teammate's review before merging. The following are planned work,
-not features currently available.
+request a teammate's review before merging. The table tracks complete increments:
+authenticated create/list/detail is available, while visible history and later
+increments remain outstanding.
 
 | Order | Deliverable | Requirements |
 |---|---|---|

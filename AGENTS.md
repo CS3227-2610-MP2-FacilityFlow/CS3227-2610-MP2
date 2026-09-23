@@ -101,6 +101,28 @@ For a new feature or behavior change:
 4. Add automated tests referencing the relevant requirement identifiers.
 5. Update user/developer documentation and the verified AI-session log.
 
+After an AI agent implements a feature or changes implementation files, run this
+test workflow before treating the implementation task as complete:
+
+1. Invoke the project's `unit test agent`: in Codex use
+   `.codex/agents/unit_test_agent.toml`; in Claude Code use the
+   `unit-test-agent` subagent in `.claude/agents/` (or mention it with
+   `@unit-test-agent`). Give it the changed implementation files, relevant
+   requirement IDs or specifications, and any explicit test directory.
+2. The unit test agent creates or updates requirement-based tests and runs the
+   targeted tests and relevant repository checks. It edits test-owned files
+   only. Failed tests are valid findings and must not be weakened to match the
+   current implementation.
+3. When a failure identifies an implementation defect, the agent that made the
+   implementation fixes the production code. The unit test agent does not make
+   that fix.
+4. Invoke the unit test agent again with the fix and previous failure output. It
+   reruns the affected tests and relevant checks. Report every remaining failure
+   to the user with the responsible component and likely cause.
+
+Leave all generated tests, production fixes, and findings for team-member
+review.
+
 After implementing a new feature or changing user-visible behavior, immediately
 delegate the documentation pass before treating the feature as done:
 

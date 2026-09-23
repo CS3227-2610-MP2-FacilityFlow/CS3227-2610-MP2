@@ -7,17 +7,23 @@ requests through an auditable workflow.
 
 ## Current status
 
-The Requester branch contains a development form preview and a Java 25/JavaFX
-build/test scaffold. The preview validates fields but does not log in, save
-requests, or implement the complete workflow. The team confirmed the integration contract on 20 September 2026;
-implementation and human review of generated changes remain outstanding.
+The development application now opens a real login screen. Requesters can submit
+requests and view their own list/detail; Managers can view and assign `OPEN`
+requests. Sessions are revoked on logout, shutdown, observed deactivation, and
+Manager password reset. Role changes retain sessions and reroute on the next
+protected action or **Refresh account**. **Change password** retains the session.
 
-The merged Facilities Manager foundation adds an authorized, transactional
-`OPEN`-request assignment service, SQLite persistence, automated tests, and an
-injectable queue/detail view. Shared login, demo seeding, and the complete
-cross-role workflow remain unfinished.
+New workspaces create two accounts per role. All six demo accounts use
+`Welcome123`: `requester1`, `requester2`, `technician1`, `technician2`, `manager1`,
+`manager2`. Existing workspaces are never reseeded. See the [User Guide](docs/UserGuide.md).
 
-## Run the Requester starter
+The Technician route is a separate placeholder. Requester edit/cancel, follow-ups,
+visible history, search/filtering, the remaining workflow, representative demo
+requests, and category rename/removal migrations remain unfinished. Manager reset
+is implemented as a protected service; its account-administration screen is pending.
+Generated changes still require teammate review. This is not a finished release.
+
+## Run the development application
 
 Install a JDK 25 and configure `JAVA_HOME` to its installation directory. From
 the repository root in PowerShell:

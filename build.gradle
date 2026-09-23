@@ -24,7 +24,7 @@ javafx {
 }
 
 application {
-    mainClass = providers.gradleProperty('mainClass').orElse('facilityflow.RequesterPreviewLauncher')
+    mainClass = providers.gradleProperty('mainClass').orElse('sg.edu.nus.facilityflow.FacilityFlowLauncher')
     applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 

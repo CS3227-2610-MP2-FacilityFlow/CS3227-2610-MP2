@@ -1,4 +1,4 @@
-package facilityflow.model;
+package sg.edu.nus.facilityflow.model;
 
 /** Untrusted form input; contains no owner, status, or system-generated ID. */
 public record RequestDraft(String title, String description, String location,
