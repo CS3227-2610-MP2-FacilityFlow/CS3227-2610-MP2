@@ -61,7 +61,7 @@ final class SchemaMigrations {
                 }
                 version = result.getInt(1);
             }
-            if (version < 0 || version > 3) {
+            if (version < 0 || version > 4) {
                 throw new SQLException("Unsupported schema version; use a compatible FacilityFlow build.");
             }
             if (version == 0) {
@@ -131,6 +131,35 @@ final class SchemaMigrations {
                 statement.execute("ALTER TABLE audit_events_v3 RENAME TO audit_events");
                 statement.execute("PRAGMA user_version = 3");
             }
+            if (version < 4) {
+                statement.execute("ALTER TABLE maintenance_requests ADD COLUMN assigned_at TEXT");
+                statement.execute("ALTER TABLE maintenance_requests ADD COLUMN resolution_summary TEXT");
+                statement.execute("ALTER TABLE maintenance_requests ADD COLUMN completed_at TEXT");
+                statement.execute("""
+                        CREATE TABLE work_logs (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            request_id INTEGER NOT NULL REFERENCES maintenance_requests(id),
+                            author_id INTEGER NOT NULL REFERENCES user_accounts(id),
+                            note TEXT NOT NULL CHECK (length(note) BETWEEN 1 AND 1000),
+                            minutes_spent INTEGER NOT NULL CHECK (minutes_spent BETWEEN 1 AND 1440),
+                            created_at TEXT NOT NULL
+                        )
+                        """);
+                statement.execute("""
+                        CREATE INDEX work_logs_request_history
+                        ON work_logs(request_id, created_at, id)
+                        """);
+                statement.execute("""
+                        CREATE INDEX work_logs_author_history
+                        ON work_logs(author_id, created_at, id)
+                        """);
+                statement.execute("""
+                        CREATE INDEX maintenance_requests_technician_queue
+                        ON maintenance_requests(
+                            assignee_id, status, manager_priority, reported_urgency, assigned_at, display_id)
+                        """);
+                statement.execute("PRAGMA user_version = 4");
+            }
             // Fail at startup rather than accepting a version marker on an incompatible schema.
             statement.executeQuery("""
                     SELECT id, username, display_name, role, password_hash, active, created_at, updated_at, session_version
@@ -138,8 +167,13 @@ final class SchemaMigrations {
                     """).close();
             statement.executeQuery("""
                     SELECT id, display_id, requester_id, title, description, location, category,
-                        reported_urgency, manager_priority, status, assignee_id, created_at, updated_at
+                        reported_urgency, manager_priority, status, assignee_id, assigned_at,
+                        resolution_summary, completed_at, created_at, updated_at
                     FROM maintenance_requests LIMIT 0
+                    """).close();
+            statement.executeQuery("""
+                    SELECT id, request_id, author_id, note, minutes_spent, created_at
+                    FROM work_logs LIMIT 0
                     """).close();
             statement.executeQuery("""
                     SELECT id, request_id, actor_id, action, detail, occurred_at, target_type, target_id

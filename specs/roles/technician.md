@@ -26,6 +26,10 @@ and submits completed work for managerial review without seeing unrelated work.
 - **TEC-003:** The default queue order MUST include only the logged-in Technician's
   assigned requests and sort by Manager priority from `Critical` through `Low`, then
   reported urgency from `Emergency` through `Low`, then oldest assignment time.
+  A request upgraded from a schema that did not store assignment time MUST retain
+  an unknown assignment time rather than deriving one from `updatedAt`; unknown
+  times sort after known times, with display ID as the deterministic tie-breaker.
+  Its next assignment or reassignment establishes a known assignment time.
 - **TEC-004:** A Technician MAY transition an assigned request from `ASSIGNED` to
   `IN_PROGRESS` using an explicit start-work action.
 - **TEC-005:** A Technician MAY add a work log only to a request currently assigned

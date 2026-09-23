@@ -19,6 +19,7 @@ import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.UserAccount;
+import sg.edu.nus.facilityflow.model.WorkLog;
 
 /** SQLite implementation whose callback commits all writes or rolls all of them back. */
 public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStore {
@@ -286,6 +287,120 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
         }
 
         @Override
+        public List<MaintenanceRequest> listAssignedRequests(long technicianId) {
+            String sql = """
+                    SELECT * FROM maintenance_requests
+                    WHERE assignee_id = ? AND status IN ('ASSIGNED', 'IN_PROGRESS', 'COMPLETED')
+                    """;
+            List<MaintenanceRequest> requests = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, technicianId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        requests.add(readRequest(result));
+                    }
+                }
+                return requests;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public Optional<MaintenanceRequest> findAssignedRequest(long technicianId, long requestId) {
+            String sql = """
+                    SELECT * FROM maintenance_requests
+                    WHERE assignee_id = ? AND id = ?
+                        AND status IN ('ASSIGNED', 'IN_PROGRESS', 'COMPLETED')
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, technicianId);
+                statement.setLong(2, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(readRequest(result)) : Optional.empty();
+                }
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public List<WorkLog> listWorkLogs(long requestId) {
+            String sql = """
+                    SELECT id, request_id, author_id, note, minutes_spent, created_at
+                    FROM work_logs
+                    WHERE request_id = ?
+                    ORDER BY created_at, id
+                    """;
+            List<WorkLog> workLogs = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        workLogs.add(readWorkLog(result));
+                    }
+                }
+                return workLogs;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public WorkLog appendWorkLog(
+                long requestId,
+                long authorId,
+                String note,
+                int minutesSpent,
+                Instant createdAt) {
+            String sql = """
+                    INSERT INTO work_logs(request_id, author_id, note, minutes_spent, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    RETURNING id
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, requestId);
+                statement.setLong(2, authorId);
+                statement.setString(3, note);
+                statement.setInt(4, minutesSpent);
+                statement.setString(5, createdAt.toString());
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        throw new StorageException("The work log could not be stored", null);
+                    }
+                    return new WorkLog(
+                            result.getLong(1), requestId, authorId, note, minutesSpent, createdAt);
+                }
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public boolean updateTechnicianRequest(
+                MaintenanceRequest request,
+                long technicianId,
+                RequestStatus expectedStatus) {
+            String sql = """
+                    UPDATE maintenance_requests
+                    SET status = ?, resolution_summary = ?, completed_at = ?, updated_at = ?
+                    WHERE id = ? AND assignee_id = ? AND status = ?
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, request.status().name());
+                statement.setString(2, request.resolutionSummary());
+                statement.setString(3, instantText(request.completedAt()));
+                statement.setString(4, request.updatedAt().toString());
+                statement.setLong(5, request.id());
+                statement.setLong(6, technicianId);
+                statement.setString(7, expectedStatus.name());
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
         public List<UserAccount> listActiveTechnicians() {
             String sql = """
                     SELECT id, username, display_name, role, active, created_at, updated_at, session_version
@@ -309,15 +424,24 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
         public void updateRequest(MaintenanceRequest request) {
             String sql = """
                     UPDATE maintenance_requests
-                    SET manager_priority = ?, status = ?, assignee_id = ?, updated_at = ?
+                    SET manager_priority = ?, status = ?, assignee_id = ?, assigned_at = ?,
+                        resolution_summary = ?, completed_at = ?, updated_at = ?
                     WHERE id = ?
                     """;
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, request.managerPriority().name());
+                statement.setString(1, request.managerPriority() == null
+                        ? null : request.managerPriority().name());
                 statement.setString(2, request.status().name());
-                statement.setLong(3, request.assigneeId());
-                statement.setString(4, request.updatedAt().toString());
-                statement.setLong(5, request.id());
+                if (request.assigneeId() == null) {
+                    statement.setObject(3, null);
+                } else {
+                    statement.setLong(3, request.assigneeId());
+                }
+                statement.setString(4, instantText(request.assignedAt()));
+                statement.setString(5, request.resolutionSummary());
+                statement.setString(6, instantText(request.completedAt()));
+                statement.setString(7, request.updatedAt().toString());
+                statement.setLong(8, request.id());
                 if (statement.executeUpdate() != 1) {
                     throw new StorageException("The request could not be updated", null);
                 }
@@ -372,8 +496,29 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                     priority == null ? null : ManagerPriority.valueOf(priority),
                     RequestStatus.valueOf(result.getString("status")),
                     nullableAssignee,
+                    nullableInstant(result.getString("assigned_at")),
+                    result.getString("resolution_summary"),
+                    nullableInstant(result.getString("completed_at")),
                     Instant.parse(result.getString("created_at")),
                     Instant.parse(result.getString("updated_at")));
+        }
+
+        private static WorkLog readWorkLog(ResultSet result) throws SQLException {
+            return new WorkLog(
+                    result.getLong("id"),
+                    result.getLong("request_id"),
+                    result.getLong("author_id"),
+                    result.getString("note"),
+                    result.getInt("minutes_spent"),
+                    Instant.parse(result.getString("created_at")));
+        }
+
+        private static String instantText(Instant instant) {
+            return instant == null ? null : instant.toString();
+        }
+
+        private static Instant nullableInstant(String value) {
+            return value == null ? null : Instant.parse(value);
         }
 
         private static StorageException storageFailure(SQLException cause) {

@@ -41,13 +41,18 @@ class SchemaMigrationsTest {
     }
 
     @Test
-    @DisplayName("DAT-003/004 creates schema version 3 and repeated initialization is idempotent")
+    @DisplayName("DAT-003/004 creates schema version 4 and repeated initialization is idempotent")
     void initializesNewDatabase() throws SQLException {
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(4, scalar("PRAGMA user_version"));
         assertEquals(1, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(0, scalar("SELECT COUNT(*) FROM maintenance_requests"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'work_logs'"));
+        assertEquals(1, scalar("""
+                SELECT COUNT(*) FROM sqlite_master
+                WHERE type = 'index' AND name = 'maintenance_requests_technician_queue'
+                """));
     }
 
     @ParameterizedTest
@@ -60,7 +65,7 @@ class SchemaMigrationsTest {
         }
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(4, scalar("PRAGMA user_version"));
         assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM user_accounts WHERE password_hash = 'unchanged-hash'"));
         assertEquals(1, scalar("""
@@ -97,7 +102,7 @@ class SchemaMigrationsTest {
             }
         }
         store.initializeSchema();
-        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(4, scalar("PRAGMA user_version"));
         assertEquals(0, scalar("SELECT session_version FROM user_accounts WHERE id = 1"));
         assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7 AND target_id = 10"));
@@ -109,15 +114,67 @@ class SchemaMigrationsTest {
     }
 
     @Test
+    @DisplayName("DAT-003/004 TEC-003 version 3 upgrade preserves unknown assignment time as NULL")
+    void upgradesVersionThree() throws Exception {
+        createVersionThreeWorkspace();
+        execute("""
+                UPDATE maintenance_requests
+                SET manager_priority = 'HIGH', status = 'ASSIGNED', assignee_id = 2,
+                    updated_at = '2026-09-18T01:00:00Z'
+                WHERE id = 10
+                """);
+
+        store.initializeSchema();
+
+        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM maintenance_requests WHERE id = 10"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'work_logs'"));
+        assertEquals(1, scalar("""
+                SELECT COUNT(*) FROM pragma_table_info('maintenance_requests')
+                WHERE name = 'resolution_summary'
+                """));
+        assertEquals(1, scalar("""
+                SELECT COUNT(*) FROM pragma_table_info('maintenance_requests')
+                WHERE name = 'completed_at'
+                """));
+        assertEquals(1, scalar("""
+                SELECT COUNT(*) FROM maintenance_requests
+                WHERE id = 10 AND assigned_at IS NULL
+                    AND updated_at = '2026-09-18T01:00:00Z'
+                """));
+    }
+
+    @Test
+    @DisplayName("DAT-003/007 failed version 4 migration rolls back columns, tables and version")
+    void rollsBackFailedVersionFourMigration() throws Exception {
+        createVersionThreeWorkspace();
+        execute("CREATE TABLE work_logs (id INTEGER PRIMARY KEY)");
+
+        assertThrows(StorageException.class, store::initializeSchema);
+
+        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(0, scalar("""
+                SELECT COUNT(*) FROM pragma_table_info('maintenance_requests')
+                WHERE name IN ('assigned_at', 'resolution_summary', 'completed_at')
+                """));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'work_logs'"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM maintenance_requests WHERE id = 10"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7"));
+    }
+
+    @Test
     @DisplayName("LIF-002 migration sequence follows explicit demo IDs inserted after startup")
     void advancesSequenceForDemoInserts() throws SQLException, IOException {
         createLegacyWorkspace();
         store.initializeSchema();
         execute("""
-                INSERT INTO maintenance_requests
-                    SELECT 50, 'FF-000075', requester_id, title, description, location, category,
+                INSERT INTO maintenance_requests(
+                    id, display_id, requester_id, title, description, location, category,
+                    reported_urgency, manager_priority, status, assignee_id, created_at, updated_at)
+                SELECT 50, 'FF-000075', requester_id, title, description, location, category,
                         reported_urgency, manager_priority, status, assignee_id, created_at, updated_at
-                    FROM maintenance_requests WHERE id = 10
+                FROM maintenance_requests WHERE id = 10
                 """);
         assertEquals(76, scalar("SELECT next_value FROM request_identity_sequence"));
         store.initializeSchema();
@@ -163,7 +220,30 @@ class SchemaMigrationsTest {
         execute("DELETE FROM request_identity_sequence");
         assertThrows(StorageException.class, store::initializeSchema);
         assertEquals(0, scalar("SELECT COUNT(*) FROM request_identity_sequence"));
-        assertEquals(3, scalar("PRAGMA user_version"));
+        assertEquals(4, scalar("PRAGMA user_version"));
+    }
+
+    private void createVersionThreeWorkspace() throws Exception {
+        createLegacyWorkspace();
+        applyFixture("/version-two-migration.sql");
+        applyFixture("/version-three-migration.sql");
+        execute("""
+                INSERT INTO user_accounts VALUES
+                    (2, 'technician', 'Technician', 'TECHNICIAN', 'unchanged-hash', 1,
+                        '2026-09-18T00:00:00Z', '2026-09-18T00:00:00Z', 0)
+                """);
+    }
+
+    private void applyFixture(String resourceName) throws Exception {
+        try (var resource = getClass().getResourceAsStream(resourceName)) {
+            if (resource == null) {
+                throw new IOException("Missing migration fixture " + resourceName);
+            }
+            for (String sql : new String(resource.readAllBytes(), StandardCharsets.UTF_8)
+                    .split("-- migration-statement")) {
+                execute(sql);
+            }
+        }
     }
 
     private void createLegacyWorkspace() throws IOException, SQLException {
