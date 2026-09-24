@@ -14,6 +14,7 @@ import sg.edu.nus.facilityflow.auth.SessionManager;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.service.RequestValidator;
+import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 import sg.edu.nus.facilityflow.storage.Workspace;
 import sg.edu.nus.facilityflow.ui.ApplicationRouter;
 import sg.edu.nus.facilityflow.ui.UiTasks;
@@ -41,7 +42,9 @@ public final class FacilityFlowApplication extends Application {
             var requester = new RequesterRequestService(workspace.store(),
                     new RequestValidator(Set.copyOf(workspace.categories())), clock, sessions);
             var manager = new ManagerRequestService(workspace.store(), clock, sessions);
-            scene.setRoot(new ApplicationRouter(auth, requester, manager, workspace.categories(), tasks));
+            var technician = new TechnicianRequestService(workspace.store(), clock, sessions);
+            scene.setRoot(new ApplicationRouter(
+                    auth, requester, manager, technician, workspace.categories(), tasks));
         }, error -> {
             var message = new Label("FacilityFlow could not open its workspace.\n"
                     + "Check database access, the application version, and categories.properties, then restart.\n"

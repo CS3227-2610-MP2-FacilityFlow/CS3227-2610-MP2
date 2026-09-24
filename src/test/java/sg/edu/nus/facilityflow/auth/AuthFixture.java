@@ -10,6 +10,7 @@ import java.util.Set;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.service.RequestValidator;
+import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 import sg.edu.nus.facilityflow.storage.SQLiteManagerAssignmentStore;
 
 /** Real hashed credentials in isolated databases for authentication and UI integration tests. */
@@ -21,6 +22,7 @@ public final class AuthFixture {
     public final AuthenticationService auth;
     public final RequesterRequestService requester;
     public final ManagerRequestService manager;
+    public final TechnicianRequestService technician;
 
     public AuthFixture(Path directory) throws SQLException {
         url = "jdbc:sqlite:" + directory.resolve("auth.db");
@@ -49,6 +51,7 @@ public final class AuthFixture {
         auth = new AuthenticationService(store, sessions, clock);
         requester = new RequesterRequestService(store, new RequestValidator(Set.of("Plumbing")), clock, sessions);
         manager = new ManagerRequestService(store, clock, sessions);
+        technician = new TechnicianRequestService(store, clock, sessions);
     }
 
     public void execute(String sql) throws SQLException {

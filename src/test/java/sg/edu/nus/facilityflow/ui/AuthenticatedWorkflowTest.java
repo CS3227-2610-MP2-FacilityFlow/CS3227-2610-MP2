@@ -42,7 +42,7 @@ class AuthenticatedWorkflowTest {
         fixture = new AuthFixture(directory);
         fx(() -> {
             router = new ApplicationRouter(fixture.auth, fixture.requester, fixture.manager,
-                    List.of("Plumbing"), new UiTasks(work::add));
+                    fixture.technician, List.of("Plumbing"), new UiTasks(work::add));
             stage = new Stage();
             // Keep layout dimensions independent of native window limits and resize events.
             router.setManaged(false);
