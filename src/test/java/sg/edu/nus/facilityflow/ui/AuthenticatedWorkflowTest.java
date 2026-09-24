@@ -281,6 +281,146 @@ class AuthenticatedWorkflowTest {
     }
 
     @Test
+    @DisplayName("TEC-008/009/013 TEC-A05 LIF-005/007/011/012 completes logged work once and preserves assignment")
+    void technicianCompletesLoggedWorkForManagerReview() throws Exception {
+        loginTechnicianWithAssignedRequest();
+
+        fx(() -> ((TableView<?>) router.lookup("#technicianRequests"))
+                .getSelectionModel().selectFirst());
+        drain();
+        fx(() -> button("startWork").fire());
+        drain();
+        fx(() -> { });
+
+        fx(() -> {
+            ((TextArea) router.lookup("#technicianWorkLogNote"))
+                    .setText("Replaced the damaged valve and tested the fitting.");
+            ((TextField) router.lookup("#technicianWorkLogMinutes")).setText("45");
+            button("addWorkLog").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertFalse(button("completeWork").isDisabled());
+            ((TextArea) router.lookup("#technicianResolutionSummary"))
+                    .setText("  Replaced valve and verified normal water flow.  ");
+            button("completeWork").fire();
+            button("completeWork").fire();
+            assertTrue(button("completeWork").isDisabled(),
+                    "duplicate completion clicks must be ignored while busy");
+            assertEquals(1, work.size(), "duplicate completion clicks must enqueue one write");
+        });
+        drain();
+
+        fx(() -> {
+            MaintenanceRequest completed = (MaintenanceRequest) ((TableView<?>)
+                    router.lookup("#technicianRequests")).getItems().getFirst();
+            assertEquals(RequestStatus.COMPLETED, completed.status());
+            assertEquals(4L, completed.assigneeId());
+            assertTrue(button("completeWork").isDisabled());
+            assertEquals("", ((TextArea) router.lookup("#technicianResolutionSummary")).getText());
+            assertEquals("FF-000001 was submitted for Manager review successfully.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE id = 1 AND status = 'COMPLETED' AND assignee_id = 4 "
+                + "AND resolution_summary = 'Replaced valve and verified normal water flow.'"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs "
+                + "WHERE request_id = 1 AND author_id = 4"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 1 AND actor_id = 4 AND action = 'REQUEST_COMPLETED'"));
+    }
+
+    @Test
+    @DisplayName("TEC-008 TEC-A04 LIF-005/007 rejects missing evidence and invalid summary while retaining input")
+    void rejectsCompletionWithoutEvidenceOrValidSummaryInUi() throws Exception {
+        loginTechnicianWithAssignedRequest();
+
+        fx(() -> ((TableView<?>) router.lookup("#technicianRequests"))
+                .getSelectionModel().selectFirst());
+        drain();
+        fx(() -> button("startWork").fire());
+        drain();
+        fx(() -> {
+            assertTrue(button("completeWork").isDisabled(),
+                    "completion must remain unavailable until work evidence is loaded");
+            assertEquals(RequestStatus.IN_PROGRESS, ((MaintenanceRequest) ((TableView<?>)
+                    router.lookup("#technicianRequests")).getItems().getFirst()).status());
+        });
+
+        fx(() -> {
+            ((TextArea) router.lookup("#technicianWorkLogNote"))
+                    .setText("Completed a careful inspection of the valve.");
+            ((TextField) router.lookup("#technicianWorkLogMinutes")).setText("20");
+            button("addWorkLog").fire();
+        });
+        drain();
+
+        fx(() -> {
+            TextArea summary = (TextArea) router.lookup("#technicianResolutionSummary");
+            summary.setText("Too short");
+            button("completeWork").fire();
+            assertTrue(button("completeWork").isDisabled());
+        });
+        drain();
+
+        fx(() -> {
+            assertEquals("Too short", ((TextArea) router.lookup("#technicianResolutionSummary"))
+                    .getText());
+            assertEquals("Resolution summary must contain 10 to 2,000 characters.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+            assertEquals(RequestStatus.IN_PROGRESS, ((MaintenanceRequest) ((TableView<?>)
+                    router.lookup("#technicianRequests")).getItems().getFirst()).status());
+        });
+        assertEquals(0, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 1 AND action = 'REQUEST_COMPLETED'"));
+    }
+
+    @Test
+    @DisplayName("TEC-012/013 LIF-011/016 stale completion is rejected and refreshes the queue")
+    void staleTechnicianCompletionRefreshesQueueAfterReassignment() throws Exception {
+        loginTechnicianWithAssignedRequest();
+        addSecondTechnician();
+
+        fx(() -> ((TableView<?>) router.lookup("#technicianRequests"))
+                .getSelectionModel().selectFirst());
+        drain();
+        fx(() -> button("startWork").fire());
+        drain();
+        fx(() -> { });
+        fx(() -> {
+            ((TextArea) router.lookup("#technicianWorkLogNote"))
+                    .setText("Recorded the repair and verified the final condition.");
+            ((TextField) router.lookup("#technicianWorkLogMinutes")).setText("30");
+            button("addWorkLog").fire();
+        });
+        drain();
+
+        var managerSession = fixture.auth.login("manager", "password".toCharArray());
+        fixture.manager.reassignRequest(managerSession, 1, 6, "Coverage handoff");
+        fixture.auth.logout(managerSession);
+
+        fx(() -> {
+            ((TextArea) router.lookup("#technicianResolutionSummary"))
+                    .setText("Repair completed and tested successfully.");
+            button("completeWork").fire();
+            assertTrue(button("completeWork").isDisabled());
+            assertEquals(1, work.size());
+        });
+        drain();
+
+        fx(() -> {
+            assertTrue(((TableView<?>) router.lookup("#technicianRequests")).getItems().isEmpty());
+            assertEquals("The request assignment or status changed. The queue was refreshed.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+        });
+        assertEquals(6, fixture.scalar("SELECT assignee_id FROM maintenance_requests WHERE id = 1"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
+        assertEquals(0, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 1 AND action = 'REQUEST_COMPLETED'"));
+    }
+
+    @Test
     @DisplayName("TEC-012/013 LIF-011/016 stale Technician work-log write refreshes the authenticated queue")
     void staleTechnicianWriteRefreshesQueueAfterReassignment() throws Exception {
         loginTechnicianWithAssignedRequest();

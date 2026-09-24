@@ -262,6 +262,26 @@ class TechnicianRequestServiceTest {
     }
 
     @Test
+    @DisplayName("LIF-016 rejects stale completion before changing state or writing its audit")
+    void rejectsStaleCompletionBeforeAudit() {
+        WorkLog evidence = new WorkLog(
+                1, 11, 2, "Replaced damaged fitting.", 45, NOW.minusSeconds(60));
+        store.workLogs.add(evidence);
+        store.rejectTechnicianUpdate = true;
+
+        AuthorizationException error = assertThrows(
+                AuthorizationException.class,
+                () -> service.completeWork(
+                        technicianSession, 11, "Replaced fitting and tested water flow."));
+
+        assertTrue(error.getMessage().contains("changed"));
+        assertEquals(RequestStatus.IN_PROGRESS, store.requests.get(11L).status());
+        assertNull(store.requests.get(11L).resolutionSummary());
+        assertEquals(List.of(evidence), store.workLogs);
+        assertTrue(store.auditEvents.isEmpty());
+    }
+
+    @Test
     @DisplayName("TEC-005–007/TEC-A03 LIF-007 appends trimmed work evidence and updates request time")
     void appendsWorkLogAndAudit() {
         WorkLog workLog = service.addWorkLog(
