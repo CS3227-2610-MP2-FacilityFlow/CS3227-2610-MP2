@@ -330,7 +330,8 @@ public final class TechnicianDashboardView extends BorderPane {
     private static boolean isStaleAssignment(Throwable error) {
         return error instanceof AuthorizationException
                 && error.getMessage() != null
-                && error.getMessage().startsWith("The request assignment or status changed.");
+                && (error.getMessage().startsWith("The request assignment or status changed.")
+                        || error.getMessage().equals("Request is unavailable."));
     }
 
     private static TableColumn<MaintenanceRequest, String> textColumn(
