@@ -26,7 +26,7 @@ import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.ui.UiTasks;
 
-/** TEC-001/004/013: Technician queue and the first progress action. */
+/** TEC-001/004/008/009/013: Technician queue and progress actions. */
 public final class TechnicianDashboardView extends BorderPane {
     private final TechnicianDashboardController controller;
     private final UiTasks tasks;
@@ -38,11 +38,14 @@ public final class TechnicianDashboardView extends BorderPane {
     private final TextArea workLogNote = new TextArea();
     private final TextField workLogMinutes = new TextField();
     private final Button addWorkLogButton = new Button("_Add work log");
+    private final TextArea resolutionSummary = new TextArea();
+    private final Button completeWorkButton = new Button("_Submit for Manager review");
     private final Label feedback = new Label();
     private final Label selectedId = new Label("Select a request");
     private final Label selectedDetails = new Label("Choose a row to inspect its details.");
     private boolean busy;
     private boolean loadingWorkLogs;
+    private boolean hasWorkLogs;
     private long selectionVersion;
 
     public TechnicianDashboardView(
@@ -127,6 +130,18 @@ public final class TechnicianDashboardView extends BorderPane {
         addWorkLogButton.setOnAction(event -> addWorkLog());
         addWorkLogButton.setDisable(true);
 
+        resolutionSummary.setId("technicianResolutionSummary");
+        resolutionSummary.setPromptText("Summarise the resolution for Manager review");
+        resolutionSummary.setWrapText(true);
+        resolutionSummary.setPrefRowCount(4);
+
+        completeWorkButton.setId("completeWork");
+        completeWorkButton.setMnemonicParsing(true);
+        completeWorkButton.getStyleClass().add("primary-button");
+        completeWorkButton.setMaxWidth(Double.MAX_VALUE);
+        completeWorkButton.setOnAction(event -> completeSelectedWork());
+        completeWorkButton.setDisable(true);
+
         feedback.setId("technicianFeedback");
         feedback.setWrapText(true);
         feedback.setAccessibleRoleDescription("Technician action result");
@@ -145,6 +160,9 @@ public final class TechnicianDashboardView extends BorderPane {
                 workLogNote,
                 workLogMinutes,
                 addWorkLogButton,
+                new Label("Resolution summary for Manager review"),
+                resolutionSummary,
+                completeWorkButton,
                 feedback);
         detailArea.setPadding(new Insets(24));
         detailArea.setMinWidth(300);
@@ -208,6 +226,7 @@ public final class TechnicianDashboardView extends BorderPane {
         long requestSelection = selectionVersion;
         if (request == null) {
             loadingWorkLogs = false;
+            hasWorkLogs = false;
             workLogHistory.getItems().clear();
             selectedId.setText("Select a request");
             selectedDetails.setText("Choose a row to inspect its details.");
@@ -226,6 +245,7 @@ public final class TechnicianDashboardView extends BorderPane {
                     return;
                 }
                 loadingWorkLogs = false;
+                hasWorkLogs = !logs.isEmpty();
                 workLogHistory.setPlaceholder(new Label("No work logs recorded yet."));
                 workLogHistory.setItems(FXCollections.observableArrayList(
                         logs.stream().map(TechnicianDashboardView::formatWorkLog).toList()));
@@ -235,6 +255,7 @@ public final class TechnicianDashboardView extends BorderPane {
                     return;
                 }
                 loadingWorkLogs = false;
+                hasWorkLogs = false;
                 updateActionState();
                 if (isStaleAssignment(error)) {
                     refresh("The request assignment changed. The queue was refreshed.");
@@ -252,6 +273,8 @@ public final class TechnicianDashboardView extends BorderPane {
         startButton.setDisable(busy || selected == null
                 || selected.status() != RequestStatus.ASSIGNED);
         addWorkLogButton.setDisable(busy || loadingWorkLogs || selected == null
+                || selected.status() != RequestStatus.IN_PROGRESS);
+        completeWorkButton.setDisable(busy || loadingWorkLogs || !hasWorkLogs || selected == null
                 || selected.status() != RequestStatus.IN_PROGRESS);
     }
 
@@ -293,6 +316,27 @@ public final class TechnicianDashboardView extends BorderPane {
             workLogNote.clear();
             workLogMinutes.clear();
             refresh(selected.displayId() + " work log saved successfully.");
+        }, error -> {
+            setBusy(false);
+            if (isStaleAssignment(error)) {
+                refresh("The request assignment or status changed. The queue was refreshed.");
+            } else {
+                showError(UiTasks.safeMessage(error));
+                failure.accept(error);
+            }
+        });
+    }
+
+    private void completeSelectedWork() {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.status() != RequestStatus.IN_PROGRESS || !hasWorkLogs) {
+            return;
+        }
+        setBusy(true);
+        feedback.setText("Submitting work for Manager review…");
+        tasks.run(() -> controller.completeWork(selected, resolutionSummary.getText()), completed -> {
+            resolutionSummary.clear();
+            refresh(completed.displayId() + " was submitted for Manager review successfully.");
         }, error -> {
             setBusy(false);
             if (isStaleAssignment(error)) {

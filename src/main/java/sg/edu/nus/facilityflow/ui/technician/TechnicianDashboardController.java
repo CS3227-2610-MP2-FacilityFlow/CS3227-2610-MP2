@@ -36,4 +36,9 @@ public final class TechnicianDashboardController {
         Objects.requireNonNull(request, "request");
         return requestService.addWorkLog(session, request.id(), note, minutesSpent);
     }
+
+    public MaintenanceRequest completeWork(MaintenanceRequest request, String resolutionSummary) {
+        Objects.requireNonNull(request, "request");
+        return requestService.completeWork(session, request.id(), resolutionSummary);
+    }
 }
