@@ -8,17 +8,21 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.ui.UiTasks;
 
@@ -30,10 +34,16 @@ public final class TechnicianDashboardView extends BorderPane {
     private final Button refreshButton = new Button("Refresh requests");
     private final TableView<MaintenanceRequest> requestTable = new TableView<>();
     private final Button startButton = new Button("_Start work");
+    private final ListView<String> workLogHistory = new ListView<>();
+    private final TextArea workLogNote = new TextArea();
+    private final TextField workLogMinutes = new TextField();
+    private final Button addWorkLogButton = new Button("_Add work log");
     private final Label feedback = new Label();
     private final Label selectedId = new Label("Select a request");
     private final Label selectedDetails = new Label("Choose a row to inspect its details.");
     private boolean busy;
+    private boolean loadingWorkLogs;
+    private long selectionVersion;
 
     public TechnicianDashboardView(
             TechnicianDashboardController controller,
@@ -99,6 +109,24 @@ public final class TechnicianDashboardView extends BorderPane {
         startButton.setOnAction(event -> startSelectedRequest());
         startButton.setDisable(true);
 
+        workLogHistory.setId("technicianWorkLogs");
+        workLogHistory.setPlaceholder(new Label("No work logs recorded yet."));
+        workLogHistory.setPrefHeight(150);
+        workLogHistory.setAccessibleText("Internal technician work logs");
+
+        workLogNote.setId("technicianWorkLogNote");
+        workLogNote.setPromptText("Describe the work performed");
+        workLogNote.setWrapText(true);
+        workLogNote.setPrefRowCount(3);
+
+        workLogMinutes.setId("technicianWorkLogMinutes");
+        workLogMinutes.setPromptText("Whole minutes, 1 to 1440");
+
+        addWorkLogButton.setId("addWorkLog");
+        addWorkLogButton.setMnemonicParsing(true);
+        addWorkLogButton.setOnAction(event -> addWorkLog());
+        addWorkLogButton.setDisable(true);
+
         feedback.setId("technicianFeedback");
         feedback.setWrapText(true);
         feedback.setAccessibleRoleDescription("Technician action result");
@@ -111,6 +139,12 @@ public final class TechnicianDashboardView extends BorderPane {
                 selectedDetails,
                 new Separator(Orientation.HORIZONTAL),
                 startButton,
+                new Label("Internal work history"),
+                workLogHistory,
+                new Label("Add accountable progress"),
+                workLogNote,
+                workLogMinutes,
+                addWorkLogButton,
                 feedback);
         detailArea.setPadding(new Insets(24));
         detailArea.setMinWidth(300);
@@ -170,24 +204,55 @@ public final class TechnicianDashboardView extends BorderPane {
     }
 
     private void showSelection(MaintenanceRequest request) {
+        selectionVersion++;
+        long requestSelection = selectionVersion;
         if (request == null) {
+            loadingWorkLogs = false;
+            workLogHistory.getItems().clear();
             selectedId.setText("Select a request");
             selectedDetails.setText("Choose a row to inspect its details.");
         } else {
+            loadingWorkLogs = true;
+            workLogHistory.getItems().clear();
+            workLogHistory.setPlaceholder(new Label("Loading work history…"));
             selectedId.setText(request.displayId() + " · " + request.title());
             selectedDetails.setText("Location: " + request.location()
                     + "\nStatus: " + display(request.status())
                     + "\nManager priority: " + (request.managerPriority() == null
                             ? "Not set" : display(request.managerPriority()))
                     + "\n\n" + request.description());
+            tasks.run(() -> controller.loadWorkLogs(request), logs -> {
+                if (requestSelection != selectionVersion) {
+                    return;
+                }
+                loadingWorkLogs = false;
+                workLogHistory.setPlaceholder(new Label("No work logs recorded yet."));
+                workLogHistory.setItems(FXCollections.observableArrayList(
+                        logs.stream().map(TechnicianDashboardView::formatWorkLog).toList()));
+                updateActionState();
+            }, error -> {
+                if (requestSelection != selectionVersion) {
+                    return;
+                }
+                loadingWorkLogs = false;
+                updateActionState();
+                if (isStaleAssignment(error)) {
+                    refresh("The request assignment changed. The queue was refreshed.");
+                } else {
+                    showError(UiTasks.safeMessage(error));
+                    failure.accept(error);
+                }
+            });
         }
-        updateStartState();
+        updateActionState();
     }
 
-    private void updateStartState() {
+    private void updateActionState() {
         MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
         startButton.setDisable(busy || selected == null
                 || selected.status() != RequestStatus.ASSIGNED);
+        addWorkLogButton.setDisable(busy || loadingWorkLogs || selected == null
+                || selected.status() != RequestStatus.IN_PROGRESS);
     }
 
     private void startSelectedRequest() {
@@ -210,11 +275,40 @@ public final class TechnicianDashboardView extends BorderPane {
         });
     }
 
+    private void addWorkLog() {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.status() != RequestStatus.IN_PROGRESS) {
+            return;
+        }
+        int minutes;
+        try {
+            minutes = Integer.parseInt(workLogMinutes.getText().strip());
+        } catch (NumberFormatException error) {
+            showError("Minutes spent must be a whole number from 1 to 1,440.");
+            return;
+        }
+        setBusy(true);
+        feedback.setText("Saving work log…");
+        tasks.run(() -> controller.addWorkLog(selected, workLogNote.getText(), minutes), log -> {
+            workLogNote.clear();
+            workLogMinutes.clear();
+            refresh(selected.displayId() + " work log saved successfully.");
+        }, error -> {
+            setBusy(false);
+            if (isStaleAssignment(error)) {
+                refresh("The request assignment or status changed. The queue was refreshed.");
+            } else {
+                showError(UiTasks.safeMessage(error));
+                failure.accept(error);
+            }
+        });
+    }
+
     private void setBusy(boolean value) {
         busy = value;
         refreshButton.setDisable(value);
         requestTable.setDisable(value);
-        updateStartState();
+        updateActionState();
     }
 
     private void showSuccess(String message) {
@@ -248,6 +342,11 @@ public final class TechnicianDashboardView extends BorderPane {
         column.setPrefWidth(width);
         column.setSortable(false);
         return column;
+    }
+
+    private static String formatWorkLog(WorkLog log) {
+        return log.createdAt() + " · Technician #" + log.authorId()
+                + " · " + log.minutesSpent() + " minutes\n" + log.note();
     }
 
     private static String display(Enum<?> value) {
