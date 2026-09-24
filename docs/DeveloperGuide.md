@@ -1,8 +1,8 @@
 # FacilityFlow Developer Guide
 
-Status: authenticated Requester UI, Manager assignment, and Technician backend,
-updated 24 September 2026. This development build is not a complete released
-maintenance application.
+Status: authenticated Requester UI, Manager assignment, and Technician work-log
+workflow, updated 24 September 2026. This development build is not a complete
+released maintenance application.
 
 ## Setup and commands
 
@@ -50,6 +50,8 @@ login flow. To launch the older validation-only preview instead:
 | [SessionManager](../src/main/java/sg/edu/nus/facilityflow/auth/SessionManager.java) | Opaque process-local sessions and persisted active/role/version checks |
 | [ApplicationRouter](../src/main/java/sg/edu/nus/facilityflow/ui/ApplicationRouter.java) | Login, logout, role routing and own-password UI |
 | [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Own list, submission, detail, and retained drafts |
+| [TechnicianDashboardController](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardController.java) | Thin presentation adapter for Technician queue, work-log reads, and writes |
+| [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history, and entry form |
 | [Workspace](../src/main/java/sg/edu/nus/facilityflow/storage/Workspace.java) | OS-user database location and category startup validation |
 | [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
 | [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
@@ -114,9 +116,16 @@ committed data. Failures retain entered input and display safe messages. A draft
 can survive an expired session in memory for the same account's next login;
 explicit logout, another account's login, or process shutdown discards it.
 Role changes reroute on the next denied protected action or **Refresh account**.
-The Technician has a separate placeholder view. The authorized backend operations
-for personal queue/detail reads, search and filters, start work, append work logs,
-and completion now exist, but they are not yet connected to that view.
+The Technician dashboard uses a thin presentation adapter over
+`TechnicianRequestService`; it does not issue SQL or reproduce lifecycle rules.
+Selecting an assigned request loads internal work-log history asynchronously.
+The entry form submits a trimmed note and whole minutes through the service,
+retains both fields after failure, clears them only after a committed write, and
+refreshes the queue and history after success. A selection-version token prevents
+an older asynchronous history response from replacing the currently selected
+request. The UI enables entry only for `IN_PROGRESS`; the service still
+rechecks role, assignment, status, validation limits, and conditional ownership
+inside the transaction.
 
 ## Manager foundation architecture
 
