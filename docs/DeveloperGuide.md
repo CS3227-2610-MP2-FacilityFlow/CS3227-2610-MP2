@@ -1,7 +1,7 @@
 # FacilityFlow Developer Guide
 
 Status: authenticated Requester UI, Manager assignment, and Technician work-log
-workflow, updated 24 September 2026. This development build is not a complete
+and completion workflow, updated 24 September 2026. This development build is not a complete
 released maintenance application.
 
 ## Setup and commands
@@ -51,7 +51,7 @@ login flow. To launch the older validation-only preview instead:
 | [ApplicationRouter](../src/main/java/sg/edu/nus/facilityflow/ui/ApplicationRouter.java) | Login, logout, role routing and own-password UI |
 | [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Own list, submission, detail, and retained drafts |
 | [TechnicianDashboardController](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardController.java) | Thin presentation adapter for Technician queue, work-log reads, and writes |
-| [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history, and entry form |
+| [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history and entry form, resolution summary, and completion-for-review action |
 | [Workspace](../src/main/java/sg/edu/nus/facilityflow/storage/Workspace.java) | OS-user database location and category startup validation |
 | [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
 | [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
@@ -121,11 +121,14 @@ The Technician dashboard uses a thin presentation adapter over
 Selecting an assigned request loads internal work-log history asynchronously.
 The entry form submits a trimmed note and whole minutes through the service,
 retains both fields after failure, clears them only after a committed write, and
-refreshes the queue and history after success. A selection-version token prevents
-an older asynchronous history response from replacing the currently selected
-request. The UI enables entry only for `IN_PROGRESS`; the service still
-rechecks role, assignment, status, validation limits, and conditional ownership
-inside the transaction.
+refreshes the queue and history after success. The completion form requires
+loaded work-log evidence and a 10–2,000-code-point trimmed resolution summary;
+it retains the summary after failure, clears it after a committed write, and
+refreshes the queue and history after success. A selection-version token
+prevents an older asynchronous history response from replacing the currently
+selected request. The UI enables progress writes only for `IN_PROGRESS`; the
+service still rechecks role, assignment, status, validation limits, and
+conditional ownership inside the transaction.
 
 ## Manager foundation architecture
 
@@ -307,7 +310,8 @@ Team agreement reported by yooplo on 20 September 2026:
   inclusive local dates; history includes status/reasons/follow-ups but no private notes.
 
 The implemented subset is described above. Date filtering, visible activity
-history, category mappings, and the complete lifecycle remain outstanding.
+history, category mappings, and the Manager review/return/close/reopen stages
+of the cross-role lifecycle remain outstanding.
 
 ## Next integration and release work
 

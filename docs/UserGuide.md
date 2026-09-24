@@ -10,7 +10,8 @@ This development build supports sign-in and account actions for all three roles.
 Requesters can submit requests and view their own saved requests. Facilities
 Managers can view all requests and assign an `OPEN` request to an active
 Technician. Technicians can view their assigned work, inspect a selected request,
-and start work on an `ASSIGNED` request.
+start work on an `ASSIGNED` request, record internal work logs, and submit
+completed work for Manager review.
 
 On first launch, FacilityFlow creates its local database, category configuration,
 and two demo accounts for each role. This is not a completed product release and
@@ -231,11 +232,39 @@ in-memory session.
    shows the refresh error while the saved transition remains in the database.
    A failed transaction does not leave a partial status or audit-event write.
 
-There are no currently reachable Technician controls for queue search or
-filtering, resolution summaries, or completion for Manager review. Internal
-work-log history and the **Add work log** action are reachable as described
-above; completion remains unavailable through the Technician route. (TEC-002,
-TEC-008)
+#### Submit work for Manager review
+
+1. Select an `IN_PROGRESS` request and wait for **Internal work history** to
+   finish loading. At least one saved work log is required. The **Submit for
+   Manager review** button stays disabled until the history has loaded and
+   contains at least one work log.
+2. Enter the outcome in **Resolution summary for Manager review**. This is a
+   required summary of the work completed. After leading and trailing
+   whitespace is removed, it must contain 10–2,000 Unicode code points;
+   meaningful spaces and line breaks inside the summary are kept.
+3. Choose **Submit for Manager review**. The application rechecks your role,
+   current assignment, and `IN_PROGRESS` status before saving. A successful
+   submission changes the request to `COMPLETED`, stores the trimmed summary
+   and completion time, preserves the current Technician assignment, records
+   an audit event, reloads the queue and work-log history, and shows a message
+   such as **FF-000010 was submitted for Manager review successfully.** The
+   summary field is cleared only after the completion write commits. (TEC-008,
+   TEC-009, TEC-013, TEC-A05, LIF-011, LIF-012, LIF-016)
+4. A missing or invalid summary is rejected without changing the request or
+   its work logs. The summary remains in the text area after a validation,
+   authorization, or storage failure so it can be corrected or retried. A
+   request with no work log cannot be completed; the service rejects that
+   attempt and keeps the request `IN_PROGRESS` with guidance to add a work log
+   first. (TEC-008, TEC-A04)
+5. If the assignment or status changes while the request is open, the
+   completion is rejected, no completion data is stored, and the queue is
+   refreshed with **The request assignment or status changed. The queue was
+   refreshed.** (TEC-012, TEC-013, LIF-016)
+
+After a successful submission, the request remains in the Technician's queue
+with status `COMPLETED`, but Technician work actions are disabled. The current
+Manager route does not yet expose review of the work logs or resolution summary,
+or the actions to close, return, or reopen the request. (TEC-009, MGR-007–009)
 
 ### Facilities Manager
 
@@ -274,11 +303,10 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-- The Technician route currently exposes the personal queue, request selection
-  and detail, Start work, and internal work-log history and entry. Queue search
-  and filtering, dashboard counts, resolution summaries, and completion for
-  Manager review are not yet reachable through the application, even though
-  some corresponding service operations and tests exist (TEC-002–TEC-009).
+- The Technician route exposes the personal queue, request selection and detail,
+  Start work, internal work-log history and entry, and submission of completed
+  work for Manager review. Queue search and filtering and dashboard counts are
+  not yet reachable through the application (TEC-002).
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
