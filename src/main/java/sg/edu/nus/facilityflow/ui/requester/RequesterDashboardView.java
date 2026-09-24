@@ -6,10 +6,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
@@ -17,6 +20,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
+import sg.edu.nus.facilityflow.model.RequestDraft;
+import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.ui.UiTasks;
 
@@ -117,7 +122,11 @@ public final class RequesterDashboardView extends BorderPane {
     }
 
     private void showForm() {
-        var form = new RequesterForm(categories, draft -> save(draft));
+        showForm(null);
+    }
+
+    private void showForm(MaintenanceRequest request) {
+        var form = new RequesterForm(categories, draft -> save(draft, request), request);
         form.setId("requesterForm");
         var back = new Button("Back to my requests");
         back.setOnAction(event -> showList());
@@ -132,10 +141,11 @@ public final class RequesterDashboardView extends BorderPane {
         setCenter(pane);
     }
 
-    private void save(sg.edu.nus.facilityflow.model.RequestDraft draft) {
+    private void save(RequestDraft draft, MaintenanceRequest request) {
         var form = (RequesterForm) lookup("#requesterForm");
         var caller = session;
-        tasks.run(() -> service.createRequest(caller, draft), created -> {
+        tasks.run(() -> request == null ? service.createRequest(caller, draft)
+                : service.editRequest(caller, request.id(), draft), created -> {
             form.setSubmitting(false);
             showDetail(created, created.displayId() + " was saved successfully.");
         }, error -> {
@@ -185,7 +195,97 @@ public final class RequesterDashboardView extends BorderPane {
         if (feedback.getParent() instanceof VBox parent) {
             parent.getChildren().remove(feedback);
         }
-        var pane = new VBox(15, new FlowPane(10, 10, back, refresh), heading, detail, description, feedback);
+        var actions = new FlowPane(10, 10, back, refresh);
+        if (request.status() == RequestStatus.OPEN) {
+            var edit = new Button("Edit request");
+            edit.setId("editRequest");
+            edit.setOnAction(event -> showForm(request));
+            var cancel = new Button("Cancel request");
+            cancel.setId("cancelRequest");
+            cancel.setOnAction(event -> showCancellation(request));
+            actions.getChildren().addAll(edit, cancel);
+        }
+        var pane = new VBox(15, actions, heading, detail, description, feedback);
+        if (request.status() == RequestStatus.CANCELLED) {
+            var reason = new Label("Loading cancellation reason…");
+            reason.setId("cancellationReason");
+            reason.setWrapText(true);
+            pane.getChildren().add(reason);
+            var caller = session;
+            tasks.run(() -> service.getOwnCancellationReason(caller, request.id()),
+                    value -> reason.setText(value.map(text -> "Cancellation reason: " + text).orElse("")),
+                    error -> {
+                        reason.setText(UiTasks.safeMessage(error));
+                        failure.accept(error);
+                    });
+        }
+        var scroll = new ScrollPane(pane);
+        scroll.setFitToWidth(true);
+        setCenter(scroll);
+    }
+
+    /** REQ-008/012: a distinct confirmation screen keeps the reason on failed cancellation. */
+    private void showCancellation(MaintenanceRequest request) {
+        var heading = new Label("Cancel " + request.displayId() + "?");
+        heading.getStyleClass().add("page-title");
+        var reason = new TextArea();
+        reason.setId("cancelReason");
+        reason.setWrapText(true);
+        reason.setPrefRowCount(4);
+        var label = new Label("Cancellation reason * (5–500 characters)");
+        label.setLabelFor(reason);
+        reason.setAccessibleText(label.getText());
+        var notice = new Label("Confirm cancellation of this request. Cancelled requests cannot be edited or reopened.");
+        notice.setWrapText(true);
+        var result = new Label();
+        result.setId("cancelFeedback");
+        result.setWrapText(true);
+        var back = new Button("Keep request");
+        back.setId("keepRequest");
+        back.setOnAction(event -> showDetail(request, ""));
+        var confirm = new Button("Confirm cancellation");
+        confirm.setId("confirmCancellation");
+        var pane = new VBox(15, heading, notice, label, reason,
+                new FlowPane(10, 10, back, confirm), result);
+        confirm.setOnAction(event -> {
+            var text = reason.getText().strip();
+            int length = text.codePointCount(0, text.length());
+            if (length < 5 || length > 500) {
+                result.setText("Enter a cancellation reason of 5–500 characters after trimming.");
+                return;
+            }
+            var confirmation = new Alert(Alert.AlertType.CONFIRMATION,
+                    "Cancel " + request.displayId() + " — " + request.title()
+                            + "? It will become CANCELLED and cannot be edited or reopened.",
+                    ButtonType.CANCEL, ButtonType.OK);
+            confirmation.setTitle("Confirm request cancellation");
+            confirmation.setHeaderText("Cancel this request?");
+            confirmation.getDialogPane().setId("cancelConfirmation");
+            if (getScene() != null && getScene().getWindow() != null) {
+                confirmation.initOwner(getScene().getWindow());
+            }
+            var cancelButton = (Button) confirmation.getDialogPane().lookupButton(ButtonType.CANCEL);
+            cancelButton.setText("Keep request");
+            var confirmButton = (Button) confirmation.getDialogPane().lookupButton(ButtonType.OK);
+            confirmButton.setText("Cancel request");
+            confirmButton.setId("confirmCancelDialog");
+            confirmButton.setDefaultButton(false);
+            cancelButton.setDefaultButton(true);
+            if (confirmation.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                return;
+            }
+            pane.setDisable(true);
+            result.setText("Cancelling request…");
+            var caller = session;
+            tasks.run(() -> service.cancelRequest(caller, request.id(), text), saved -> {
+                pane.setDisable(false);
+                showDetail(saved, saved.displayId() + " was cancelled successfully.");
+            }, error -> {
+                pane.setDisable(false);
+                result.setText(UiTasks.safeMessage(error));
+                failure.accept(error);
+            });
+        });
         var scroll = new ScrollPane(pane);
         scroll.setFitToWidth(true);
         setCenter(scroll);

@@ -127,7 +127,7 @@ public final class ManagerRequestService {
         return normalized;
     }
 
-    private static String escapeJson(String value) {
+    static String escapeJson(String value) {
         StringBuilder escaped = new StringBuilder(value.length());
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);

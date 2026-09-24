@@ -287,6 +287,50 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
         }
 
         @Override
+        public boolean updateOwnOpenRequest(MaintenanceRequest request, long requesterId) {
+            String sql = """
+                    UPDATE maintenance_requests
+                    SET title = ?, description = ?, location = ?, category = ?, reported_urgency = ?,
+                        status = ?, updated_at = ?
+                    WHERE id = ? AND requester_id = ? AND status = 'OPEN'
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, request.title());
+                statement.setString(2, request.description());
+                statement.setString(3, request.location());
+                statement.setString(4, request.category());
+                statement.setString(5, request.reportedUrgency().name());
+                statement.setString(6, request.status().name());
+                statement.setString(7, request.updatedAt().toString());
+                statement.setLong(8, request.id());
+                statement.setLong(9, requesterId);
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public Optional<String> findOwnCancellationReason(long requesterId, long requestId) {
+            String sql = """
+                    SELECT json_extract(a.detail, '$.reason')
+                    FROM audit_events a JOIN maintenance_requests r ON r.id = a.request_id
+                    WHERE r.id = ? AND r.requester_id = ? AND r.status = 'CANCELLED'
+                        AND a.action = 'REQUEST_CANCELLED'
+                    ORDER BY a.id DESC LIMIT 1
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, requestId);
+                statement.setLong(2, requesterId);
+                try (ResultSet result = statement.executeQuery()) {
+                    return result.next() ? Optional.ofNullable(result.getString(1)) : Optional.empty();
+                }
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
         public List<MaintenanceRequest> listAssignedRequests(long technicianId) {
             String sql = """
                     SELECT * FROM maintenance_requests

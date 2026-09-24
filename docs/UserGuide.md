@@ -7,7 +7,8 @@ maintenance work. It is intended for Requesters, Technicians, and Facilities
 Managers who share one local workspace under the same operating-system user.
 
 This development build supports sign-in and account actions for all three roles.
-Requesters can submit requests and view their own saved requests. Facilities
+Requesters can submit requests, view their own saved requests, and edit or cancel
+their own `OPEN` requests. Facilities
 Managers can view all requests and assign an `OPEN` request to an active
 Technician. The Technician route is currently a placeholder and has no work
 management controls.
@@ -134,6 +135,48 @@ the application discards unsaved input.
 Other Requesters' records, internal audit details, and Technician work logs are
 not returned to this view.
 
+#### Edit an open request
+
+1. Open your request using **View selected request**. If its status is `OPEN`,
+   choose **Edit request**.
+2. The form starts with the saved title, description, location, category, and
+   reported urgency. Change the required fields using the same values and length
+   rules described under **Submit a maintenance request**.
+3. Choose **Save changes**. While saving, the form and **Back to my requests**
+   action are disabled. A successful save returns to the detail view with the
+   stored changes and a success message. The request keeps its display ID and
+   `OPEN` status; its update time and an audit event are saved.
+4. Validation or storage errors preserve your entries for correction or retry.
+   If a Manager has assigned the request since you opened the form, saving is
+   rejected and the assignment remains unchanged. Use **Back to my requests**
+   and reopen the request to see its current state; leaving the form discards
+   unsaved changes.
+
+Only your own `OPEN` requests can be edited (REQ-007, REQ-011–012).
+
+#### Cancel an open request
+
+1. Open your `OPEN` request and choose **Cancel request**.
+2. Enter a required **Cancellation reason** of 5–500 characters. Leading and
+   trailing whitespace is removed before validation and storage.
+3. Choose **Confirm cancellation**. The confirmation dialog identifies the
+   request and explains that cancellation is permanent. Choose **Cancel request**
+   in the dialog to proceed. **Keep request** is the default; choosing it or
+   dismissing the dialog leaves the request unchanged and retains your reason.
+4. While cancellation is saving, the reason and screen actions are disabled.
+   Success returns to the detail view with status `CANCELLED`, a success message,
+   and the saved cancellation reason. The reason remains available when you
+   reopen the detail view after restarting the application. Cancellation and its
+   audit event are saved together.
+5. Invalid input or a failed save leaves the reason available for correction or
+   retry. If a Manager has already assigned the request, cancellation is rejected
+   and the assignment remains unchanged. To leave without cancelling, choose
+   **Keep request** on the reason screen; this discards the unsaved reason.
+
+Only your own `OPEN` requests can be cancelled. Cancelled requests remain in your
+list but cannot be edited, cancelled again, or reopened (REQ-008, REQ-011–012,
+REQ-A11).
+
 #### Check fields without saving
 
 The separate validation preview can be launched with:
@@ -208,8 +251,10 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
   only `OPEN` requests.
-- Requesters cannot edit, cancel, search, or filter requests; add follow-up
-  information; or view requester-visible activity history.
+- Requesters cannot search or filter requests, add follow-up information, or view
+  a full activity history. The saved cancellation reason is available in the
+  detail view, but a timeline of status changes and updates is not yet available
+  (REQ-004–006, REQ-009, REQ-017).
 - Managers cannot yet record requests on behalf of Requesters, correct request
   details, cancel or review work, close/return/reopen requests, manage accounts,
   or view audit history through the dashboard. Manager password reset exists only

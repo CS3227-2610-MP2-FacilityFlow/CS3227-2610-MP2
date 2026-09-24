@@ -207,6 +207,169 @@ class AuthenticatedWorkflowTest {
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests"));
     }
 
+
+    @Test
+    @DisplayName("REQ-007/011/012 UIX-009 edit prefills details, retains failure input and disables pending actions")
+    void editsRequestWithRollbackRetry() throws Exception {
+        createOwnRequest();
+        fx(() -> {
+            button("editRequest").fire();
+            router.applyCss();
+            router.layout();
+            assertEquals("Leaking pipe", ((TextField) router.lookup("#title")).getText());
+            assertEquals("Water leaks under the sink.", ((TextArea) router.lookup("#description")).getText());
+            assertEquals("Room 12", ((TextField) router.lookup("#location")).getText());
+            assertEquals("Plumbing", ((ComboBox<?>) router.lookup("#category")).getValue());
+            assertNotNull(((ComboBox<?>) router.lookup("#urgency")).getValue());
+            ((TextField) router.lookup("#title")).setText("  Updated leaking pipe  ");
+        });
+        fixture.execute("CREATE TRIGGER reject_edit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT, 'private error'); END");
+        fx(() -> {
+            button("validate").fire();
+            button("validate").fire();
+            assertEquals(1, work.size());
+            assertTrue(button("validate").isDisabled());
+            assertTrue(button("logout").isDisabled());
+        });
+        drain();
+        fx(() -> {
+            assertEquals("  Updated leaking pipe  ", ((TextField) router.lookup("#title")).getText());
+            assertTrue(((Label) router.lookup("#feedback")).getText().contains("input has been kept"));
+            assertFalse(button("validate").isDisabled());
+        });
+        fixture.execute("DROP TRIGGER reject_edit");
+        fx(() -> button("validate").fire());
+        drain();
+        fx(() -> assertTrue(((Label) router.lookup("#requesterFeedback")).getText().contains("saved successfully")));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests WHERE title = 'Updated leaking pipe'"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events WHERE action = 'REQUEST_EDITED'"));
+    }
+
+    @Test
+    @DisplayName("REQ-A11 UIX-011/022 cancellation dialog defaults to keep, decline retains reason and writes nothing")
+    void declinesCancellationSafely() throws Exception {
+        createOwnRequest();
+        fx(() -> {
+            button("cancelRequest").fire();
+            router.applyCss();
+            router.layout();
+            ((TextArea) router.lookup("#cancelReason")).setText("No longer needed");
+        });
+        answerCancellation(false);
+        fx(() -> {
+            assertEquals("No longer needed", ((TextArea) router.lookup("#cancelReason")).getText());
+            assertTrue(work.isEmpty());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests WHERE status = 'OPEN'"));
+        assertEquals(0, fixture.scalar("SELECT COUNT(*) FROM audit_events WHERE action = 'REQUEST_CANCELLED'"));
+    }
+
+    @Test
+    @DisplayName("REQ-008/011/012 UIX-009 cancellation failure retains reason; retry shows persisted terminal detail")
+    void retriesCancellationAfterStorageFailure() throws Exception {
+        createOwnRequest();
+        fx(() -> {
+            button("cancelRequest").fire();
+            router.applyCss();
+            router.layout();
+            ((TextArea) router.lookup("#cancelReason")).setText("  No longer needed  ");
+        });
+        fixture.execute("CREATE TRIGGER reject_cancel BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT, 'private error'); END");
+        answerCancellation(true);
+        fx(() -> {
+            assertTrue(button("confirmCancellation").isDisabled());
+            assertTrue(button("keepRequest").isDisabled());
+            button("confirmCancellation").fire();
+            assertEquals(1, work.size());
+        });
+        drain();
+        fx(() -> {
+            assertEquals("  No longer needed  ", ((TextArea) router.lookup("#cancelReason")).getText());
+            assertTrue(((Label) router.lookup("#cancelFeedback")).getText().contains("input has been kept"));
+            assertFalse(button("confirmCancellation").isDisabled());
+        });
+        fixture.execute("DROP TRIGGER reject_cancel");
+        answerCancellation(true);
+        drain();
+        fx(() -> {
+            assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("Status: CANCELLED"));
+            assertEquals("Cancellation reason: No longer needed", ((Label) router.lookup("#cancellationReason")).getText());
+            assertTrue(((Label) router.lookup("#requesterFeedback")).getText().contains("cancelled successfully"));
+            assertNull(router.lookup("#editRequest"));
+            assertNull(router.lookup("#cancelRequest"));
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events WHERE action = 'REQUEST_CANCELLED'"));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    @DisplayName("REQ-A10 REQ-012 stale edit/cancel retains input after Manager assignment")
+    void retainsStaleMutationInput(boolean cancel) throws Exception {
+        createOwnRequest();
+        fx(() -> {
+            button(cancel ? "cancelRequest" : "editRequest").fire();
+            router.applyCss();
+            router.layout();
+            if (cancel) {
+                ((TextArea) router.lookup("#cancelReason")).setText("No longer needed");
+            } else {
+                ((TextField) router.lookup("#title")).setText("Unsaved changed title");
+            }
+        });
+        var manager = fixture.auth.login("manager", "password".toCharArray());
+        fixture.manager.assignOpenRequest(manager, 1, 4, sg.edu.nus.facilityflow.model.ManagerPriority.HIGH);
+        if (cancel) {
+            answerCancellation(true);
+        } else {
+            fx(() -> button("validate").fire());
+        }
+        drain();
+        fx(() -> {
+            String message = ((Label) router.lookup(cancel ? "#cancelFeedback" : "#feedback")).getText();
+            assertTrue(message.contains("OPEN"));
+            assertEquals(cancel ? "No longer needed" : "Unsaved changed title", cancel
+                    ? ((TextArea) router.lookup("#cancelReason")).getText()
+                    : ((TextField) router.lookup("#title")).getText());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests WHERE status = 'ASSIGNED'"));
+    }
+
+    private void createOwnRequest() throws Exception {
+        login("owner");
+        fillForm();
+        fx(() -> button("validate").fire());
+        drain();
+    }
+
+    private void answerCancellation(boolean confirm) throws Exception {
+        var answered = new java.util.concurrent.CompletableFuture<Void>();
+        fx(() -> {
+            Platform.runLater(() -> {
+                try {
+                    var dialog = javafx.stage.Window.getWindows().stream()
+                            .map(window -> window.getScene().lookup("#cancelConfirmation"))
+                            .filter(java.util.Objects::nonNull).findFirst().orElseThrow();
+                    var pane = (javafx.scene.control.DialogPane) dialog;
+                    var keep = (Button) pane.lookupButton(javafx.scene.control.ButtonType.CANCEL);
+                    var cancel = (Button) pane.lookupButton(javafx.scene.control.ButtonType.OK);
+                    assertTrue(keep.isDefaultButton());
+                    assertFalse(cancel.isDefaultButton());
+                    assertTrue(pane.getContentText().contains("FF-000001"));
+                    assertTrue(pane.getContentText().contains("CANCELLED"));
+                    (confirm ? cancel : keep).fire();
+                    answered.complete(null);
+                } catch (Throwable error) {
+                    answered.completeExceptionally(error);
+                    // Close any modal dialog even if an assertion failed.
+                    javafx.stage.Window.getWindows().stream().filter(window -> window != stage)
+                            .toList().forEach(javafx.stage.Window::hide);
+                }
+            });
+            button("confirmCancellation").fire();
+        });
+        answered.get(5, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
     private void login(String username) throws Exception {
         fx(() -> {
             ((TextField) router.lookup("#username")).setText(username);

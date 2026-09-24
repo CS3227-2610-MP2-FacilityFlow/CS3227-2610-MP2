@@ -221,7 +221,19 @@ and `getOwnRequest(session, requestId)` reuse that transaction boundary. Owner r
 are scoped in SQL and checked in the service. Lists order by creation Instant
 descending, then display ID ascending; absent and inaccessible details have the
 same safe error. Returned records contain no audit details or internal notes.
-Visible activity history under REQ-017 is not implemented yet. The configured
+`editRequest(session, requestId, draft)` and `cancelRequest(session, requestId, reason)`
+recheck the authenticated role, ownership and persisted `OPEN` state inside the
+same transaction as the update and audit insert (REQ-007–008, LIF-011–016).
+The guarded SQL update also requires the owner and `OPEN` status; edits retain
+identity and workflow metadata. Both operations update `updatedAt`; cancellation
+stores its trimmed 5–500-character reason in the audit event. No schema migration
+is needed. `getOwnCancellationReason` authorizes the owner before selecting only
+the cancellation reason, without returning raw audit details or internal notes.
+The shared Requester form prefills editable fields; cancellation has a separate
+reason form and confirmation dialog whose default action keeps the request.
+Pending writes disable repeated submission and form navigation; failures preserve
+input. The cancelled detail reloads its saved reason, including after restart.
+Broader visible activity history under REQ-017 is not implemented yet. The configured
 category set is supplied through `RequestValidator`; the authenticated Requester
 view now calls these operations through background tasks.
 
@@ -243,6 +255,14 @@ revocation, role changes, reset invalidation, audit rollback and secret clearing
 executor and temporary SQLite database to exercise all role routes, logout,
 submission, repeated-click prevention, safe recovery, draft restoration, and
 Requester-to-Manager handoff. `WorkspaceTest` checks seeding and category startup.
+
+The edit/cancel increment extends `SQLiteRequesterRequestServiceTest` with
+ownership/role checks, all forbidden states, Unicode reason boundaries, reason
+reload, changed-field audit privacy, Manager-recorded ownership, stale assignment
+and rollback/retry cases. `AuthenticatedWorkflowTest` exercises prefilled editing,
+the safe-default cancellation dialog, declined cancellation, pending controls,
+retained failed/stale input and persisted terminal detail. These checks support
+REQ-007–008, REQ-A10/A11, DAT-019 and UIX-009/011/022.
 
 ## Verification and CI
 
@@ -309,7 +329,7 @@ the existing Manager assignment route. This does not complete visible history or
 the remainder of the cross-role lifecycle.
 
 Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
-Add edit/cancel, visible history, and filters next.
+Add broader visible history, follow-ups, and filters next.
 The Manager slice still needs search/filter/reset,
 the remaining transitions, account administration, summaries, and audit browsing.
 

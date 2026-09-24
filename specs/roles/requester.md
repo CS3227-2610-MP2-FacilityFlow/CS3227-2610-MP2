@@ -9,8 +9,10 @@ The default application now provides real login and Requester create/list/detail
 through the shared SQLite services (22 September 2026). The optional validation-only
 preview remains available separately and must never describe validation as a save.
 Backend and JavaFX tests cover role isolation, rollback/retry, retained input,
-duplicate-click prevention, and Manager handoff. Visible history, edit/cancel,
-follow-ups, filtering, and dashboard summaries remain outstanding. The requirements
+duplicate-click prevention, and Manager handoff. Own `OPEN` edit/cancel and saved
+cancellation-reason display are implemented in the 24 September increment,
+with local automated tests and team review pending. Broader visible history, follow-ups,
+filtering, and dashboard summaries remain outstanding. The requirements
 and complete product acceptance criteria below remain unchanged.
 
 ## Role objective
@@ -70,8 +72,8 @@ gaining access to other requesters' data or internal maintenance notes.
 
 ## Acceptance scenarios
 
-The next planned increment is authenticated creation and own-request list/detail,
-followed by Manager assignment handoff. The
+Authenticated creation, own-request list/detail and Manager assignment handoff
+are implemented, with eligible edit/cancel added in the 24 September increment. The
 [confirmed integration decision](../../docs/decisions/yooplo/0001-requester-integration.md)
 records implementation dependencies; it does not supersede these requirements.
 
@@ -135,3 +137,21 @@ The UI reports failure, retains the draft, and does not show save success.
 Retrying after that rolled-back failure creates exactly one request and its
 audit event. While a submission is pending, repeated clicks cannot start another
 submission (UIX-009).
+
+### REQ-A10 — reject stale edit and cancellation screens
+
+For REQ-007–008, REQ-012 and LIF-016: given the owner opened an edit or
+cancellation form while a request was `OPEN`, when a Manager assigns it before
+the owner submits, then the service rejects the operation, preserves the
+assignment and audit history, and the form retains the unsaved input.
+
+### REQ-A11 — confirm cancellation and reload its reason
+
+For REQ-008, REQ-014, LIF-004–005, LIF-012 and UIX-011/022: cancellation requires
+a trimmed reason of 5–500 characters and a confirmation dialog identifying the
+request and terminal result. The safe action is the default; declining makes no
+write and retains the reason. Successful cancellation and its audit commit
+together. The owner can reload the saved reason from the detail view after
+restart, including for a Manager-recorded request. Other owners and roles cannot
+retrieve the reason through the Requester service. An audit failure rolls back
+the cancellation and leaves the entered reason available for retry.

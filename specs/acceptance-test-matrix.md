@@ -58,6 +58,8 @@ Requester integration milestone (backend and authenticated JavaFX evidence added
 | REQ-A07 | E2E-013, E2E-016, E2E-018 | Owner-only list/detail, safe denial for other users and inactive sessions, and reload after restart/login |
 | REQ-A08 | E2E-003, E2E-005 | Requester-created record reaches Manager assignment in the same database; owner sees assigned state and only permitted history |
 | REQ-A09 | E2E-003, E2E-004, E2E-017 | Creation and audit roll back together on injected failure; input survives, pending submission cannot duplicate, and retry after rollback creates one record |
+| REQ-A04, REQ-A10 | E2E-011, E2E-013, E2E-017, E2E-025 | Own `OPEN` edit/cancel enforces role, ownership and current stored state; an intervening Manager assignment is preserved; audit failures roll back changes |
+| REQ-A05, REQ-A11 | E2E-011, E2E-016, E2E-023 | Cancellation confirms the affected request with a safe default, retains input on failure/decline, and reloads only the owner's saved reason |
 
 See the [Requester acceptance scenarios](roles/requester.md) and
 [confirmed integration decision](../docs/decisions/yooplo/0001-requester-integration.md).

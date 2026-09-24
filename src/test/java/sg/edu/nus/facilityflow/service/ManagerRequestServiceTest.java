@@ -355,6 +355,16 @@ class ManagerRequestServiceTest {
                 }
 
                 @Override
+                public boolean updateOwnOpenRequest(MaintenanceRequest request, long requesterId) {
+                    throw new AssertionError("Unexpected Requester mutation");
+                }
+
+                @Override
+                public Optional<String> findOwnCancellationReason(long requesterId, long requestId) {
+                    throw new AssertionError("Unexpected Requester read");
+                }
+
+                @Override
                 public List<MaintenanceRequest> listAssignedRequests(long technicianId) {
                     throw new AssertionError("Manager assignment must not use Technician reads");
                 }

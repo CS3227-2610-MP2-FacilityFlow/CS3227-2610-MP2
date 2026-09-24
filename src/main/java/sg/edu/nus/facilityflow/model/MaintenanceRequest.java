@@ -83,6 +83,22 @@ public record MaintenanceRequest(
                 assignedAt);
     }
 
+    public MaintenanceRequest editDetails(RequestDraft draft, Instant editedAt) {
+        if (status != RequestStatus.OPEN) {
+            throw new IllegalStateException("Only an OPEN request can be edited by its Requester");
+        }
+        return new MaintenanceRequest(id, displayId, requesterId, draft.title(), draft.description(),
+                draft.location(), draft.category(), draft.urgency(), managerPriority, status,
+                assigneeId, assignedAt, resolutionSummary, completedAt, createdAt, editedAt);
+    }
+
+    public MaintenanceRequest cancel(Instant cancelledAt) {
+        if (status != RequestStatus.OPEN) {
+            throw new IllegalStateException("Only an OPEN request can be cancelled by its Requester");
+        }
+        return copyWith(RequestStatus.CANCELLED, resolutionSummary, completedAt, cancelledAt);
+    }
+
     public MaintenanceRequest startWork(Instant startedAt) {
         if (status != RequestStatus.ASSIGNED || assigneeId == null) {
             throw new IllegalStateException("Only assigned work can be started");

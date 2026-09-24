@@ -39,6 +39,10 @@ public interface ManagerAssignmentStore {
 
         Optional<MaintenanceRequest> findOwnRequest(long requesterId, long requestId);
 
+        boolean updateOwnOpenRequest(MaintenanceRequest request, long requesterId);
+
+        Optional<String> findOwnCancellationReason(long requesterId, long requestId);
+
         List<MaintenanceRequest> listAssignedRequests(long technicianId);
 
         Optional<MaintenanceRequest> findAssignedRequest(long technicianId, long requestId);

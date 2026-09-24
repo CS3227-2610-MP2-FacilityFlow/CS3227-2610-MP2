@@ -1,6 +1,7 @@
 package sg.edu.nus.facilityflow.ui.requester;
 
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.service.RequestValidator;
 import java.util.LinkedHashMap;
@@ -18,7 +19,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
-/** REQ-002/012 form foundation; validation only, with no submission operation. */
+/** REQ-002/007/012 shared create/edit form with retained input on failure. */
 public final class RequesterForm extends VBox {
     private final TextField title = new TextField();
     private final TextArea description = new TextArea();
@@ -35,13 +36,17 @@ public final class RequesterForm extends VBox {
     }
 
     public RequesterForm(List<String> categories, Consumer<RequestDraft> submit) {
+        this(categories, submit, null);
+    }
+
+    public RequesterForm(List<String> categories, Consumer<RequestDraft> submit, MaintenanceRequest request) {
         super(8);
         this.submit = submit;
         validator = new RequestValidator(Set.copyOf(categories));
         setPadding(new Insets(24));
         getStyleClass().add("card");
         setMaxWidth(800);
-        var heading = new Label("New maintenance request");
+        var heading = new Label(request == null ? "New maintenance request" : "Edit " + request.displayId());
         heading.getStyleClass().add("section-title");
         heading.setWrapText(true);
         var notice = new Label(submit == null ? "Development preview — checks fields only. Nothing is saved."
@@ -80,7 +85,15 @@ public final class RequesterForm extends VBox {
         addField("location", "Location * (2–120 characters)", location);
         addField("category", "Category *", category);
         addField("urgency", "Reported urgency *", urgency);
-        var validate = new Button(submit == null ? "Check details" : "Submit request");
+        if (request != null) {
+            title.setText(request.title());
+            description.setText(request.description());
+            location.setText(request.location());
+            category.setValue(request.category());
+            urgency.setValue(request.reportedUrgency());
+        }
+        var validate = new Button(submit == null ? "Check details"
+                : request == null ? "Submit request" : "Save changes");
         validate.setId("validate");
         validate.getStyleClass().add("primary-button");
         validate.setOnAction(event -> validateDetails());

@@ -1,7 +1,7 @@
 # Requester preparation: yooplo
 
-Status: authenticated UI integration, 22 September 2026. Login/session lifecycle,
-Requester submission/list/detail, and Manager assignment are connected. Password
+Status: Requester edit/cancel increment, 24 September 2026. Login/session lifecycle,
+Requester submission/list/detail/edit/cancel, and Manager assignment are connected. Password
 reset is a tested Manager-only service; its administration screen remains pending.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
@@ -10,12 +10,13 @@ Manager — yu-sutong. Integration decisions were confirmed on
 
 ## Start here
 
-The next milestone is **authenticated create/list/detail with Manager handoff**.
+The next milestone is **broader requester-visible history and follow-ups**.
 Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
 Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
 migrations, demo seeding, and category configuration together. The decisions are
-agreed; authenticated create/list/detail is implemented. Visible history remains
-part of the milestone still to complete.
+agreed; authenticated create/list/detail and eligible edit/cancel are implemented.
+Saved cancellation reasons are visible; the complete activity history remains
+to be implemented.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
@@ -30,9 +31,11 @@ part of the milestone still to complete.
 5. Requester packages now use `sg.edu.nus.facilityflow` and the shared urgency
    enum. Coordinate storage changes with yu-sutong. Follow the confirmed session and
    password contract; preserve the existing Manager tests.
-6. Login/session handling and form/list/detail now call the tested backend.
-   Next add **edit/cancel own OPEN requests**, then requester-visible history and
-   follow-ups. Preserve the authenticated handoff and role-isolation tests.
+6. Login/session handling and form/list/detail call the backend. Own `OPEN`
+   edit/cancel and persisted cancellation-reason display are implemented in the
+   24 September increment with local automated tests; team review is pending. Next add broader
+   requester-visible history and follow-ups. Preserve the authenticated handoff
+   and role-isolation tests.
 
 The preview contains no fake save, hardcoded logged-in account, or database.
 Do not treat its successful field check as permission to create a request.
@@ -80,16 +83,16 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Authenticated create/list/detail is implemented; next add eligible edit/cancel,
-visible history and follow-ups. Shared responsibilities follow the confirmed ownership
+Authenticated create/list/detail and eligible edit/cancel are implemented; next add
+broader visible history and follow-ups. Shared responsibilities follow the confirmed ownership
 above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests
 
 Create topic branches from `master`, for example `yooplo/requester-create`, and
 request a teammate's review before merging. The table tracks complete increments:
-authenticated create/list/detail is available, while visible history and later
-increments remain outstanding.
+authenticated create/list/detail and eligible edit/cancel are available, while
+broader visible history and later increments remain outstanding.
 
 | Order | Deliverable | Requirements |
 |---|---|---|
