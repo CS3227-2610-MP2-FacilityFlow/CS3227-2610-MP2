@@ -49,6 +49,7 @@ public final class TechnicianDashboardView extends BorderPane {
         refresh();
     }
 
+    @SuppressWarnings("unchecked")
     private void configureTable() {
         requestTable.setId("technicianRequests");
         requestTable.getColumns().addAll(
@@ -87,6 +88,7 @@ public final class TechnicianDashboardView extends BorderPane {
         selectedId.setId("technicianRequestDetail");
         selectedId.getStyleClass().add("section-title");
         selectedId.setWrapText(true);
+        selectedDetails.setId("technicianRequestDetails");
         selectedDetails.setWrapText(true);
         selectedDetails.getStyleClass().add("secondary-text");
 
