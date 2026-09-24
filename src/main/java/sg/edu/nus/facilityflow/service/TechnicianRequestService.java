@@ -14,12 +14,13 @@ import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.storage.ManagerAssignmentStore;
 
-/** TEC-001/003–013: authorized Technician queue and progress operations. */
+/** TEC-001–013: authorized Technician read and progress operations. */
 public final class TechnicianRequestService {
     private final ManagerAssignmentStore store;
     private final Clock clock;
@@ -46,6 +47,13 @@ public final class TechnicianRequestService {
                     .filter(request -> matches(request, effectiveFilter))
                     .sorted(queueOrder())
                     .toList();
+        });
+    }
+
+    public TechnicianDashboardCounts getDashboardCounts(AuthenticatedSession session) {
+        return store.inTransaction(transaction -> {
+            UserAccount actor = sessions.requireRole(transaction, session, Role.TECHNICIAN);
+            return transaction.getTechnicianDashboardCounts(actor.id());
         });
     }
 

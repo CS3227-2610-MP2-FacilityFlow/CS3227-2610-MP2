@@ -25,6 +25,9 @@ import sg.edu.nus.facilityflow.auth.TestSessions;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
+import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
@@ -76,6 +79,83 @@ class SQLiteTechnicianRequestServiceTest {
         managerSession = TestSessions.issue(1);
         firstTechnicianSession = TestSessions.issue(2);
         secondTechnicianSession = TestSessions.issue(3);
+    }
+
+    @Test
+    @DisplayName("TEC-004/TEC-A01 LIF-011/012 persists only the start transition and its audit atomically")
+    void persistsStartWorkTransitionAndAudit() throws SQLException {
+        MaintenanceRequest assigned = managerAt(ASSIGNMENT_TIME).assignOpenRequest(
+                managerSession, 10, 2, ManagerPriority.HIGH);
+
+        MaintenanceRequest started = technicianAt(START_TIME).startWork(firstTechnicianSession, 10);
+
+        assertEquals(RequestStatus.ASSIGNED, assigned.status());
+        assertEquals(RequestStatus.IN_PROGRESS, started.status());
+        assertEquals(2L, started.assigneeId());
+        assertEquals(ASSIGNMENT_TIME, started.assignedAt());
+        assertEquals(START_TIME, started.updatedAt());
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 10 AND actor_id = 2 AND action = 'REQUEST_STARTED' "
+                + "AND detail = '{\"oldStatus\":\"ASSIGNED\",\"newStatus\":\"IN_PROGRESS\"}' "
+                + "AND occurred_at = '2026-09-24T09:10:00Z'"));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 10"));
+    }
+
+    @Test
+    @DisplayName("TEC-001 SQLite dashboard counts include only the current Technician's queue")
+    void readsCurrentTechnicianDashboardCounts() throws SQLException {
+        insertRequest(11, "FF-000011", "Assigned request", "Block A", "Plumbing",
+                ReportedUrgency.LOW, ManagerPriority.LOW, RequestStatus.ASSIGNED, 2,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(12, "FF-000012", "Active request", "Block B", "HVAC",
+                ReportedUrgency.NORMAL, ManagerPriority.MEDIUM, RequestStatus.IN_PROGRESS, 2,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(13, "FF-000013", "Completed request", "Block C", "Electrical",
+                ReportedUrgency.HIGH, ManagerPriority.HIGH, RequestStatus.COMPLETED, 2,
+                ASSIGNMENT_TIME, "Repair completed successfully.", COMPLETION_TIME);
+        insertRequest(14, "FF-000014", "Other technician request", "Block D", "Safety",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.ASSIGNED, 3,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(15, "FF-000015", "Closed request", "Block E", "Cleaning",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.CLOSED, 2,
+                ASSIGNMENT_TIME, "Repair completed and closed.", COMPLETION_TIME);
+
+        assertEquals(new TechnicianDashboardCounts(1, 1, 1),
+                technicianAt(COMPLETION_TIME).getDashboardCounts(firstTechnicianSession));
+        assertEquals(new TechnicianDashboardCounts(1, 0, 0),
+                technicianAt(COMPLETION_TIME).getDashboardCounts(secondTechnicianSession));
+    }
+
+    @Test
+    @DisplayName("TEC-002/003 LIF-017–020 SQLite queue filters and orders persisted assignments")
+    void readsAndOrdersPersistedTechnicianQueue() throws SQLException {
+        insertRequest(20, "FF-000020", "Boiler repair", "East Wing", "HVAC",
+                ReportedUrgency.HIGH, ManagerPriority.CRITICAL, RequestStatus.ASSIGNED, 2,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(21, "FF-000021", "Boiler inspection", "West Wing", "HVAC",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.IN_PROGRESS, 2,
+                ASSIGNMENT_TIME.plusSeconds(300), null, null);
+        insertRequest(22, "FF-000022", "Boiler room follow-up", "North Wing", "HVAC",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.COMPLETED, 2,
+                null, "Boiler repair completed successfully.", COMPLETION_TIME);
+        insertRequest(25, "FF-000025", "Boiler replacement", "South Wing", "HVAC",
+                ReportedUrgency.HIGH, ManagerPriority.CRITICAL, RequestStatus.ASSIGNED, 2,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(26, "FF-000026", "Boiler repair", "East Wing", "HVAC",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.ASSIGNED, 3,
+                ASSIGNMENT_TIME, null, null);
+        insertRequest(27, "FF-000027", "Boiler archive", "East Wing", "HVAC",
+                ReportedUrgency.EMERGENCY, ManagerPriority.CRITICAL, RequestStatus.CLOSED, 2,
+                ASSIGNMENT_TIME, "Boiler work closed successfully.", COMPLETION_TIME);
+
+        List<Long> ids = technicianAt(COMPLETION_TIME)
+                .listAssignedRequests(firstTechnicianSession,
+                        new TechnicianQueueFilter("  bOiLeR  ", null, " HVAC ", ManagerPriority.CRITICAL))
+                .stream()
+                .map(MaintenanceRequest::id)
+                .toList();
+
+        assertEquals(List.of(21L, 22L, 20L, 25L), ids);
     }
 
     @Test
@@ -344,6 +424,63 @@ class SQLiteTechnicianRequestServiceTest {
         try (Connection connection = DriverManager.getConnection(jdbcUrl);
                 Statement statement = connection.createStatement()) {
             statement.execute(sql);
+        }
+    }
+
+    private void insertRequest(
+            long id,
+            String displayId,
+            String title,
+            String location,
+            String category,
+            ReportedUrgency urgency,
+            ManagerPriority priority,
+            RequestStatus status,
+            long assigneeId,
+            Instant assignedAt,
+            String resolutionSummary,
+            Instant completedAt) throws SQLException {
+        String sql = """
+                INSERT INTO maintenance_requests(
+                    id, display_id, requester_id, title, description, location, category,
+                    reported_urgency, manager_priority, status, assignee_id, assigned_at,
+                    resolution_summary, completed_at, created_at, updated_at)
+                VALUES (?, ?, 4, ?, 'A persisted request fixture with sufficient detail.', ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        try (Connection connection = DriverManager.getConnection(jdbcUrl);
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, id);
+            statement.setString(2, displayId);
+            statement.setString(3, title);
+            statement.setString(4, location);
+            statement.setString(5, category);
+            statement.setString(6, urgency.name());
+            if (priority == null) {
+                statement.setNull(7, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(7, priority.name());
+            }
+            statement.setString(8, status.name());
+            statement.setLong(9, assigneeId);
+            if (assignedAt == null) {
+                statement.setNull(10, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(10, assignedAt.toString());
+            }
+            if (resolutionSummary == null) {
+                statement.setNull(11, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(11, resolutionSummary);
+            }
+            if (completedAt == null) {
+                statement.setNull(12, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(12, completedAt.toString());
+            }
+            statement.setString(13, ASSIGNMENT_TIME.minusSeconds(1_800).toString());
+            statement.setString(14, COMPLETION_TIME.toString());
+            statement.executeUpdate();
         }
     }
 }

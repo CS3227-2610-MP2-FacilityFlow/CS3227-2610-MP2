@@ -1,8 +1,8 @@
 # FacilityFlow Developer Guide
 
-Status: authenticated Requester UI, Manager assignment, and Technician backend,
-updated 24 September 2026. This development build is not a complete released
-maintenance application.
+Status: authenticated Requester UI, Manager assignment, and Technician work-log
+and completion workflow, updated 24 September 2026. This development build is not a complete
+released maintenance application.
 
 ## Setup and commands
 
@@ -50,6 +50,8 @@ login flow. To launch the older validation-only preview instead:
 | [SessionManager](../src/main/java/sg/edu/nus/facilityflow/auth/SessionManager.java) | Opaque process-local sessions and persisted active/role/version checks |
 | [ApplicationRouter](../src/main/java/sg/edu/nus/facilityflow/ui/ApplicationRouter.java) | Login, logout, role routing and own-password UI |
 | [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Own list, submission, detail, and retained drafts |
+| [TechnicianDashboardController](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardController.java) | Thin presentation adapter for Technician queue, work-log reads, and writes |
+| [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history and entry form, resolution summary, and completion-for-review action |
 | [Workspace](../src/main/java/sg/edu/nus/facilityflow/storage/Workspace.java) | OS-user database location and category startup validation |
 | [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
 | [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
@@ -59,9 +61,11 @@ login flow. To launch the older validation-only preview instead:
 | [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
 | [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, atomic creation/audit, and owner-only list/detail |
 | [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–4 and schema compatibility checks |
-| [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Technician-scoped queue, filtering, progress, work-log, completion, and stale-write checks |
+| [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Authenticated Technician-scoped queue, dashboard-count read, filtering, progress, work-log, completion, and stale-write checks |
 | [TechnicianQueueFilter](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianQueueFilter.java) | Normalized TEC-002 queue search and enum/category filters |
+| [TechnicianDashboardCounts](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianDashboardCounts.java) | Non-negative counts for assigned, in-progress, and completed work awaiting Manager review |
 | [WorkLog](../src/main/java/sg/edu/nus/facilityflow/model/WorkLog.java) | Immutable internal Technician work evidence |
+| [SQLiteTechnicianCrossRoleIntegrationTest](../src/test/java/sg/edu/nus/facilityflow/storage/SQLiteTechnicianCrossRoleIntegrationTest.java) | Authenticated same-database Requester-to-Manager-to-Technician workflow, role isolation, audit sequence, and restart evidence |
 | [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
@@ -85,6 +89,15 @@ database. Duplicate/blank categories, missing `Other`, and unknown keys fail
 before database changes. Startup also rejects a catalogue that omits a category
 already stored on a request. Rename/removal mappings remain unimplemented and
 are rejected rather than ignored. See [CategoryCatalogue.md](CategoryCatalogue.md).
+
+The cross-role integration test uses the real authentication boundary and one
+temporary SQLite database. It proves that a Requester-created request can be
+assigned by a Manager, progressed by its assigned Technician, and reloaded after
+database reopen with its work log and request-scoped audit sequence intact. The
+same test checks that another Technician and a wrong-role session cannot read or
+write the request, while the old process-local session is rejected after restart.
+This is local automated evidence for the shared service/storage workflow, not a
+claim that the full release matrix or cross-platform packaging is complete.
 
 ## Authentication and UI tasks
 
@@ -114,9 +127,19 @@ committed data. Failures retain entered input and display safe messages. A draft
 can survive an expired session in memory for the same account's next login;
 explicit logout, another account's login, or process shutdown discards it.
 Role changes reroute on the next denied protected action or **Refresh account**.
-The Technician has a separate placeholder view. The authorized backend operations
-for personal queue/detail reads, search and filters, start work, append work logs,
-and completion now exist, but they are not yet connected to that view.
+The Technician dashboard uses a thin presentation adapter over
+`TechnicianRequestService`; it does not issue SQL or reproduce lifecycle rules.
+Selecting an assigned request loads internal work-log history asynchronously.
+The entry form submits a trimmed note and whole minutes through the service,
+retains both fields after failure, clears them only after a committed write, and
+refreshes the queue and history after success. The completion form requires
+loaded work-log evidence and a 10–2,000-code-point trimmed resolution summary;
+it retains the summary after failure, clears it after a committed write, and
+refreshes the queue and history after success. A selection-version token
+prevents an older asynchronous history response from replacing the currently
+selected request. The UI enables progress writes only for `IN_PROGRESS`; the
+service still rechecks role, assignment, status, validation limits, and
+conditional ownership inside the transaction.
 
 ## Manager foundation architecture
 
@@ -211,6 +234,16 @@ resolution summary, completion time, and one audit. Any failure rolls the whole
 operation back. Work-log audit details contain the generated log ID and minutes,
 not the free-text note.
 
+`TechnicianRequestService.getDashboardCounts(session)` is an authenticated,
+read-only Technician operation. The SQLite implementation uses a parameterized
+aggregate scoped to the logged-in Technician and returns separate counts for
+`ASSIGNED`, `IN_PROGRESS`, and `COMPLETED` requests; `COMPLETED` means work
+submitted for Manager review in the lifecycle model. The operation is not wired into
+`TechnicianDashboardController` or `TechnicianDashboardView`, so it is a backend
+read model rather than a reachable dashboard feature. The same UI gap applies to
+the service-side queue search and status/category/priority filters: the current
+view loads the unfiltered queue only (TEC-001–003, LIF-017–020).
+
 `MaintenanceRequest.assignedAt` records the current assignment time separately
 from `updatedAt`; Manager assignment sets both, while later work-log writes change
 only `updatedAt`. Work-log history retains its original Technician author after
@@ -243,6 +276,10 @@ revocation, role changes, reset invalidation, audit rollback and secret clearing
 executor and temporary SQLite database to exercise all role routes, logout,
 submission, repeated-click prevention, safe recovery, draft restoration, and
 Requester-to-Manager handoff. `WorkspaceTest` checks seeding and category startup.
+`TechnicianRequestServiceTest` and `SQLiteTechnicianRequestServiceTest` cover
+Technician dashboard-count ownership/role checks and persisted queue search,
+filtering, and ordering. These are backend tests; no JavaFX control currently
+loads the counts or exposes the queue filters.
 
 ## Verification and CI
 
@@ -298,7 +335,8 @@ Team agreement reported by yooplo on 20 September 2026:
   inclusive local dates; history includes status/reasons/follow-ups but no private notes.
 
 The implemented subset is described above. Date filtering, visible activity
-history, category mappings, and the complete lifecycle remain outstanding.
+history, category mappings, and the Manager review/return/close/reopen stages
+of the cross-role lifecycle remain outstanding.
 
 ## Next integration and release work
 

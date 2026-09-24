@@ -25,6 +25,7 @@ import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.storage.ManagerAssignmentStore;
@@ -356,6 +357,11 @@ class ManagerRequestServiceTest {
 
                 @Override
                 public List<MaintenanceRequest> listAssignedRequests(long technicianId) {
+                    throw new AssertionError("Manager assignment must not use Technician reads");
+                }
+
+                @Override
+                public TechnicianDashboardCounts getTechnicianDashboardCounts(long technicianId) {
                     throw new AssertionError("Manager assignment must not use Technician reads");
                 }
 
