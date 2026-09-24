@@ -250,8 +250,49 @@ class SQLiteTechnicianRequestServiceTest {
             transaction.appendWorkLog(10, 999, "Invalid author", 5, LOG_TIME);
             return null;
         }));
+        assertThrows(StorageException.class, () -> store.inTransaction(transaction -> {
+            transaction.appendWorkLog(999, 2, "Invalid request", 5, LOG_TIME);
+            return null;
+        }));
 
         assertEquals(0, scalar("SELECT COUNT(*) FROM work_logs"));
+    }
+
+    @Test
+    @DisplayName("DAT-002 LIF-007 SQLite constraints reject minutes outside the allowed range")
+    void enforcesWorkLogMinuteConstraints() throws SQLException {
+        assertThrows(StorageException.class, () -> store.inTransaction(transaction -> {
+            transaction.appendWorkLog(10, 2, "Zero minutes", 0, LOG_TIME);
+            return null;
+        }));
+        assertThrows(StorageException.class, () -> store.inTransaction(transaction -> {
+            transaction.appendWorkLog(10, 2, "Too many minutes", 1_441, LOG_TIME);
+            return null;
+        }));
+
+        assertEquals(0, scalar("SELECT COUNT(*) FROM work_logs"));
+    }
+
+    @Test
+    @DisplayName("DAT-001/010 LIF-007 reloads work logs and request metadata from a reopened store")
+    void reloadsPersistedTechnicianData() throws SQLException {
+        managerAt(ASSIGNMENT_TIME).assignOpenRequest(
+                managerSession, 10, 2, ManagerPriority.CRITICAL);
+        technicianAt(START_TIME).startWork(firstTechnicianSession, 10);
+        WorkLog expectedLog = technicianAt(LOG_TIME).addWorkLog(
+                firstTechnicianSession, 10, "Persisted inspection note.", 25);
+        MaintenanceRequest expectedRequest = technicianAt(COMPLETION_TIME).completeWork(
+                firstTechnicianSession, 10, "Repair completed and tested successfully.");
+
+        SQLiteManagerAssignmentStore reopenedStore = new SQLiteManagerAssignmentStore(jdbcUrl);
+        reopenedStore.initializeSchema();
+        TechnicianRequestService reopenedTechnician = new TechnicianRequestService(
+                reopenedStore, Clock.fixed(COMPLETION_TIME, ZoneOffset.UTC), TestSessions.MANAGER);
+
+        assertEquals(expectedRequest,
+                reopenedTechnician.getAssignedRequest(firstTechnicianSession, 10));
+        assertEquals(List.of(expectedLog),
+                reopenedTechnician.listWorkLogs(firstTechnicianSession, 10));
     }
 
     private ManagerRequestService managerAt(Instant time) {
