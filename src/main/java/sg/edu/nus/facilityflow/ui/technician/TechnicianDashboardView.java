@@ -2,28 +2,254 @@ package sg.edu.nus.facilityflow.ui.technician;
 
 import java.util.Objects;
 import java.util.function.Consumer;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import sg.edu.nus.facilityflow.model.MaintenanceRequest;
+import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.ui.UiTasks;
 
-/** Technician work-management route; controls are added as each lifecycle action is delivered. */
+/** TEC-001/004/013: Technician queue and the first progress action. */
 public final class TechnicianDashboardView extends BorderPane {
+    private final TechnicianDashboardController controller;
+    private final UiTasks tasks;
+    private final Consumer<Throwable> failure;
+    private final Button refreshButton = new Button("Refresh requests");
+    private final TableView<MaintenanceRequest> requestTable = new TableView<>();
+    private final Button startButton = new Button("_Start work");
+    private final Label feedback = new Label();
+    private final Label selectedId = new Label("Select a request");
+    private final Label selectedDetails = new Label("Choose a row to inspect its details.");
+    private boolean busy;
+
     public TechnicianDashboardView(
             TechnicianDashboardController controller,
             UiTasks tasks,
             Consumer<Throwable> failure) {
-        Objects.requireNonNull(controller, "controller");
-        Objects.requireNonNull(tasks, "tasks");
-        Objects.requireNonNull(failure, "failure");
+        this.controller = Objects.requireNonNull(controller, "controller");
+        this.tasks = Objects.requireNonNull(tasks, "tasks");
+        this.failure = Objects.requireNonNull(failure, "failure");
         setId("technicianDashboard");
-        setPadding(new Insets(24));
-        var heading = new Label("Technician");
+        getStyleClass().add("technician-shell");
+        configureTable();
+        configureLayout();
+        refresh();
+    }
+
+    private void configureTable() {
+        requestTable.setId("technicianRequests");
+        requestTable.getColumns().addAll(
+                textColumn("Request ID", MaintenanceRequest::displayId, 110),
+                textColumn("Title", MaintenanceRequest::title, 220),
+                textColumn("Location", MaintenanceRequest::location, 170),
+                textColumn("Manager priority", request -> request.managerPriority() == null
+                        ? "Not set" : display(request.managerPriority()), 130),
+                textColumn("Reported urgency", request -> display(request.reportedUrgency()), 135),
+                textColumn("Status", request -> display(request.status()), 120));
+        requestTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        requestTable.setMinHeight(160);
+        requestTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        requestTable.setPlaceholder(new Label("No requests are currently assigned to you."));
+        requestTable.setAccessibleText("Technician assigned requests");
+        requestTable.getSelectionModel().selectedItemProperty().addListener(
+                (observable, oldRequest, newRequest) -> showSelection(newRequest));
+    }
+
+    private void configureLayout() {
+        Label heading = new Label("Technician work queue");
         heading.getStyleClass().add("page-title");
-        var notice = new Label("Technician work management is being enabled.");
-        notice.setWrapText(true);
-        notice.getStyleClass().add("secondary-text");
-        setTop(heading);
-        setCenter(notice);
+        Label queueHelp = new Label(
+                "Select an assigned request to inspect it and start work when it is ready.");
+        queueHelp.getStyleClass().add("secondary-text");
+        queueHelp.setWrapText(true);
+
+        refreshButton.setId("refreshTechnicianRequests");
+        refreshButton.setOnAction(event -> refresh());
+        VBox tableArea = new VBox(8, heading, queueHelp, refreshButton, requestTable);
+        VBox.setVgrow(requestTable, Priority.ALWAYS);
+        tableArea.setPadding(new Insets(24, 12, 24, 24));
+        tableArea.setMinWidth(0);
+        tableArea.setMinHeight(240);
+
+        selectedId.setId("technicianRequestDetail");
+        selectedId.getStyleClass().add("section-title");
+        selectedId.setWrapText(true);
+        selectedDetails.setWrapText(true);
+        selectedDetails.getStyleClass().add("secondary-text");
+
+        startButton.setId("startWork");
+        startButton.setMnemonicParsing(true);
+        startButton.getStyleClass().add("primary-button");
+        startButton.setMaxWidth(Double.MAX_VALUE);
+        startButton.setOnAction(event -> startSelectedRequest());
+        startButton.setDisable(true);
+
+        feedback.setId("technicianFeedback");
+        feedback.setWrapText(true);
+        feedback.setAccessibleRoleDescription("Technician action result");
+        feedback.getStyleClass().add("feedback-label");
+
+        VBox detailArea = new VBox(
+                12,
+                new Label("Request detail"),
+                selectedId,
+                selectedDetails,
+                new Separator(Orientation.HORIZONTAL),
+                startButton,
+                feedback);
+        detailArea.setPadding(new Insets(24));
+        detailArea.setMinWidth(300);
+        detailArea.getStyleClass().add("detail-panel");
+
+        ScrollPane detailScroll = new ScrollPane(detailArea);
+        detailScroll.setFitToWidth(true);
+        detailScroll.setMinWidth(300);
+        detailScroll.setMinHeight(160);
+
+        SplitPane content = new SplitPane(tableArea, detailScroll);
+        content.setId("technicianLayout");
+        content.setOrientation(Orientation.VERTICAL);
+        rootOrientation(content);
+        setCenter(content);
+    }
+
+    private void rootOrientation(SplitPane content) {
+        widthProperty().addListener((observable, previous, width) -> {
+            Orientation orientation = width.doubleValue() < 1100
+                    ? Orientation.VERTICAL : Orientation.HORIZONTAL;
+            if (content.getOrientation() != orientation) {
+                content.setOrientation(orientation);
+                content.setDividerPositions(orientation == Orientation.HORIZONTAL ? 0.7 : 0.5);
+            }
+        });
+        content.setDividerPositions(0.7);
+    }
+
+    private void refresh() {
+        refresh("");
+    }
+
+    private void refresh(String confirmation) {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        setBusy(true);
+        feedback.setText("Loading requests…");
+        tasks.run(controller::loadRequests, requests -> {
+            requestTable.setItems(FXCollections.observableArrayList(requests));
+            if (selected != null) {
+                requests.stream()
+                        .filter(request -> request.id() == selected.id())
+                        .findFirst()
+                        .ifPresentOrElse(
+                                requestTable.getSelectionModel()::select,
+                                requestTable.getSelectionModel()::clearSelection);
+            } else {
+                requestTable.getSelectionModel().clearSelection();
+            }
+            setBusy(false);
+            showSuccess(confirmation);
+        }, error -> {
+            setBusy(false);
+            showError(UiTasks.safeMessage(error));
+            failure.accept(error);
+        });
+    }
+
+    private void showSelection(MaintenanceRequest request) {
+        if (request == null) {
+            selectedId.setText("Select a request");
+            selectedDetails.setText("Choose a row to inspect its details.");
+        } else {
+            selectedId.setText(request.displayId() + " · " + request.title());
+            selectedDetails.setText("Location: " + request.location()
+                    + "\nStatus: " + display(request.status())
+                    + "\nManager priority: " + (request.managerPriority() == null
+                            ? "Not set" : display(request.managerPriority()))
+                    + "\n\n" + request.description());
+        }
+        updateStartState();
+    }
+
+    private void updateStartState() {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        startButton.setDisable(busy || selected == null
+                || selected.status() != RequestStatus.ASSIGNED);
+    }
+
+    private void startSelectedRequest() {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.status() != RequestStatus.ASSIGNED) {
+            return;
+        }
+        setBusy(true);
+        feedback.setText("Starting work…");
+        tasks.run(() -> controller.startWork(selected), started -> {
+            refresh(started.displayId() + " is now IN_PROGRESS. Work started successfully.");
+        }, error -> {
+            setBusy(false);
+            if (isStaleAssignment(error)) {
+                refresh("The request assignment or status changed. The queue was refreshed.");
+            } else {
+                showError(UiTasks.safeMessage(error));
+                failure.accept(error);
+            }
+        });
+    }
+
+    private void setBusy(boolean value) {
+        busy = value;
+        refreshButton.setDisable(value);
+        requestTable.setDisable(value);
+        updateStartState();
+    }
+
+    private void showSuccess(String message) {
+        feedback.getStyleClass().remove("feedback-error");
+        if (!feedback.getStyleClass().contains("feedback-success")) {
+            feedback.getStyleClass().add("feedback-success");
+        }
+        feedback.setText(message);
+    }
+
+    private void showError(String message) {
+        feedback.getStyleClass().remove("feedback-success");
+        if (!feedback.getStyleClass().contains("feedback-error")) {
+            feedback.getStyleClass().add("feedback-error");
+        }
+        feedback.setText(message);
+    }
+
+    private static boolean isStaleAssignment(Throwable error) {
+        return error instanceof AuthorizationException
+                && error.getMessage() != null
+                && error.getMessage().startsWith("The request assignment or status changed.");
+    }
+
+    private static TableColumn<MaintenanceRequest, String> textColumn(
+            String title,
+            java.util.function.Function<MaintenanceRequest, String> value,
+            double width) {
+        TableColumn<MaintenanceRequest, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+        column.setPrefWidth(width);
+        column.setSortable(false);
+        return column;
+    }
+
+    private static String display(Enum<?> value) {
+        String text = value.name().replace('_', ' ').toLowerCase();
+        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 }
