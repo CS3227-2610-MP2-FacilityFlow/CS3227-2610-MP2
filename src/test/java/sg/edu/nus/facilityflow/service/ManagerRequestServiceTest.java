@@ -26,6 +26,7 @@ import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.UserAccount;
+import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.storage.ManagerAssignmentStore;
 
 class ManagerRequestServiceTest {
@@ -42,6 +43,7 @@ class ManagerRequestServiceTest {
         store.accounts.put(2L, account(2, Role.TECHNICIAN, true));
         store.accounts.put(3L, account(3, Role.REQUESTER, true));
         store.accounts.put(4L, account(4, Role.TECHNICIAN, false));
+        store.accounts.put(5L, account(5, Role.TECHNICIAN, true));
         store.requests.put(10L, openRequest(10));
         store.requests.put(11L, openRequest(11).assignTo(2, ManagerPriority.MEDIUM, CREATED_AT));
         service = new ManagerRequestService(
@@ -126,6 +128,106 @@ class ManagerRequestServiceTest {
     }
 
     @Test
+    @DisplayName("MGR-006/MGR-A03 reassigns in-progress work, resets assignedAt and audits the reason")
+    void reassignsInProgressRequestAndAuditsReason() {
+        MaintenanceRequest inProgress = store.requests.get(11L).startWork(CREATED_AT.plusSeconds(60));
+        store.requests.put(11L, inProgress);
+        WorkLog existingLog = new WorkLog(
+                1, 11, 2, "Inspected the affected pipe.", 20, CREATED_AT.plusSeconds(90));
+        store.workLogs.add(existingLog);
+
+        MaintenanceRequest result = service.reassignRequest(
+                TestSessions.issue(1), 11, 5, "  Shift changed\nneeds follow-up  ");
+
+        assertEquals(RequestStatus.ASSIGNED, result.status());
+        assertEquals(5L, result.assigneeId());
+        assertEquals(ASSIGNED_AT, result.assignedAt());
+        assertEquals(ASSIGNED_AT, result.updatedAt());
+        assertEquals(ManagerPriority.MEDIUM, result.managerPriority());
+        assertEquals(List.of(existingLog), store.workLogs);
+        assertEquals(result, store.requests.get(11L));
+        assertEquals(1, store.auditEvents.size());
+        AuditEvent audit = store.auditEvents.getFirst();
+        assertEquals("REQUEST_REASSIGNED", audit.action());
+        assertEquals(1L, audit.actorId());
+        assertEquals(
+                "{\"oldAssigneeId\":2,\"newAssigneeId\":5,"
+                        + "\"reason\":\"Shift changed\\nneeds follow-up\"}",
+                audit.detail());
+        assertEquals(ASSIGNED_AT, audit.occurredAt());
+    }
+
+    @Test
+    @DisplayName("MGR-006 TEC-003 reassignment establishes time for a migrated unknown assignment")
+    void reassignsAssignedRequest() {
+        store.requests.put(11L, request(
+                11,
+                RequestStatus.ASSIGNED,
+                ReportedUrgency.HIGH,
+                ManagerPriority.MEDIUM,
+                2L,
+                CREATED_AT,
+                CREATED_AT.plusSeconds(60)));
+        assertNull(store.requests.get(11L).assignedAt());
+
+        MaintenanceRequest result = service.reassignRequest(
+                TestSessions.issue(1), 11, 5, "Technician is unavailable");
+
+        assertEquals(RequestStatus.ASSIGNED, result.status());
+        assertEquals(5L, result.assigneeId());
+        assertEquals(ASSIGNED_AT, result.assignedAt());
+        assertEquals(1, store.auditEvents.size());
+    }
+
+    @Test
+    @DisplayName("MGR-006 rejects same, inactive and non-Technician reassignment targets")
+    void rejectsInvalidReassignmentTargets() {
+        assertThrows(ValidationException.class, () -> service.reassignRequest(
+                TestSessions.issue(1), 11, 2, "Same Technician selected"));
+        assertThrows(ValidationException.class, () -> service.reassignRequest(
+                TestSessions.issue(1), 11, 4, "Inactive Technician selected"));
+        assertThrows(ValidationException.class, () -> service.reassignRequest(
+                TestSessions.issue(1), 11, 3, "Requester selected instead"));
+
+        assertEquals(2L, store.requests.get(11L).assigneeId());
+        assertEquals(CREATED_AT, store.requests.get(11L).assignedAt());
+        assertEquals(0, store.auditEvents.size());
+    }
+
+    @Test
+    @DisplayName("MGR-006 rejects missing, short and overlong reassignment reasons")
+    void rejectsInvalidReassignmentReasons() {
+        assertThrows(ValidationException.class,
+                () -> service.reassignRequest(TestSessions.issue(1), 11, 5, null));
+        assertThrows(ValidationException.class,
+                () -> service.reassignRequest(TestSessions.issue(1), 11, 5, "four"));
+        assertThrows(ValidationException.class,
+                () -> service.reassignRequest(TestSessions.issue(1), 11, 5, "x".repeat(501)));
+
+        assertEquals(2L, store.requests.get(11L).assigneeId());
+        assertEquals(0, store.auditEvents.size());
+    }
+
+    @Test
+    @DisplayName("MGR-006/LIF-011 rejects reassignment from a non-active workflow state")
+    void rejectsReassignmentFromOpenState() {
+        assertThrows(ValidationException.class, () -> service.reassignRequest(
+                TestSessions.issue(1), 10, 5, "Move this request now"));
+
+        assertRequestRemainsOpen();
+    }
+
+    @Test
+    @DisplayName("AUT-018/020/021 rejects a forged Manager reassignment")
+    void rejectsUnauthorizedReassignment() {
+        assertThrows(AuthorizationException.class, () -> service.reassignRequest(
+                TestSessions.issue(3), 11, 5, "Move this request now"));
+
+        assertEquals(2L, store.requests.get(11L).assigneeId());
+        assertEquals(0, store.auditEvents.size());
+    }
+
+    @Test
     @DisplayName("MGR-021 orders the Manager queue deterministically")
     void ordersManagerQueueByOperationalRules() {
         store.requests.put(12L, request(
@@ -202,6 +304,7 @@ class ManagerRequestServiceTest {
         private final Map<Long, UserAccount> accounts = new HashMap<>();
         private final Map<Long, MaintenanceRequest> requests = new HashMap<>();
         private final List<AuditEvent> auditEvents = new ArrayList<>();
+        private final List<WorkLog> workLogs = new ArrayList<>();
 
         @Override
         public <T> T inTransaction(TransactionWork<T> work) {
@@ -249,6 +352,33 @@ class ManagerRequestServiceTest {
                 @Override
                 public Optional<MaintenanceRequest> findOwnRequest(long requesterId, long requestId) {
                     throw new AssertionError("Manager assignment must not use Requester reads");
+                }
+
+                @Override
+                public List<MaintenanceRequest> listAssignedRequests(long technicianId) {
+                    throw new AssertionError("Manager assignment must not use Technician reads");
+                }
+
+                @Override
+                public Optional<MaintenanceRequest> findAssignedRequest(long technicianId, long requestId) {
+                    throw new AssertionError("Manager assignment must not use Technician reads");
+                }
+
+                @Override
+                public List<WorkLog> listWorkLogs(long requestId) {
+                    throw new AssertionError("Manager assignment must not read work logs through Technician storage");
+                }
+
+                @Override
+                public WorkLog appendWorkLog(
+                        long requestId, long authorId, String note, int minutesSpent, Instant createdAt) {
+                    throw new AssertionError("Manager assignment must not append work logs");
+                }
+
+                @Override
+                public boolean updateTechnicianRequest(
+                        MaintenanceRequest request, long technicianId, RequestStatus expectedStatus) {
+                    throw new AssertionError("Manager assignment must not use Technician updates");
                 }
 
                 @Override

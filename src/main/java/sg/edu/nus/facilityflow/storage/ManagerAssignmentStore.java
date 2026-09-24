@@ -8,8 +8,10 @@ import sg.edu.nus.facilityflow.model.AccountCredentials;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.UserAccount;
+import sg.edu.nus.facilityflow.model.WorkLog;
+import sg.edu.nus.facilityflow.model.RequestStatus;
 
-/** Shared transaction boundary for Manager and Requester request operations. */
+/** Shared transaction seam for authenticated request operations across all roles. */
 public interface ManagerAssignmentStore {
     <T> T inTransaction(TransactionWork<T> work);
 
@@ -36,6 +38,18 @@ public interface ManagerAssignmentStore {
         List<MaintenanceRequest> listOwnRequests(long requesterId);
 
         Optional<MaintenanceRequest> findOwnRequest(long requesterId, long requestId);
+
+        List<MaintenanceRequest> listAssignedRequests(long technicianId);
+
+        Optional<MaintenanceRequest> findAssignedRequest(long technicianId, long requestId);
+
+        List<WorkLog> listWorkLogs(long requestId);
+
+        WorkLog appendWorkLog(
+                long requestId, long authorId, String note, int minutesSpent, Instant createdAt);
+
+        boolean updateTechnicianRequest(
+                MaintenanceRequest request, long technicianId, RequestStatus expectedStatus);
 
         List<UserAccount> listActiveTechnicians();
 

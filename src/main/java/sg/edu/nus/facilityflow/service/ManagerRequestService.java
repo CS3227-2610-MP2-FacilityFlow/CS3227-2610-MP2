@@ -17,7 +17,7 @@ import sg.edu.nus.facilityflow.storage.ManagerAssignmentStore;
 
 /** Manager request use cases. Authorization and lifecycle rules belong here, not in UI code. */
 public final class ManagerRequestService {
-private final ManagerAssignmentStore store;
+    private final ManagerAssignmentStore store;
     private final Clock clock;
     private final SessionManager sessions;
 
@@ -74,6 +74,81 @@ private final ManagerAssignmentStore store;
                     assignedAt));
             return assigned;
         });
+    }
+
+    public MaintenanceRequest reassignRequest(
+            AuthenticatedSession session,
+            long requestId,
+            long technicianId,
+            String reason) {
+        return store.inTransaction(transaction -> {
+            UserAccount actor = sessions.requireRole(transaction, session, Role.FACILITIES_MANAGER);
+            String normalizedReason = normalizeReason(reason);
+            MaintenanceRequest request = transaction.findRequest(requestId)
+                    .orElseThrow(() -> new ValidationException("Request was not found."));
+            if (request.status() != RequestStatus.ASSIGNED
+                    && request.status() != RequestStatus.IN_PROGRESS) {
+                throw new ValidationException(
+                        "Only ASSIGNED or IN_PROGRESS requests can be reassigned.");
+            }
+            if (Objects.equals(request.assigneeId(), technicianId)) {
+                throw new ValidationException("Select a different Technician for reassignment.");
+            }
+            UserAccount technician = transaction.findAccount(technicianId)
+                    .filter(UserAccount::active)
+                    .filter(account -> account.role() == Role.TECHNICIAN)
+                    .orElseThrow(() -> new ValidationException(
+                            "Assignee must be an active Technician."));
+
+            Instant reassignedAt = clock.instant();
+            MaintenanceRequest reassigned = request.reassignTo(technician.id(), reassignedAt);
+            transaction.updateRequest(reassigned);
+            transaction.appendAuditEvent(new AuditEvent(
+                    request.id(),
+                    actor.id(),
+                    "REQUEST_REASSIGNED",
+                    "{\"oldAssigneeId\":" + request.assigneeId()
+                            + ",\"newAssigneeId\":" + technician.id()
+                            + ",\"reason\":\"" + escapeJson(normalizedReason) + "\"}",
+                    reassignedAt));
+            return reassigned;
+        });
+    }
+
+    private static String normalizeReason(String reason) {
+        if (reason == null) {
+            throw new ValidationException("Reassignment reason is required.");
+        }
+        String normalized = reason.strip();
+        int length = normalized.codePointCount(0, normalized.length());
+        if (length < 5 || length > 500) {
+            throw new ValidationException("Reassignment reason must contain 5 to 500 characters.");
+        }
+        return normalized;
+    }
+
+    private static String escapeJson(String value) {
+        StringBuilder escaped = new StringBuilder(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '\"' -> escaped.append("\\\"");
+                case '\\' -> escaped.append("\\\\");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                default -> {
+                    if (character < 0x20) {
+                        escaped.append("\\u%04x".formatted((int) character));
+                    } else {
+                        escaped.append(character);
+                    }
+                }
+            }
+        }
+        return escaped.toString();
     }
 
     private static Comparator<MaintenanceRequest> managerQueueOrder() {

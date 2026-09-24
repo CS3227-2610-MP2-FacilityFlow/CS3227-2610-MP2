@@ -1,7 +1,8 @@
 # FacilityFlow Developer Guide
 
-Status: authenticated Requester UI and Manager assignment, updated 22 September
-2026. This development build is not a complete released maintenance application.
+Status: authenticated Requester UI, Manager assignment, and Technician backend,
+updated 24 September 2026. This development build is not a complete released
+maintenance application.
 
 ## Setup and commands
 
@@ -57,7 +58,10 @@ login flow. To launch the older validation-only preview instead:
 | [ReportedUrgency](../src/main/java/sg/edu/nus/facilityflow/model/ReportedUrgency.java) | The four reported urgency values from LIF-005 |
 | [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
 | [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, atomic creation/audit, and owner-only list/detail |
-| [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–3 and schema compatibility checks |
+| [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–4 and schema compatibility checks |
+| [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Technician-scoped queue, filtering, progress, work-log, completion, and stale-write checks |
+| [TechnicianQueueFilter](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianQueueFilter.java) | Normalized TEC-002 queue search and enum/category filters |
+| [WorkLog](../src/main/java/sg/edu/nus/facilityflow/model/WorkLog.java) | Immutable internal Technician work evidence |
 | [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
@@ -110,7 +114,9 @@ committed data. Failures retain entered input and display safe messages. A draft
 can survive an expired session in memory for the same account's next login;
 explicit logout, another account's login, or process shutdown discards it.
 Role changes reroute on the next denied protected action or **Refresh account**.
-The Technician has a separate placeholder view, not a completed work-management UI.
+The Technician has a separate placeholder view. The authorized backend operations
+for personal queue/detail reads, search and filters, start work, append work logs,
+and completion now exist, but they are not yet connected to that view.
 
 ## Manager foundation architecture
 
@@ -133,6 +139,12 @@ inside one storage transaction. It then updates the request and appends one
 `REQUEST_ASSIGNED` audit event. Any runtime or database failure rolls the
 transaction back.
 
+`ManagerRequestService.reassignRequest` now provides the backend transition for
+`ASSIGNED` or `IN_PROGRESS` work. It requires a different active Technician and
+a 5–500 character reason, returns the request to `ASSIGNED`, starts a new current
+assignment timestamp, preserves work logs and completion metadata, and appends a
+`REQUEST_REASSIGNED` audit. The Manager UI does not expose this operation yet.
+
 The Manager queue uses the deterministic ordering in MGR-021. The initial view
 shows the queue, request detail, active-Technician selection, Manager-priority
 selection, actionable feedback, visible identity/role, and logout action. It is
@@ -152,7 +164,12 @@ transaction, using SQLite `PRAGMA user_version`:
   ordinary `target_type`/`target_id` fields and nullable `request_id`, preserving
   all event IDs and details. `REQUEST` events still reference a request; `ACCOUNT`
   events support login, password operations, and initial account creation.
-- Versions newer than 3, missing required columns, and missing/invalid sequence
+- Version 4 adds nullable assignment/completion metadata to `maintenance_requests`,
+  the append-only application-facing `work_logs` table, deterministic work-log
+  history indexes, and a Technician queue index. Legacy assignment times remain
+  null rather than being inferred from the mutable request update time. The shared
+  choices are recorded in [ADR 0002](adr/0002-technician-shared-data-contract.md).
+- Versions newer than 4, missing required columns, and missing/invalid sequence
   rows stop initialization with a safe error. Failed migrations roll back schema,
   data, and version together; repeated initialization does not reset data.
 
@@ -180,6 +197,24 @@ The transaction interface is deliberately callback-based. Services re-read the
 persisted state within the callback before writing, while SQLite controls the
 commit or rollback. Other role services should reuse or evolve this shared
 boundary rather than adding SQL to controllers.
+
+`TechnicianRequestService` reuses this transaction interface. Every operation
+revalidates the persisted session account and role, then scopes request access to
+the current assignee. `TechnicianQueueFilter` supplies optional normalized search,
+status, category, and priority criteria; queue results retain the TEC-003 priority,
+urgency, assignment-time, and display-ID ordering. Technician state writes use a conditional request update
+that includes the expected status and assignee, so a stale screen cannot write
+after reassignment. Starting work commits `IN_PROGRESS` plus one request audit;
+adding work commits the request timestamp, one work log, and one request-targeted
+audit; completion requires an existing work log and commits `COMPLETED`, a trimmed
+resolution summary, completion time, and one audit. Any failure rolls the whole
+operation back. Work-log audit details contain the generated log ID and minutes,
+not the free-text note.
+
+`MaintenanceRequest.assignedAt` records the current assignment time separately
+from `updatedAt`; Manager assignment sets both, while later work-log writes change
+only `updatedAt`. Work-log history retains its original Technician author after
+reassignment. Requester queries do not join or expose internal work logs.
 
 `RequesterRequestService.createRequest(session, draft)`, `listOwnRequests(session)`
 and `getOwnRequest(session, requestId)` reuse that transaction boundary. Owner reads

@@ -1,95 +1,30 @@
 # FacilityFlow User Guide
 
-<<<<<<< HEAD
 ## Overview
 
-FacilityFlow is a desktop application being developed to help people report
-maintenance issues, technicians work on assigned issues, and Facilities Managers
-coordinate the work.
+FacilityFlow is a Java desktop application for reporting and coordinating
+maintenance work. It is intended for Requesters, Technicians, and Facilities
+Managers who share one local workspace under the same operating-system user.
 
-The current runnable build is a Requester form preview. It lets you check whether
-the details of a maintenance report meet the required rules. It does not send or
-save a report.
-=======
-This development build supports login, Requester submission/list/detail, and
-Manager assignment. It is not a completed product release.
+This development build supports sign-in and account actions for all three roles.
+Requesters can submit requests and view their own saved requests. Facilities
+Managers can view all requests and assign an `OPEN` request to an active
+Technician. The Technician route is currently a placeholder and has no work
+management controls.
 
-Follow the [developer setup](DeveloperGuide.md#setup-and-commands) and run
-`./gradlew.bat run` on Windows, or `sh ./gradlew run` on macOS/Linux.
-
-## Sign in
-
-New workspaces create the following demo accounts, all with password **Welcome123**:
-
-| Role | Usernames |
-|---|---|
-| Requester | `requester1`, `requester2` |
-| Technician | `technician1`, `technician2` |
-| Facilities Manager | `manager1`, `manager2` |
-
-Enter your username and password, then choose **Sign in**. An incorrect password,
-unknown username, or inactive account produces the same invalid-credentials message.
-The password field is cleared when submitted. Each role has separate navigation;
-the header shows your account, role, and **Log out** action.
-
-**Change password** requires your current password and a new password of 8–24
-characters, with no composition requirement. A successful change keeps you signed
-in. Logout and closing the app discard the session. If your account is deactivated
-or a Manager resets your password, the next protected action requires login again.
-**Refresh account** picks up your current role; role changes do not require login.
-
-## Submit and follow a request
-
-1. Sign in as a Requester and choose **New request**.
-2. Enter title, description, and location, and choose category and reported urgency.
-3. Choose **Submit request**. Field errors begin with **Error:** and preserve input.
-   Pending saves disable submission and navigation to prevent duplicate clicks.
-4. Success opens the stored request detail with its generated `FF-` ID and `OPEN`
-   status. **Back to my requests** reloads your own list, newest first.
-5. Select a row and choose **View selected request**. **Refresh detail** picks up
-   the latest assignment/status. Storage failures retain the form for retry.
-
-Only your requests appear. Internal audit details/notes are not displayed. Visible
-activity history, editing, cancellation, follow-ups, and filters are not implemented.
-If your session expires during submission, signing back in as the same account
-restores the draft in memory. Explicit logout or closing the app discards unsaved input.
-
-## Manager handoff
-
-The refreshed interface uses teal primary actions, labelled inline errors and
-scrollable forms. Resize the window to suit your workspace: account actions wrap
-on narrower windows, and the Manager assignment panel moves below the queue.
-Use the panel's scrollbar to reach assignment controls on a shorter window;
-the queue scrolls horizontally to show all columns. Resizing keeps form input
-and selections. The default content area is 1,024 × 700, with layouts also
-checked at 760 × 600 and 1,440 × 900.
-
-Log out, then sign in as `manager1`. Select the Requester's `OPEN` request, choose
-an active Technician and Manager priority, then choose **Assign request**. The
-confirmed result becomes `ASSIGNED`. Sign back in as the owning Requester to
-inspect the updated detail. Technician work management is not yet available.
-
-## Local workspace
-
-Committed requests and accounts persist between launches in `facilityflow.db`:
-
-- Windows: `%LOCALAPPDATA%\FacilityFlow`
-- macOS: `~/Library/Application Support/FacilityFlow`
-- Linux: `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow`
-
-All roles share this workspace. Existing databases are upgraded but never reseeded
-or reset. Old test databases with placeholder password hashes do not gain valid
-demo credentials automatically. Fresh-workspace lists start empty; representative
-requests across all lifecycle states are still pending.
->>>>>>> master
+On first launch, FacilityFlow creates its local database, category configuration,
+and two demo accounts for each role. This is not a completed product release and
+there is no installer.
 
 ## Setup and launch
 
-<<<<<<< HEAD
-1. Install a Java Development Kit (JDK) 25. No separate Gradle or JavaFX
-   installation is needed.
-2. Open a terminal in the FacilityFlow project folder.
-3. Run the command for your operating system:
+1. Install a Java Development Kit (JDK) 25. You do not need to install Gradle or
+   JavaFX separately.
+2. If `java` is not available in your terminal, set `JAVA_HOME` to the JDK 25
+   installation directory.
+3. Open a terminal in the FacilityFlow repository root. The first run may need an
+   internet connection to download Gradle and application libraries.
+4. Start the application with the command for your operating system:
 
    **Windows (PowerShell)**
 
@@ -103,70 +38,192 @@ requests across all lifecycle states are still pending.
    sh ./gradlew run
    ```
 
-If Java is not already available in your terminal, set `JAVA_HOME` to your JDK
-25 installation folder before running the command. The first launch may download
-the build tools and application libraries, so it needs an internet connection.
+5. Sign in with one of the demo accounts. Every demo account initially uses the
+   password `Welcome123`.
 
-There is currently no installed release package, sign-in account, configuration
-file, or application data file for this preview. Closing its window discards all
-entered details.
+   | Role | Usernames |
+   |---|---|
+   | Requester | `requester1`, `requester2` |
+   | Technician | `technician1`, `technician2` |
+   | Facilities Manager | `manager1`, `manager2` |
+
+FacilityFlow stores `facilityflow.db` and `categories.properties` in the
+following directory:
+
+- Windows: `%LOCALAPPDATA%\FacilityFlow`
+- macOS: `~/Library/Application Support/FacilityFlow`
+- Linux: `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow` when
+  `XDG_DATA_HOME` is not set
+
+All roles launched by the same operating-system user use these files. Existing
+compatible databases are upgraded automatically to schema version 4 and are not
+reseeded or reset. FacilityFlow stops safely if the database uses an unsupported
+newer schema or does not have the expected structure.
+
+Requests upgraded from schema version 3 may have an unknown assignment time. The
+upgrade intentionally leaves that value unknown instead of deriving it from a
+different timestamp. Technician queue ordering places unknown assignment times
+after known times; the request's next assignment or reassignment records a known
+assignment time.
+
+The `categories.properties` file has one `categories` entry containing a
+comma-separated list. A new workspace starts with Electrical, Plumbing, HVAC,
+Structural, Cleaning, Safety, and Other. Names must be unique, and `Other` must
+remain in the list. Invalid entries or additional configuration keys stop startup
+before the workspace opens.
 
 ## Features
 
 ### Requester
 
-#### Check maintenance report details
+#### Sign in and manage the session
 
-The **New maintenance request** window shows five required fields. Complete them
-and select **Check details**.
+1. Enter a demo Requester username and password, then choose **Sign in**. The
+   password is masked and cleared after submission. Unknown usernames, incorrect
+   passwords, and inactive accounts all show the same invalid-credentials message.
+2. Use **Refresh account** to reload the account's active status and role. A role
+   change reroutes the current session without another sign-in.
+3. Use **Change password**, enter the current password and a new password of 8–24
+   characters, then choose **Change password**. No mixture of character types is
+   required. Both password fields are cleared on submission; success saves the new
+   password and keeps the session signed in.
+4. Use **Back** on the password screen to return to the current role route, or use
+   **Log out** to clear the session and return to sign-in. Closing the application
+   also discards the in-memory session.
 
-| Field | What to enter |
-|---|---|
-| Title | A short summary with 5 to 100 characters. |
-| Description | A description of the problem with 10 to 2,000 characters. |
-| Location | Where the problem is, with 2 to 120 characters. |
-| Category | Choose Electrical, Plumbing, HVAC, Structural, Cleaning, Safety, or Other. |
-| Reported urgency | Choose Low, Normal, High, or Emergency. |
+#### Submit a maintenance request
 
-Spaces at the beginning and end of text do not count towards the character
-limits. Spaces and line breaks within the text are kept. If any field needs
-attention, guidance appears beside that field and your other entries remain in
-the form. When every field is valid, the preview confirms the check.
+1. Choose **New request**.
+2. Complete every field:
 
-No maintenance request, history, or other application data is created by this
-preview.
+   | Field | Required value |
+   |---|---|
+   | Title | 5–100 characters |
+   | Description | 10–2,000 characters |
+   | Location | 2–120 characters |
+   | Category | One value from the configured category list |
+   | Reported urgency | Low, Normal, High, or Emergency |
 
-### Facilities Manager
+   Leading and trailing whitespace is removed before validation and storage.
+   Meaningful spaces and line breaks inside the text are kept.
+3. Choose **Submit request**. Field-specific messages beginning with **Error:**
+   identify invalid or missing values without clearing the other fields. While the
+   save is pending, the form and **Back to my requests** action are disabled to
+   prevent duplicate submissions.
+4. After a successful save, the detail view shows the generated `FF-` display ID,
+   status `OPEN`, the stored field values, and a success message. The request and
+   its audit event are saved in `facilityflow.db`. A storage failure leaves the
+   entered form values available for another attempt.
 
-The current preview has no Facilities Manager sign-in or dashboard, so there
-are no Manager actions to take.
+If the session expires while a request is being submitted, signing in again as
+the same account restores the draft held in memory. Explicit logout or closing
+the application discards unsaved input.
+
+#### View saved requests
+
+1. The **My requests** list loads only requests owned by the signed-in Requester,
+   newest first. Each entry shows its title, display ID, status, and location.
+2. Choose **Refresh requests** to reload the list from the database.
+3. Select one request and choose **View selected request**. The detail view shows
+   title, description, display ID, status, reported urgency, Manager priority when
+   set, category, location, and local creation and update times.
+4. Choose **Refresh detail** to reload its latest visible state, including a Manager
+   assignment or priority change. Choose **Back to my requests** to return to the
+   refreshed list.
+
+Other Requesters' records, internal audit details, and Technician work logs are
+not returned to this view.
+
+#### Check fields without saving
+
+The separate validation preview can be launched with:
+
+```powershell
+.\gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"
+```
+
+On macOS or Linux, replace `.\gradlew.bat` with `sh ./gradlew`. Complete the same
+five fields and choose **Check details**. The preview reports field errors and
+keeps the entries, but it never creates a request or writes application data.
 
 ### Technician
 
-The current preview has no Technician sign-in or work queue, so there are no
-Technician actions to take.
+#### Sign in and manage the session
+
+Sign in with a Technician account to open the separate Technician route. The
+header provides the same **Refresh account**, **Change password**, and **Log out**
+actions described for Requesters. The password screen provides **Back**. Password
+changes are saved, while logout and application shutdown discard only the
+in-memory session.
+
+The route displays **Technician work management is not available in this
+development build.** There are currently no reachable controls to view assigned
+work, open request details, start work, add work logs, or complete work.
+
+### Facilities Manager
+
+#### Sign in and manage the session
+
+Sign in with a Facilities Manager account to open the Manager dashboard. The
+header provides the same **Refresh account**, **Change password**, and **Log out**
+actions described for Requesters. The password screen provides **Back**.
+
+#### View the request queue and details
+
+1. The **All requests** table loads every saved request. It shows Request ID,
+   title, location, reported urgency, Manager priority, and status.
+2. `OPEN` requests appear first by reported urgency and age. Assigned and
+   in-progress work follows by Manager priority and oldest update time. Completed
+   and terminal work follows by newest update time; display ID breaks ties.
+3. Choose **Refresh requests** to reload the queue and active-Technician list.
+4. Select one row to show its display ID, title, and full description in the
+   **Request detail** panel. Selecting a row does not change stored data.
+
+#### Assign an open request
+
+1. Select a request whose status is `OPEN`.
+2. In **Assignment**, choose an active Technician and a required Manager priority:
+   Low, Medium, High, or Critical.
+3. Choose **Assign request**. The action remains unavailable until all three
+   selections are valid and is disabled while the save is pending.
+4. A successful assignment saves the Technician and priority, changes the status
+   to `ASSIGNED`, records an audit event, refreshes the queue, and shows a success
+   message. If validation, authorization, or storage fails, a safe error is shown
+   and no successful assignment is reported.
+
+The Manager layout adapts to the window width. The queue and assignment panel
+stack in narrower windows and appear side by side at wider sizes. The detail panel
+and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-The preview cannot submit, edit, cancel, search, or show maintenance requests.
-It has no sign-in, saved data, Requester request history, or Technician work
-queue. Facilities Managers cannot yet view a request queue, choose a priority,
-or assign an open request to an active Technician. The categories are fixed for
-this preview and cannot be changed through the window.
+- The complete Technician backend exists for the personal queue and request detail,
+  queue ordering, case-insensitive search by display ID, title, and location,
+  filtering by status, category, and priority, starting work, appending internal
+  work logs, completing work, and rejecting stale writes after reassignment
+  (TEC-001–TEC-013, LIF-016). None of it is connected to the JavaFX Technician
+  route, so no Technician queue, search, filter, detail, start, log, or completion
+  controls are reachable in the application.
+- Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
+  the interface, including reason validation and audit storage, but the Manager
+  dashboard has no reassignment controls (MGR-006). Managers can currently assign
+  only `OPEN` requests.
+- Requesters cannot edit, cancel, search, or filter requests; add follow-up
+  information; or view requester-visible activity history.
+- Managers cannot yet record requests on behalf of Requesters, correct request
+  details, cancel or review work, close/return/reopen requests, manage accounts,
+  or view audit history through the dashboard. Manager password reset exists only
+  behind the interface.
+- Fresh workspaces contain the six demo accounts but no representative requests,
+  so lifecycle examples must first be created and assigned manually.
+- Category rename and removal mappings are not implemented. Removing a category
+  used by a saved request, adding unknown keys, or using invalid category values
+  stops startup safely instead of migrating existing data.
+- FacilityFlow has no release installer. The development build must be launched
+  from the repository with Gradle.
 
 ## Disclaimers
 
-Do not use this preview to report a real maintenance issue. Use your usual
-reporting channel until FacilityFlow can submit and save requests.
-=======
-`categories.properties` beside the database uses a `categories` comma-separated
-list, initially the seven categories in the [catalogue contract](CategoryCatalogue.md).
-Names must be unique and include `Other`. Invalid configuration stops startup.
-Rename/removal mappings and migration of existing categories are not implemented;
-unknown keys or removing a category used by a stored request stop startup safely.
-
-The validation-only preview remains available with
-`./gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"`.
-Its **Check details** action never saves. Release installers and the remaining
-role workflows will be documented when implemented and verified.
->>>>>>> master
+Do not use this development build as the only channel for a real maintenance
+issue. Use your organisation's established reporting process until FacilityFlow
+has a reviewed release and the complete role workflow.
