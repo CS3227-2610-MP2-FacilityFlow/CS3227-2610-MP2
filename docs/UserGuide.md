@@ -176,6 +176,41 @@ in-memory session.
 2. If a refresh finds that the selected request is no longer assigned to you,
    the selection is cleared.
 
+#### Record internal work
+
+1. Select a request and wait for its **Internal work history** to load. The
+   history is available only for requests currently assigned to you. Existing
+   entries show their timestamp, Technician author, minutes spent, and note in
+   chronological order. **No work logs recorded yet.** means that the selected
+   request has no entries. Work logs are internal: they are not returned to
+   Requester views. (TEC-005, TEC-007, TEC-011, LIF-007–LIF-010)
+2. Add a log only after the request is `IN_PROGRESS`. The **Add accountable
+   progress** area contains:
+
+   | Control | Required value |
+   |---|---|
+   | **Describe the work performed** | Required; 1–1,000 characters after leading and trailing whitespace is removed. The note may contain meaningful spaces and line breaks. |
+   | **Whole minutes, 1 to 1440** | Required; a whole number from 1 through 1,440 inclusive. |
+
+   The **Add work log** button is disabled until a request is selected and its
+   current status is `IN_PROGRESS`. It is also disabled while the history is
+   loading or another action is in progress. A blank note, a note over 1,000
+   characters, or minutes outside the stated range is rejected without saving a
+   work log. (TEC-005, TEC-006, LIF-007)
+3. Choose **Add work log**. A successful save appends one entry, updates the
+   request's saved updated time, reloads the queue and history, clears both
+   input controls, and shows a confirmation such as **FF-000010 work log saved
+   successfully.** The saved entry retains the Technician author, timestamp,
+   note, and minutes. There are no edit or delete controls; work-log history is
+   append-only through the application. (TEC-007, TEC-013, LIF-007, LIF-010)
+4. If the minutes field is not a whole number, the page immediately shows
+   **Minutes spent must be a whole number from 1 to 1,440.** Other validation,
+   authorization, or storage failures show a safe error message and leave the
+   entered values available for another attempt. If the assignment or status
+   changed while the request was open, the write is rejected, no log is stored,
+   and the queue is refreshed with **The request assignment or status changed.
+   The queue was refreshed.** (TEC-012)
+
 #### Start assigned work
 
 1. Select a request whose status is `ASSIGNED`. The **Start work** control is
@@ -197,8 +232,10 @@ in-memory session.
    A failed transaction does not leave a partial status or audit-event write.
 
 There are no currently reachable Technician controls for queue search or
-filtering, work logs, time spent, resolution summaries, or completion for
-Manager review.
+filtering, resolution summaries, or completion for Manager review. Internal
+work-log history and the **Add work log** action are reachable as described
+above; completion remains unavailable through the Technician route. (TEC-002,
+TEC-008)
 
 ### Facilities Manager
 
@@ -237,9 +274,9 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-- The Technician route currently exposes only the personal queue, request
-  selection and detail, and Start work. Queue search and filtering, dashboard
-  counts, work logs and time spent, resolution summaries, and completion for
+- The Technician route currently exposes the personal queue, request selection
+  and detail, Start work, and internal work-log history and entry. Queue search
+  and filtering, dashboard counts, resolution summaries, and completion for
   Manager review are not yet reachable through the application, even though
   some corresponding service operations and tests exist (TEC-002–TEC-009).
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
@@ -249,9 +286,9 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 - Requesters cannot edit, cancel, search, or filter requests; add follow-up
   information; or view requester-visible activity history.
 - Managers cannot yet record requests on behalf of Requesters, correct request
-  details, cancel or review work, close/return/reopen requests, manage accounts,
-  or view audit history through the dashboard. Manager password reset exists only
-  behind the interface.
+  details, review work logs or resolution summaries, cancel or close/return/reopen
+  requests, manage accounts, or view audit history through the dashboard. Manager
+  password reset exists only behind the interface.
 - Fresh workspaces contain the six demo accounts but no representative requests,
   so lifecycle examples must first be created and assigned manually.
 - Category rename and removal mappings are not implemented. Removing a category
