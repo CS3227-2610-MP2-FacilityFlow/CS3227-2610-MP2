@@ -204,6 +204,118 @@ class AuthenticatedWorkflowTest {
     }
 
     @Test
+    @DisplayName("TEC-004–007/013 LIF-007/008/010–012 authenticated Technician UI logs work, shows history, and preserves invalid input")
+    void technicianAddsVisibleWorkLogWithUiGuards() throws Exception {
+        loginTechnicianWithAssignedRequest();
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#technicianRequests");
+            table.getSelectionModel().selectFirst();
+        });
+        drain();
+
+        fx(() -> {
+            assertTrue(button("addWorkLog").isDisabled());
+            button("startWork").fire();
+            button("startWork").fire();
+            assertTrue(button("startWork").isDisabled(), "the second click must be ignored while busy");
+            assertEquals(1, work.size(), "duplicate start clicks must enqueue one write");
+        });
+        drain();
+        fx(() -> { });
+
+        fx(() -> {
+            var note = (TextArea) router.lookup("#technicianWorkLogNote");
+            var minutes = (TextField) router.lookup("#technicianWorkLogMinutes");
+            note.setText("Inspected the leaking pipe and replaced the washer.");
+            minutes.setText("45");
+            button("addWorkLog").fire();
+            button("addWorkLog").fire();
+            assertTrue(button("addWorkLog").isDisabled(), "the second click must be ignored while busy");
+            assertEquals(1, work.size(), "duplicate work-log clicks must enqueue one write");
+        });
+        drain();
+
+        fx(() -> {
+            var history = (ListView<?>) router.lookup("#technicianWorkLogs");
+            assertEquals(1, history.getItems().size());
+            assertTrue(history.getItems().getFirst().toString().contains("45 minutes"));
+            assertTrue(history.getItems().getFirst().toString()
+                    .contains("Inspected the leaking pipe and replaced the washer."));
+            assertEquals("FF-000001 work log saved successfully.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+            assertEquals("", ((TextArea) router.lookup("#technicianWorkLogNote")).getText());
+            assertEquals("", ((TextField) router.lookup("#technicianWorkLogMinutes")).getText());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs "
+                + "WHERE request_id = 1 AND author_id = 4 AND minutes_spent = 45"));
+
+        fx(() -> {
+            var note = (TextArea) router.lookup("#technicianWorkLogNote");
+            var minutes = (TextField) router.lookup("#technicianWorkLogMinutes");
+            note.setText("  Keep this invalid entry visible  ");
+            minutes.setText("not-a-number");
+            button("addWorkLog").fire();
+            assertEquals("  Keep this invalid entry visible  ", note.getText());
+            assertEquals("not-a-number", minutes.getText());
+            assertEquals("Minutes spent must be a whole number from 1 to 1,440.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
+
+        fx(() -> {
+            ((TextField) router.lookup("#technicianWorkLogMinutes")).setText("1441");
+            button("addWorkLog").fire();
+        });
+        drain();
+        fx(() -> {
+            assertEquals("  Keep this invalid entry visible  ",
+                    ((TextArea) router.lookup("#technicianWorkLogNote")).getText());
+            assertEquals("1441", ((TextField) router.lookup("#technicianWorkLogMinutes")).getText());
+            assertEquals("Minutes spent must be from 1 to 1,440.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+            assertEquals(1, ((ListView<?>) router.lookup("#technicianWorkLogs")).getItems().size());
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
+    }
+
+    @Test
+    @DisplayName("TEC-012/013 LIF-011/016 stale Technician work-log write refreshes the authenticated queue")
+    void staleTechnicianWriteRefreshesQueueAfterReassignment() throws Exception {
+        loginTechnicianWithAssignedRequest();
+        addSecondTechnician();
+
+        fx(() -> ((TableView<?>) router.lookup("#technicianRequests"))
+                .getSelectionModel().selectFirst());
+        drain();
+        fx(() -> button("startWork").fire());
+        drain();
+        fx(() -> { });
+
+        var managerSession = fixture.auth.login("manager", "password".toCharArray());
+        fixture.manager.reassignRequest(managerSession, 1, 6, "Coverage handoff");
+        fixture.auth.logout(managerSession);
+
+        fx(() -> {
+            ((TextArea) router.lookup("#technicianWorkLogNote")).setText("Stale update");
+            ((TextField) router.lookup("#technicianWorkLogMinutes")).setText("10");
+            button("addWorkLog").fire();
+            assertTrue(button("addWorkLog").isDisabled());
+            assertEquals(1, work.size());
+        });
+        drain();
+
+        fx(() -> {
+            assertTrue(((TableView<?>) router.lookup("#technicianRequests")).getItems().isEmpty());
+            assertEquals("The request assignment or status changed. The queue was refreshed.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+        });
+        assertEquals(0, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
+        assertEquals(6, fixture.scalar("SELECT assignee_id FROM maintenance_requests WHERE id = 1"));
+    }
+
+    @Test
     @DisplayName("REQ-012 UIX-008/012 failed save preserves raw input, reports safe failure, and permits one retry")
     void preservesInputOnFailure() throws Exception {
         login("owner");
@@ -257,6 +369,35 @@ class AuthenticatedWorkflowTest {
         });
         drain();
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests"));
+    }
+
+    private void loginTechnicianWithAssignedRequest() throws Exception {
+        login("owner");
+        fillForm();
+        fx(() -> button("validate").fire());
+        drain();
+
+        fx(() -> button("logout").fire());
+        login("manager");
+        fx(() -> {
+            ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
+            ((ComboBox<?>) router.lookup("#assignee")).getSelectionModel().selectFirst();
+            ((ComboBox<?>) router.lookup("#managerPriority")).getSelectionModel().selectFirst();
+            button("assignRequest").fire();
+        });
+        drain();
+
+        fx(() -> button("logout").fire());
+        login("tech");
+    }
+
+    private void addSecondTechnician() throws Exception {
+        fixture.execute("""
+                INSERT INTO user_accounts(
+                    id, username, display_name, role, password_hash, active, created_at, updated_at)
+                VALUES (6, 'tech-two', 'Technician Two', 'TECHNICIAN', 'unused', 1,
+                    '2026-09-22T00:00:00Z', '2026-09-22T00:00:00Z')
+                """);
     }
 
     private void login(String username) throws Exception {
