@@ -9,8 +9,8 @@ Managers who share one local workspace under the same operating-system user.
 This development build supports sign-in and account actions for all three roles.
 Requesters can submit requests and view their own saved requests. Facilities
 Managers can view all requests and assign an `OPEN` request to an active
-Technician. The Technician route is currently a placeholder and has no work
-management controls.
+Technician. Technicians can view their assigned work, inspect a selected request,
+and start work on an `ASSIGNED` request.
 
 On first launch, FacilityFlow creates its local database, category configuration,
 and two demo accounts for each role. This is not a completed product release and
@@ -156,9 +156,49 @@ actions described for Requesters. The password screen provides **Back**. Passwor
 changes are saved, while logout and application shutdown discard only the
 in-memory session.
 
-The route displays **Technician work management is not available in this
-development build.** There are currently no reachable controls to view assigned
-work, open request details, start work, add work logs, or complete work.
+#### View assigned work
+
+1. When the Technician route opens, the **Technician work queue** loads requests
+   currently assigned to the signed-in Technician. It does not show requests
+   assigned to other Technicians. The table shows Request ID, title, location,
+   Manager priority, reported urgency, and status. If there are no matching
+   requests, it shows **No requests are currently assigned to you.** (TEC-001)
+2. Choose **Refresh requests** to reload the queue from the database. While a
+   load is in progress, the queue and refresh control are disabled. If the
+   refresh fails, the page shows a safe error message; an expired or invalid
+   session is handled by the normal sign-in flow.
+
+#### Inspect a request
+
+1. Select one row in the queue. The **Request detail** panel shows the request's
+   display ID and title, location, current status, Manager priority (or **Not
+   set**), and description. Selecting a row does not change the saved request.
+2. If a refresh finds that the selected request is no longer assigned to you,
+   the selection is cleared.
+
+#### Start assigned work
+
+1. Select a request whose status is `ASSIGNED`. The **Start work** control is
+   enabled only when a request is selected and its current displayed status is
+   `ASSIGNED`; it is disabled for other statuses and while another queue action
+   is in progress.
+2. Choose **Start work**. The application rechecks your Technician role, the
+   current assignment, and the persisted status before saving. A successful
+   action changes the request to `IN_PROGRESS`, records the transition and one
+   audit event, reloads the queue, and shows a confirmation such as **FF-000010
+   is now IN_PROGRESS. Work started successfully.** (TEC-004, TEC-A01, LIF-011,
+   LIF-012, LIF-016)
+3. If the assignment or status changed after the request was displayed, the
+   start is rejected and the queue is refreshed with **The request assignment or
+   status changed. The queue was refreshed.** If the start operation itself
+   fails, a safe error message is shown and no successful confirmation is
+   reported. If the follow-up refresh fails after a successful start, the page
+   shows the refresh error while the saved transition remains in the database.
+   A failed transaction does not leave a partial status or audit-event write.
+
+There are no currently reachable Technician controls for queue search or
+filtering, work logs, time spent, resolution summaries, or completion for
+Manager review.
 
 ### Facilities Manager
 
@@ -197,13 +237,11 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-- The complete Technician backend exists for the personal queue and request detail,
-  queue ordering, case-insensitive search by display ID, title, and location,
-  filtering by status, category, and priority, starting work, appending internal
-  work logs, completing work, and rejecting stale writes after reassignment
-  (TEC-001–TEC-013, LIF-016). None of it is connected to the JavaFX Technician
-  route, so no Technician queue, search, filter, detail, start, log, or completion
-  controls are reachable in the application.
+- The Technician route currently exposes only the personal queue, request
+  selection and detail, and Start work. Queue search and filtering, dashboard
+  counts, work logs and time spent, resolution summaries, and completion for
+  Manager review are not yet reachable through the application, even though
+  some corresponding service operations and tests exist (TEC-002–TEC-009).
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
