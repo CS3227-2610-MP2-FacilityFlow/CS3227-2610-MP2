@@ -9,9 +9,9 @@ Managers who share one local workspace under the same operating-system user.
 This development build supports sign-in and account actions for all three roles.
 Requesters can submit requests and view their own saved requests. Facilities
 Managers can view all requests and assign an `OPEN` request to an active
-Technician. Technicians can view their assigned work, inspect a selected request,
-start work on an `ASSIGNED` request, record internal work logs, and submit
-completed work for Manager review.
+Technician. Technicians can view a counted personal queue, search, filter, and
+reset it, inspect a selected request, start work on an `ASSIGNED` request, record
+internal work logs, and submit completed work for Manager review.
 
 On first launch, FacilityFlow creates its local database, category configuration,
 and two demo accounts for each role. This is not a completed product release and
@@ -162,18 +162,39 @@ in-memory session.
 1. When the Technician route opens, the **Technician work queue** loads requests
    currently assigned to the signed-in Technician. It does not show requests
    assigned to other Technicians. The table shows Request ID, title, location,
-   Manager priority, reported urgency, and status. If there are no matching
-   requests, it shows **No requests are currently assigned to you.** (TEC-001)
-2. Choose **Refresh requests** to reload the queue from the database. While a
-   load is in progress, the queue and refresh control are disabled. If the
-   refresh fails, the page shows a safe error message; an expired or invalid
-   session is handled by the normal sign-in flow.
+   Manager priority, reported urgency, and status. Above it, the dashboard shows
+   the number of assigned, in-progress, and awaiting-review requests. With no
+   active filters and no assigned requests, it shows **No requests are
+   currently assigned to you.** A filter that returns no rows instead shows
+   **No requests match the current search and filters.** (TEC-001, UIX-014)
+2. The queue places higher Manager priorities first, then higher reported
+   urgencies, then the oldest assignment. Requests with an unknown assignment
+   time follow requests with a known assignment time. (TEC-003)
+3. To narrow the queue, enter text in **Search ID, title, or location** and press
+   Enter, or choose one or more values in **Status**, **Category**, and
+   **Priority**, then choose **Apply filters**. Search ignores letter case and
+   can match any part of the ID, title, or location. Filters can be combined.
+   (TEC-002)
+4. Choose **Reset filters** to clear the search text and all three filter
+   selections, then reload the unfiltered personal queue. (UIX-015)
+5. Choose **Refresh requests** to reload the queue using the current search and
+   filters and reload the three counts from the database. While a load is in
+   progress, the queue, filter controls, and refresh control are disabled. If
+   the refresh fails, the page shows a safe error message; an expired or invalid
+   session is handled by the normal sign-in flow. (UIX-009, UIX-012, UIX-013)
+
+The feedback area reports loading, starting, work-log saving, and Manager-review
+submission progress. It then shows a success confirmation or a user-safe error;
+successful actions refresh the displayed saved state. (UIX-010, UIX-012)
 
 #### Inspect a request
 
 1. Select one row in the queue. The **Request detail** panel shows the request's
-   display ID and title, location, current status, Manager priority (or **Not
-   set**), and description. Selecting a row does not change the saved request.
+   display ID and title, location, category, reported urgency, current status,
+   Manager priority (or **Not set**), assignment time (or **Unknown** for legacy
+   data without one), updated time, and description. Times use the computer's
+   local time zone. Selecting a row does not change the saved request. (TEC-001,
+   TEC-011, UIX-016, UIX-023)
 2. If a refresh finds that the selected request is no longer assigned to you,
    the selection is cleared.
 
@@ -181,10 +202,10 @@ in-memory session.
 
 1. Select a request and wait for its **Internal work history** to load. The
    history is available only for requests currently assigned to you. Existing
-   entries show their timestamp, Technician author, minutes spent, and note in
-   chronological order. **No work logs recorded yet.** means that the selected
-   request has no entries. Work logs are internal: they are not returned to
-   Requester views. (TEC-005, TEC-007, TEC-011, LIF-007–LIF-010)
+   entries show their local timestamp, Technician author identifier, minutes
+   spent, and note in chronological order. **No work logs recorded yet.** means
+   that the selected request has no entries. Work logs are internal: they are
+   not returned to Requester views. (TEC-005, TEC-007, TEC-011, LIF-007–LIF-010)
 2. Add a log only after the request is `IN_PROGRESS`. The **Add accountable
    progress** area contains:
 
@@ -303,12 +324,6 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-- The Technician route exposes the personal queue, request selection and detail,
-  Start work, internal work-log history and entry, and submission of completed
-  work for Manager review. The screen has no search box, filter controls, or
-  dashboard count cards, so queue search and filtering and dashboard counts are
-  not yet reachable through the application (TEC-002; dashboard counts are part
-  of TEC-001).
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
@@ -319,6 +334,9 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
   details, review work logs or resolution summaries, cancel or close/return/reopen
   requests, manage accounts, or view audit history through the dashboard. Manager
   password reset exists only behind the interface.
+- The Technician route does not currently display Requester follow-up updates or
+  a requester-visible activity history; it shows the original request details
+  and internal Technician work-log history instead. (UIX role screen inventory)
 - Fresh workspaces contain the six demo accounts but no representative requests,
   so lifecycle examples must first be created and assigned manually.
 - Category rename and removal mappings are not implemented. Removing a category
