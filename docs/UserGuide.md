@@ -17,6 +17,14 @@ On first launch, FacilityFlow creates its local database, category configuration
 and two demo accounts for each role. This is not a completed product release and
 there is no installer.
 
+All three roles use the same local SQLite workspace. A currently reachable
+cross-role workflow is: a Requester submits a request (`OPEN`), a Facilities
+Manager refreshes and assigns an active Technician and priority (`ASSIGNED`),
+then that Technician refreshes, starts work (`IN_PROGRESS`), adds a work log,
+and submits a resolution summary (`COMPLETED`). The completed request remains
+assigned for Manager review, but Manager review and closure controls are not yet
+available in the dashboard. (REQ-A08, E2E-003, E2E-005–007)
+
 ## Setup and launch
 
 1. Install a Java Development Kit (JDK) 25. You do not need to install Gradle or
@@ -72,6 +80,16 @@ comma-separated list. A new workspace starts with Electrical, Plumbing, HVAC,
 Structural, Cleaning, Safety, and Other. Names must be unique, and `Other` must
 remain in the list. Invalid entries or additional configuration keys stop startup
 before the workspace opens.
+
+Role isolation applies across this shared workspace: a signed-in Requester sees
+only their own requests, a Technician sees only requests currently assigned to
+that Technician, and a Manager can view all requests. Wrong-role operations and
+attempts to access another Technician's assignment are rejected without
+revealing the inaccessible record. (AUT-014, AUT-018–021, E2E-014–015)
+
+Restarting FacilityFlow reloads committed accounts, requests, work logs, and
+audit records from these files, but never restores an authenticated session. Sign
+in again after restarting. (AUT-016, E2E-016)
 
 ## Features
 
@@ -317,6 +335,11 @@ actions described for Requesters. The password screen provides **Back**.
    to `ASSIGNED`, records an audit event, refreshes the queue, and shows a success
    message. If validation, authorization, or storage fails, a safe error is shown
    and no successful assignment is reported.
+
+The shared workflow records an audit event for request creation, assignment,
+starting work, each work-log addition, and completion. The audit records retain
+the acting account and event time, but the current dashboards do not provide an
+audit-history viewer. (LIF-011–LIF-012, E2E-003, E2E-005–007)
 
 The Manager layout adapts to the window width. The queue and assignment panel
 stack in narrower windows and appear side by side at wider sizes. The detail panel

@@ -65,6 +65,7 @@ login flow. To launch the older validation-only preview instead:
 | [TechnicianQueueFilter](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianQueueFilter.java) | Normalized TEC-002 queue search and enum/category filters |
 | [TechnicianDashboardCounts](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianDashboardCounts.java) | Non-negative counts for assigned, in-progress, and completed work awaiting Manager review |
 | [WorkLog](../src/main/java/sg/edu/nus/facilityflow/model/WorkLog.java) | Immutable internal Technician work evidence |
+| [SQLiteTechnicianCrossRoleIntegrationTest](../src/test/java/sg/edu/nus/facilityflow/storage/SQLiteTechnicianCrossRoleIntegrationTest.java) | Authenticated same-database Requester-to-Manager-to-Technician workflow, role isolation, audit sequence, and restart evidence |
 | [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
 
@@ -88,6 +89,15 @@ database. Duplicate/blank categories, missing `Other`, and unknown keys fail
 before database changes. Startup also rejects a catalogue that omits a category
 already stored on a request. Rename/removal mappings remain unimplemented and
 are rejected rather than ignored. See [CategoryCatalogue.md](CategoryCatalogue.md).
+
+The cross-role integration test uses the real authentication boundary and one
+temporary SQLite database. It proves that a Requester-created request can be
+assigned by a Manager, progressed by its assigned Technician, and reloaded after
+database reopen with its work log and request-scoped audit sequence intact. The
+same test checks that another Technician and a wrong-role session cannot read or
+write the request, while the old process-local session is rejected after restart.
+This is local automated evidence for the shared service/storage workflow, not a
+claim that the full release matrix or cross-platform packaging is complete.
 
 ## Authentication and UI tasks
 

@@ -73,7 +73,17 @@ draft restoration, and Requester-to-Manager handoff through real controls.
 `WorkspaceTest` covers initial account seeding and category startup validation.
 These are local automated results, not signed release-level E2E passes. Visible
 history, date filtering, representative lifecycle demo requests, category mappings,
-and the complete Technician/Manager workflow remain outstanding.
+and the complete Manager review/closure workflow remain outstanding.
+
+Technician cross-role hardening evidence (24 September 2026):
+`SQLiteTechnicianCrossRoleIntegrationTest` uses real authenticated sessions and one
+temporary SQLite database to follow a Requester-created record through Manager
+assignment, Technician start, internal work-log append, completion for review, and
+database reopen. It also verifies exact request audit actors/timestamps, isolation
+from a second Technician, wrong-role denial, and rejection of the old process-local
+session after restart. This verifies the local service/storage integration covered
+by E2E-003, E2E-005–007, E2E-014–016 and REQ-A08; it does not certify the entire
+release matrix or cross-platform packaging.
 
 Automated tests SHOULD include at least one requirement identifier in the test
 name or display name, for example:
