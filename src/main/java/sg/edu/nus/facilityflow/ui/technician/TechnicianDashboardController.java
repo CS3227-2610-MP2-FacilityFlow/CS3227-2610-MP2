@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
+import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 
 /** Presentation adapter for the Technician dashboard; lifecycle rules remain in the service. */
@@ -24,5 +25,15 @@ public final class TechnicianDashboardController {
     public MaintenanceRequest startWork(MaintenanceRequest request) {
         Objects.requireNonNull(request, "request");
         return requestService.startWork(session, request.id());
+    }
+
+    public List<WorkLog> loadWorkLogs(MaintenanceRequest request) {
+        Objects.requireNonNull(request, "request");
+        return requestService.listWorkLogs(session, request.id());
+    }
+
+    public WorkLog addWorkLog(MaintenanceRequest request, String note, int minutesSpent) {
+        Objects.requireNonNull(request, "request");
+        return requestService.addWorkLog(session, request.id(), note, minutesSpent);
     }
 }
