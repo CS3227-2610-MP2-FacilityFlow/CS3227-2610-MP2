@@ -61,8 +61,9 @@ login flow. To launch the older validation-only preview instead:
 | [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
 | [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, atomic creation/audit, and owner-only list/detail |
 | [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–4 and schema compatibility checks |
-| [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Technician-scoped queue, filtering, progress, work-log, completion, and stale-write checks |
+| [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Authenticated Technician-scoped queue, dashboard-count read, filtering, progress, work-log, completion, and stale-write checks |
 | [TechnicianQueueFilter](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianQueueFilter.java) | Normalized TEC-002 queue search and enum/category filters |
+| [TechnicianDashboardCounts](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianDashboardCounts.java) | Non-negative counts for assigned, in-progress, and completed work awaiting Manager review |
 | [WorkLog](../src/main/java/sg/edu/nus/facilityflow/model/WorkLog.java) | Immutable internal Technician work evidence |
 | [RequestValidatorTest](../src/test/java/sg/edu/nus/facilityflow/service/RequestValidatorTest.java) | Boundary, missing-value, catalogue, and trimming checks |
 | [RequesterFormTest](../src/test/java/sg/edu/nus/facilityflow/ui/requester/RequesterFormTest.java) | Real JavaFX controls: input retention and error correction |
@@ -223,6 +224,16 @@ resolution summary, completion time, and one audit. Any failure rolls the whole
 operation back. Work-log audit details contain the generated log ID and minutes,
 not the free-text note.
 
+`TechnicianRequestService.getDashboardCounts(session)` is an authenticated,
+read-only Technician operation. The SQLite implementation uses a parameterized
+aggregate scoped to the logged-in Technician and returns separate counts for
+`ASSIGNED`, `IN_PROGRESS`, and `COMPLETED` requests; `COMPLETED` means work
+submitted for Manager review in the lifecycle model. The operation is not wired into
+`TechnicianDashboardController` or `TechnicianDashboardView`, so it is a backend
+read model rather than a reachable dashboard feature. The same UI gap applies to
+the service-side queue search and status/category/priority filters: the current
+view loads the unfiltered queue only (TEC-001–003, LIF-017–020).
+
 `MaintenanceRequest.assignedAt` records the current assignment time separately
 from `updatedAt`; Manager assignment sets both, while later work-log writes change
 only `updatedAt`. Work-log history retains its original Technician author after
@@ -255,6 +266,10 @@ revocation, role changes, reset invalidation, audit rollback and secret clearing
 executor and temporary SQLite database to exercise all role routes, logout,
 submission, repeated-click prevention, safe recovery, draft restoration, and
 Requester-to-Manager handoff. `WorkspaceTest` checks seeding and category startup.
+`TechnicianRequestServiceTest` and `SQLiteTechnicianRequestServiceTest` cover
+Technician dashboard-count ownership/role checks and persisted queue search,
+filtering, and ordering. These are backend tests; no JavaFX control currently
+loads the counts or exposes the queue filters.
 
 ## Verification and CI
 

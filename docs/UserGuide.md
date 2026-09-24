@@ -305,8 +305,10 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
 
 - The Technician route exposes the personal queue, request selection and detail,
   Start work, internal work-log history and entry, and submission of completed
-  work for Manager review. Queue search and filtering and dashboard counts are
-  not yet reachable through the application (TEC-002).
+  work for Manager review. The screen has no search box, filter controls, or
+  dashboard count cards, so queue search and filtering and dashboard counts are
+  not yet reachable through the application (TEC-002; dashboard counts are part
+  of TEC-001).
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
