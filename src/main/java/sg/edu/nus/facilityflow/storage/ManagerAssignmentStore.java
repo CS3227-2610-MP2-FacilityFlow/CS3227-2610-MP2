@@ -10,6 +10,7 @@ import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 
 /** Shared transaction seam for authenticated request operations across all roles. */
 public interface ManagerAssignmentStore {
@@ -40,6 +41,8 @@ public interface ManagerAssignmentStore {
         Optional<MaintenanceRequest> findOwnRequest(long requesterId, long requestId);
 
         List<MaintenanceRequest> listAssignedRequests(long technicianId);
+
+        TechnicianDashboardCounts getTechnicianDashboardCounts(long technicianId);
 
         Optional<MaintenanceRequest> findAssignedRequest(long technicianId, long requestId);
 
