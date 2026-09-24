@@ -274,7 +274,8 @@ public final class TechnicianDashboardView extends BorderPane {
                 searchField.getText(), statusFilter.getValue(), categoryFilter.getValue(), priorityFilter.getValue());
         tasks.run(() -> controller.loadRequests(filter), requests -> {
             String selectedCategory = categoryFilter.getValue();
-            categoryFilter.setValue(categories.contains(selectedCategory) ? selectedCategory : null);
+            categoryFilter.setValue(selectedCategory == null || categories.contains(selectedCategory)
+                    ? selectedCategory : null);
             requestTable.setItems(FXCollections.observableArrayList(requests));
             requestTable.setPlaceholder(new Label(hasActiveFilter()
                     ? "No requests match the current search and filters."
