@@ -79,6 +79,26 @@ class SQLiteTechnicianRequestServiceTest {
     }
 
     @Test
+    @DisplayName("TEC-004/TEC-A01 LIF-011/012 persists only the start transition and its audit atomically")
+    void persistsStartWorkTransitionAndAudit() throws SQLException {
+        MaintenanceRequest assigned = managerAt(ASSIGNMENT_TIME).assignOpenRequest(
+                managerSession, 10, 2, ManagerPriority.HIGH);
+
+        MaintenanceRequest started = technicianAt(START_TIME).startWork(firstTechnicianSession, 10);
+
+        assertEquals(RequestStatus.ASSIGNED, assigned.status());
+        assertEquals(RequestStatus.IN_PROGRESS, started.status());
+        assertEquals(2L, started.assigneeId());
+        assertEquals(ASSIGNMENT_TIME, started.assignedAt());
+        assertEquals(START_TIME, started.updatedAt());
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 10 AND actor_id = 2 AND action = 'REQUEST_STARTED' "
+                + "AND detail = '{\"oldStatus\":\"ASSIGNED\",\"newStatus\":\"IN_PROGRESS\"}' "
+                + "AND occurred_at = '2026-09-24T09:10:00Z'"));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 10"));
+    }
+
+    @Test
     @DisplayName("E2E-006/007 TEC-A01/A03/A05 persists start, work log and completion with audits")
     void persistsCompleteTechnicianWorkflow() throws SQLException {
         MaintenanceRequest assigned = managerAt(ASSIGNMENT_TIME).assignOpenRequest(

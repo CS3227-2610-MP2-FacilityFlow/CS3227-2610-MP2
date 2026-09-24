@@ -28,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import sg.edu.nus.facilityflow.auth.AuthFixture;
+import sg.edu.nus.facilityflow.model.MaintenanceRequest;
+import sg.edu.nus.facilityflow.model.RequestStatus;
 
 class AuthenticatedWorkflowTest {
     @TempDir
@@ -149,6 +151,56 @@ class AuthenticatedWorkflowTest {
         });
         drain();
         fx(() -> assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("Status: ASSIGNED")));
+    }
+
+    @Test
+    @DisplayName("TEC-001/004/013 TEC-A01 LIF-011/012 starts assigned work and refreshes persisted UI state")
+    void technicianStartsAssignedWorkFromQueue() throws Exception {
+        login("owner");
+        fillForm();
+        fx(() -> button("validate").fire());
+        drain();
+
+        fx(() -> button("logout").fire());
+        login("manager");
+        fx(() -> {
+            ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
+            ((ComboBox<?>) router.lookup("#assignee")).getSelectionModel().selectFirst();
+            ((ComboBox<?>) router.lookup("#managerPriority")).getSelectionModel().selectFirst();
+            button("assignRequest").fire();
+        });
+        drain();
+
+        fx(() -> button("logout").fire());
+        login("tech");
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#technicianRequests");
+            assertEquals(1, table.getItems().size());
+            assertEquals(RequestStatus.ASSIGNED, ((MaintenanceRequest) table.getItems().getFirst()).status());
+            assertTrue(button("startWork").isDisabled());
+
+            table.getSelectionModel().selectFirst();
+            assertFalse(button("startWork").isDisabled());
+            button("startWork").fire();
+            assertTrue(button("startWork").isDisabled());
+            assertEquals("Starting work…", ((Label) router.lookup("#technicianFeedback")).getText());
+        });
+        drain();
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#technicianRequests");
+            assertEquals(1, table.getItems().size());
+            assertEquals(RequestStatus.IN_PROGRESS, ((MaintenanceRequest) table.getItems().getFirst()).status());
+            assertTrue(button("startWork").isDisabled());
+            assertEquals("FF-000001 is now IN_PROGRESS. Work started successfully.",
+                    ((Label) router.lookup("#technicianFeedback")).getText());
+            assertTrue(((Label) router.lookup("#technicianRequestDetails")).getText()
+                    .contains("Status: In progress"));
+        });
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE display_id = 'FF-000001' AND status = 'IN_PROGRESS' AND assignee_id = 4"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id = 1 AND actor_id = 4 AND action = 'REQUEST_STARTED'"));
     }
 
     @Test
