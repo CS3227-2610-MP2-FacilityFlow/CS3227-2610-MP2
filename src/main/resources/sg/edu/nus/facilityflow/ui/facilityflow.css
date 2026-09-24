@@ -9,7 +9,7 @@
     -fx-text-background-color: #172b3a;
 }
 .label { -fx-text-fill: #172b3a; }
-.application-shell, .manager-shell { -fx-background-color: #f3f6fa; }
+.application-shell, .manager-shell, .technician-shell { -fx-background-color: #f3f6fa; }
 .login-page { -fx-background-color: linear-gradient(to bottom right, #e1f3ee, #f3f6fa, #e5edf8); }
 .product-name { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #0f655f; }
 .page-title { -fx-font-size: 28px; -fx-font-weight: bold; }
@@ -86,3 +86,11 @@
 .feedback-label { -fx-min-height: 32px; -fx-padding: 6px 0; -fx-text-fill: #526474; }
 .feedback-success { -fx-text-fill: #166534; }
 .feedback-error { -fx-text-fill: #b91c1c; -fx-font-weight: bold; }
+.summary-row {
+    -fx-background-color: white;
+    -fx-background-radius: 10px;
+    -fx-border-color: #dce4eb;
+    -fx-border-radius: 10px;
+    -fx-padding: 12px 16px;
+    -fx-font-weight: bold;
+}

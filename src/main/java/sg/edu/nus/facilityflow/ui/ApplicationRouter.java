@@ -128,7 +128,8 @@ public final class ApplicationRouter extends BorderPane {
             case FACILITIES_MANAGER -> setCenter(new ManagerDashboardView(
                     new ManagerDashboardController(manager, session), tasks, this::handleFailure).root());
             case TECHNICIAN -> setCenter(new TechnicianDashboardView(
-                    new TechnicianDashboardController(technician, session), tasks, this::handleFailure));
+                    new TechnicianDashboardController(technician, session), categories,
+                    tasks, this::handleFailure));
         }
     }
 
