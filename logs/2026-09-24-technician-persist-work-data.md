@@ -1,4 +1,4 @@
-# AI session summary: Technician Iteration 1 persistence tests
+# AI session summary: Persist Technician work data
 
 Date: 24 September 2026
 Human review: Pending.
@@ -6,7 +6,7 @@ Human review: Pending.
 ## Goal and important prompts
 
 The task was to implement the approved Technician shared persistence/model
-iteration in the current branch, using small commits named after their changes.
+foundation in the current branch, using small commits named after their changes.
 The current branch already contained the production foundation from the prior
 Technician data-contract commit, so this session audited the implementation and
 added only missing required integration-test coverage.
