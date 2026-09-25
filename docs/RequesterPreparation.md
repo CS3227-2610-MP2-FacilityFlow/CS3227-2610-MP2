@@ -1,7 +1,8 @@
 # Requester preparation: yooplo
 
-Status: authenticated UI integration, 22 September 2026. Login/session lifecycle,
-Requester submission/list/detail, and Manager assignment are connected. Password
+Status: authenticated Requester workflow implementation, 25 September 2026.
+Login/session lifecycle, Requester submission/list/detail, dashboard summary,
+filters, edit/cancel, follow-ups and visible history are connected. Password
 reset is a tested Manager-only service; its administration screen remains pending.
 Team-agreed ownership, confirmed by yooplo on
 14 September 2026: Requester — yooplo; Technician — ngkhengyang; Facilities
@@ -10,12 +11,11 @@ Manager — yu-sutong. Integration decisions were confirmed on
 
 ## Start here
 
-The next milestone is **authenticated create/list/detail with Manager handoff**.
+The next milestone is **verification and team review of the complete Requester workflow**.
 Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
 Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
 migrations, demo seeding, and category configuration together. The decisions are
-agreed; authenticated create/list/detail is implemented. Visible history remains
-part of the milestone still to complete.
+agreed; the Requester workflow and Manager handoff are implemented.
 
 1. Install JDK 25, set `JAVA_HOME`, and open the repository root as a Gradle
    project in your IDE. Select JDK 25 for both the project and Gradle JVM.
@@ -23,16 +23,16 @@ part of the milestone still to complete.
    in PowerShell. Use `sh ./gradlew` on macOS/Linux; headless Linux requires
    `xvfb-run -a sh ./gradlew test` for the focused JavaFX test.
 3. Sign in with a demo Requester from the User Guide. Try invalid submission,
-   then save valid details, inspect the persisted detail/list, and test Manager handoff.
+   then save valid details, inspect the persisted detail/list, and test Manager handoff,
+   edit/cancel, follow-ups and filters.
    The optional validation-only preview remains available through its launcher override.
 4. Read `RequestDraft`, `RequestValidator`, and their tests, then `RequesterForm`.
    The [Developer Guide](DeveloperGuide.md) links each file and explains its role.
 5. Requester packages now use `sg.edu.nus.facilityflow` and the shared urgency
    enum. Coordinate storage changes with yu-sutong. Follow the confirmed session and
    password contract; preserve the existing Manager tests.
-6. Login/session handling and form/list/detail now call the tested backend.
-   Next add **edit/cancel own OPEN requests**, then requester-visible history and
-   follow-ups. Preserve the authenticated handoff and role-isolation tests.
+6. Login/session handling and the full Requester workflow now use the shared backend.
+   Verify the latest changes and preserve the authenticated handoff and role-isolation tests.
 
 The preview contains no fake save, hardcoded logged-in account, or database.
 Do not treat its successful field check as permission to create a request.
@@ -71,8 +71,9 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Resolve password discrepancy: AUT-004 now requires 8–24 characters and no
   composition rule; AUT-005 hashing still applies.
 - [x] Confirm database location, sequential six-digit IDs, and creation audit fields.
-- [x] Implement schema versions 1–3, including account audit targets and session
-  versions; legacy upgrade tests pass. Team review remains pending.
+- [x] Implement schema versions 1–5, including account audit targets, session
+  versions, Technician work logs, and Requester updates; migration tests pass.
+  Team review remains pending.
 - [x] Load the `categories` key in `categories.properties` and seed six accounts
   atomically on fresh workspace creation. Document shared workspace paths.
 - [ ] Finish category rename/removal migrations and representative lifecycle demo
@@ -80,23 +81,21 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
-Authenticated create/list/detail is implemented; next add eligible edit/cancel,
-visible history and follow-ups. Shared responsibilities follow the confirmed ownership
-above; packaging and monitoring questions remain separate release work.
+Requester requirements REQ-001–017 now have implementation coverage. Test-agent
+verification and team review remain required. Shared responsibilities follow the
+confirmed ownership above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests
 
-Create topic branches from `master`, for example `yooplo/requester-create`, and
-request a teammate's review before merging. The table tracks complete increments:
-authenticated create/list/detail is available, while visible history and later
-increments remain outstanding.
+Create topic branches from `master`, for example `yooplo/requester-workflow`, and
+request a teammate's review before merging. The table records the delivered increments.
 
 | Order | Deliverable | Requirements |
 |---|---|---|
 | 1 | After shared scaffold: submit a validated request, atomically persist it and its audit event, show it in the owner's list/detail, and verify reload after restart | REQ-002–003, REQ-006, REQ-010–012; LIF-001–005; E2E-003–004, E2E-016 |
 | 2 | Edit own `OPEN` requests and cancel with confirmation and a valid reason; recheck persisted state before writing | REQ-007–008; LIF-011–016; E2E-011 |
-| 3 | Follow-up updates and requester-visible history, excluding internal notes; cover Manager-created requests owned by this Requester | REQ-009–010, REQ-014; LIF-006, LIF-008–010; E2E-025 |
-| 4 | Case-insensitive search, status/category/date filters, reset and empty states, then dashboard counts and recent own requests | REQ-001, REQ-004–005; LIF-017–020; UIX-013–015 |
+| 3 | Follow-up updates and requester-visible history, excluding internal notes; cover Manager-created requests owned by this Requester | REQ-009–010, REQ-014, REQ-017; LIF-006, LIF-008–010; E2E-025 |
+| 4 | Case-insensitive search, status/category/date filters, reset and empty states, then dashboard counts and recent own requests | REQ-001, REQ-004–005, REQ-015–016; LIF-017–020; UIX-013–015 |
 
 Enforce ownership and role checks from the first PR, including direct service
 calls (AUT-018–021, REQ-013). Derive owner and recording actor from the session
@@ -118,9 +117,9 @@ same field rules. Finish the full workflow before decorative dashboard work.
   persistence after restart, search/filter results, and accurate dashboard counts.
 - [ ] Add focused UI/system checks for role routing, form recovery, cancellation
   confirmation, and keyboard access. Cite requirement IDs in tests and PRs.
-- [ ] Before each PR, run `./gradlew.bat test` and `./gradlew.bat check`
-  on Windows (or `./gradlew test` and `./gradlew check` on macOS/Linux).
-- [ ] Update UserGuide.md and DeveloperGuide.md as functionality becomes real;
+- [x] Run the full Windows Gradle `check` with an isolated output directory;
+  the full suite and Checkstyle passed (26 September 2026).
+- [x] Update UserGuide.md and DeveloperGuide.md as functionality becomes real;
   record each substantial AI session under `logs/` with human review pending
   until a team member actually verifies it.
 

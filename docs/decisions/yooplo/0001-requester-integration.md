@@ -3,7 +3,8 @@
 - Owner: `yooplo`
 - Date: 20 September 2026
 - Status: Team-confirmed; authenticated create/list/detail and Manager handoff
-  implemented 22 September 2026; visible history and remaining workflow pending
+  implemented 22 September 2026; remaining Requester workflow implemented
+  26 September 2026, with verification and team review recorded separately
 - Affected collaborators: `yu-sutong` (Manager), `ngkhengyang` (Technician)
 
 ## First milestone
