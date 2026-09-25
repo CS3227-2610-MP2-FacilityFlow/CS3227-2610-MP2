@@ -2,38 +2,25 @@
 
 ## Overview
 
-FacilityFlow is a Java desktop application for reporting and coordinating
-maintenance work. It is intended for Requesters, Technicians, and Facilities
-Managers who share one local workspace under the same operating-system user.
+FacilityFlow helps people report maintenance problems and helps a Facilities
+Manager assign the work to Technicians. Each person signs in to a screen for
+their role.
 
-This development build supports sign-in and account actions for all three roles.
-Requesters can submit requests and view their own saved requests. Facilities
-Managers can view all requests and assign an `OPEN` request to an active
-Technician. Technicians can view a counted personal queue, search, filter, and
-reset it, inspect a selected request, start work on an `ASSIGNED` request, record
-internal work logs, and submit completed work for Manager review.
+A Requester can report a problem and follow their own requests. A Manager can
+see all requests and assign new ones. A Technician can see their assigned work,
+record progress, and submit finished work for review. The Manager cannot yet
+complete the review in the app.
 
-On first launch, FacilityFlow creates its local database, category configuration,
-and two demo accounts for each role. This is not a completed product release and
-there is no installer.
-
-All three roles use the same local SQLite workspace. A currently reachable
-cross-role workflow is: a Requester submits a request (`OPEN`), a Facilities
-Manager refreshes and assigns an active Technician and priority (`ASSIGNED`),
-then that Technician refreshes, starts work (`IN_PROGRESS`), adds a work log,
-and submits a resolution summary (`COMPLETED`). The completed request remains
-assigned for Manager review, but Manager review and closure controls are not yet
-available in the dashboard. (REQ-A08, E2E-003, E2E-005–007)
+This version runs from the project folder and has no installer.
 
 ## Setup and launch
 
-1. Install a Java Development Kit (JDK) 25. You do not need to install Gradle or
-   JavaFX separately.
-2. If `java` is not available in your terminal, set `JAVA_HOME` to the JDK 25
-   installation directory.
-3. Open a terminal in the FacilityFlow repository root. The first run may need an
-   internet connection to download Gradle and application libraries.
-4. Start the application with the command for your operating system:
+1. Install Java Development Kit (JDK) 25. You do not need to install other
+   software separately.
+2. Open PowerShell on Windows, or Terminal on macOS or Linux, in the FacilityFlow
+   project folder. If the command cannot find Java, set `JAVA_HOME` to your JDK
+   25 installation folder.
+3. Run the command for your computer:
 
    **Windows (PowerShell)**
 
@@ -47,8 +34,10 @@ available in the dashboard. (REQ-A08, E2E-003, E2E-005–007)
    sh ./gradlew run
    ```
 
-5. Sign in with one of the demo accounts. Every demo account initially uses the
-   password `Welcome123`.
+   The first run may need an internet connection to download the tools used to
+   start the app.
+4. Sign in with a demo account. The starting password for every account is
+   `Welcome123`.
 
    | Role | Usernames |
    |---|---|
@@ -56,320 +45,172 @@ available in the dashboard. (REQ-A08, E2E-003, E2E-005–007)
    | Technician | `technician1`, `technician2` |
    | Facilities Manager | `manager1`, `manager2` |
 
-FacilityFlow stores `facilityflow.db` and `categories.properties` in the
-following directory:
+## Storage
 
-- Windows: `%LOCALAPPDATA%\FacilityFlow`
-- macOS: `~/Library/Application Support/FacilityFlow`
-- Linux: `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow` when
-  `XDG_DATA_HOME` is not set
+FacilityFlow saves accounts, requests, and Technician work notes in
+`facilityflow.db`. It keeps the list of request categories in
+`categories.properties`. The app creates both files the first time you start
+it. You can find them here:
 
-All roles launched by the same operating-system user use these files. Existing
-compatible databases are upgraded automatically to schema version 4 and are not
-reseeded or reset. FacilityFlow stops safely if the database uses an unsupported
-newer schema or does not have the expected structure.
+| Computer | Folder |
+|---|---|
+| Windows | `%LOCALAPPDATA%\FacilityFlow` |
+| macOS | `~/Library/Application Support/FacilityFlow` |
+| Linux | `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow` if `XDG_DATA_HOME` is not set |
 
-Requests upgraded from schema version 3 may have an unknown assignment time. The
-upgrade intentionally leaves that value unknown instead of deriving it from a
-different timestamp. Technician queue ordering places unknown assignment times
-after known times; the request's next assignment or reassignment records a known
-assignment time.
+People who use FacilityFlow under the same computer account share these files.
+Saved work is still there after you close and reopen the app. You will need to
+sign in again. Text you have entered but have not saved is normally lost when
+you close the app.
 
-The `categories.properties` file has one `categories` entry containing a
-comma-separated list. A new workspace starts with Electrical, Plumbing, HVAC,
-Structural, Cleaning, Safety, and Other. Names must be unique, and `Other` must
-remain in the list. Invalid entries or additional configuration keys stop startup
-before the workspace opens.
-
-Role isolation applies across this shared workspace: a signed-in Requester sees
-only their own requests, a Technician sees only requests currently assigned to
-that Technician, and a Manager can view all requests. Wrong-role operations and
-attempts to access another Technician's assignment are rejected without
-revealing the inaccessible record. (AUT-014, AUT-018–021, E2E-014–015)
-
-Restarting FacilityFlow reloads committed accounts, requests, work logs, and
-audit records from these files, but never restores an authenticated session. Sign
-in again after restarting. (AUT-016, E2E-016)
+The starting categories are Electrical, Plumbing, HVAC, Structural, Cleaning,
+Safety, and Other. To change the list, edit the `categories` line in
+`categories.properties` while the app is closed. Separate names with commas,
+keep each name unique, and keep `Other`. If the list is invalid, the app will
+ask you to correct the file before it opens. Do not remove or rename a category
+already used by a saved request; this version cannot move those requests to a
+different category.
 
 ## Features
 
 ### Requester
 
-#### Sign in and manage the session
+#### Sign in and manage your account
 
-1. Enter a demo Requester username and password, then choose **Sign in**. The
-   password is masked and cleared after submission. Unknown usernames, incorrect
-   passwords, and inactive accounts all show the same invalid-credentials message.
-2. Use **Refresh account** to reload the account's active status and role. A role
-   change reroutes the current session without another sign-in.
-3. Use **Change password**, enter the current password and a new password of 8–24
-   characters, then choose **Change password**. No mixture of character types is
-   required. Both password fields are cleared on submission; success saves the new
-   password and keeps the session signed in.
-4. Use **Back** on the password screen to return to the current role route, or use
-   **Log out** to clear the session and return to sign-in. Closing the application
-   also discards the in-memory session.
+Sign in with a Requester account. Use **Refresh account** if your account has
+changed, **Change password** to set a new password, or **Log out** when finished.
+To change your password, enter the current one and a new one of 8 to 24
+characters. The new password is saved without signing you out. Use **Back** to
+leave the password screen.
 
-#### Submit a maintenance request
+#### Report a problem
 
-1. Choose **New request**.
-2. Complete every field:
+1. Choose **New request** and complete all five fields:
 
-   | Field | Required value |
+   | Field | What to enter |
    |---|---|
-   | Title | 5–100 characters |
-   | Description | 10–2,000 characters |
-   | Location | 2–120 characters |
-   | Category | One value from the configured category list |
-   | Reported urgency | Low, Normal, High, or Emergency |
+   | Title | A short summary, 5 to 100 characters |
+   | Description | Details of the problem, 10 to 2,000 characters |
+   | Location | Where the problem is, 2 to 120 characters |
+   | Category | Choose one of the available categories |
+   | Reported urgency | Choose Low, Normal, High, or Emergency |
 
-   Leading and trailing whitespace is removed before validation and storage.
-   Meaningful spaces and line breaks inside the text are kept.
-3. Choose **Submit request**. Field-specific messages beginning with **Error:**
-   identify invalid or missing values without clearing the other fields. While the
-   save is pending, the form and **Back to my requests** action are disabled to
-   prevent duplicate submissions.
-4. After a successful save, the detail view shows the generated `FF-` display ID,
-   status `OPEN`, the stored field values, and a success message. The request and
-   its audit event are saved in `facilityflow.db`. A storage failure leaves the
-   entered form values available for another attempt.
+   Spaces at the start and end of text are removed. Spaces and line breaks
+   within your text are kept.
+2. Choose **Submit request**. If a field needs correcting, the app shows a
+   message beside it and keeps your other entries.
+3. After a successful submission, the app opens the saved request and shows a
+   confirmation. It gives the request a unique number, such as `FF-000010`.
+   Use this number to identify the request when speaking to a Manager. A new
+   request has the status `OPEN`, meaning it has not yet been assigned to a
+   Technician.
 
-If the session expires while a request is being submitted, signing in again as
-the same account restores the draft held in memory. Explicit logout or closing
-the application discards unsaved input.
+If saving fails, your entries remain in the form so you can try again. If your
+sign-in expires, signing in again as the same Requester restores the unfinished
+form. Logging out or closing the app discards an unfinished form.
 
-#### View saved requests
+#### View your requests
 
-1. The **My requests** list loads only requests owned by the signed-in Requester,
-   newest first. Each entry shows its title, display ID, status, and location.
-2. Choose **Refresh requests** to reload the list from the database.
-3. Select one request and choose **View selected request**. The detail view shows
-   title, description, display ID, status, reported urgency, Manager priority when
-   set, category, location, and local creation and update times.
-4. Choose **Refresh detail** to reload its latest visible state, including a Manager
-   assignment or priority change. Choose **Back to my requests** to return to the
-   refreshed list.
+**My requests** shows only requests you submitted, with the newest first.
+Choose **Refresh requests** to check for changes. Select a request and choose
+**View selected request** to read its details. On that screen, choose
+**Refresh detail** to check its latest status or **Back to my requests** to
+return to the list.
 
-Other Requesters' records, internal audit details, and Technician work logs are
-not returned to this view.
+#### Practise filling out a request
 
-#### Check fields without saving
-
-The separate validation preview can be launched with:
+You can open a separate practice form without saving anything. From the
+project folder, run this command on Windows:
 
 ```powershell
 .\gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"
 ```
 
-On macOS or Linux, replace `.\gradlew.bat` with `sh ./gradlew`. Complete the same
-five fields and choose **Check details**. The preview reports field errors and
-keeps the entries, but it never creates a request or writes application data.
+On macOS or Linux, run `sh ./gradlew run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"`.
+Enter request details and choose **Check details** to see any corrections
+needed. Closing this form discards your entries.
 
 ### Technician
 
-#### Sign in and manage the session
+#### Sign in and manage your account
 
-Sign in with a Technician account to open the separate Technician route. The
-header provides the same **Refresh account**, **Change password**, and **Log out**
-actions described for Requesters. The password screen provides **Back**. Password
-changes are saved, while logout and application shutdown discard only the
-in-memory session.
+Sign in with a Technician account. **Refresh account**, **Change password**,
+and **Log out** work as described for Requesters.
 
-#### View assigned work
+#### Find and inspect your work
 
-1. When the Technician route opens, the **Technician work queue** loads requests
-   currently assigned to the signed-in Technician. It does not show requests
-   assigned to other Technicians. The table shows Request ID, title, location,
-   Manager priority, reported urgency, and status. Above it, the dashboard shows
-   the number of assigned, in-progress, and awaiting-review requests. With no
-   active filters and no assigned requests, it shows **No requests are
-   currently assigned to you.** A filter that returns no rows instead shows
-   **No requests match the current search and filters.** (TEC-001, UIX-014)
-2. The queue places higher Manager priorities first, then higher reported
-   urgencies, then the oldest assignment. Requests with an unknown assignment
-   time follow requests with a known assignment time. (TEC-003)
-3. To narrow the queue, enter text in **Search ID, title, or location** and press
-   Enter, or choose one or more values in **Status**, **Category**, and
-   **Priority**, then choose **Apply filters**. Search ignores letter case and
-   can match any part of the ID, title, or location. Filters can be combined.
-   (TEC-002)
-4. Choose **Reset filters** to clear the search text and all three filter
-   selections, then reload the unfiltered personal queue. (UIX-015)
-5. Choose **Refresh requests** to reload the queue using the current search and
-   filters and reload the three counts from the database. While a load is in
-   progress, the queue, filter controls, and refresh control are disabled. If
-   the refresh fails, the page shows a safe error message; an expired or invalid
-   session is handled by the normal sign-in flow. (UIX-009, UIX-012, UIX-013)
+**Technician work queue** shows only requests currently assigned to you. The
+counts above the list show how many are assigned, in progress, or awaiting
+Manager review. The list puts higher-priority work first; within the same
+priority, more urgent work comes first.
 
-The feedback area reports loading, starting, work-log saving, and Manager-review
-submission progress. It then shows a success confirmation or a user-safe error;
-successful actions refresh the displayed saved state. (UIX-010, UIX-012)
+To find a request, type part of its request number, title, or location in
+**Search**, or choose **Status**, **Category**, or **Priority**. Choose
+**Apply filters**; you can use several filters together. Choose **Reset
+filters** to see your full list again, or **Refresh requests** to check for
+changes. Select a request to read its details and internal work history.
 
-#### Inspect a request
+#### Start work
 
-1. Select one row in the queue. The **Request detail** panel shows the request's
-   display ID and title, location, category, reported urgency, current status,
-   Manager priority (or **Not set**), assignment time (or **Unknown** for legacy
-   data without one), updated time, and description. Times use the computer's
-   local time zone. Selecting a row does not change the saved request. (TEC-001,
-   TEC-011, UIX-016, UIX-023)
-2. If a refresh finds that the selected request is no longer assigned to you,
-   the selection is cleared.
+Select a request marked `ASSIGNED` and choose **Start work**. Its status becomes
+`IN_PROGRESS`, meaning you are working on it. The list refreshes and shows a
+confirmation. If someone changed the assignment or status while you were
+viewing it, the app rejects the action and refreshes the list.
 
-#### Record internal work
+#### Record your work
 
-1. Select a request and wait for its **Internal work history** to load. The
-   history is available only for requests currently assigned to you. Existing
-   entries show their local timestamp, Technician author identifier, minutes
-   spent, and note in chronological order. **No work logs recorded yet.** means
-   that the selected request has no entries. Work logs are internal: they are
-   not returned to Requester views. (TEC-005, TEC-007, TEC-011, LIF-007–LIF-010)
-2. Add a log only after the request is `IN_PROGRESS`. The **Add accountable
-   progress** area contains:
+For an `IN_PROGRESS` request, enter a note in **Describe the work performed**
+and the time in **Whole minutes, 1 to 1440**, then choose **Add work log**. The
+note must have 1 to 1,000 characters after spaces at its ends are removed. The
+time must be a whole number from 1 to 1,440 minutes. A saved note appears in
+**Internal work history** with its time and author. You cannot edit or delete
+a saved note through the app. Requesters cannot see these internal notes.
 
-   | Control | Required value |
-   |---|---|
-   | **Describe the work performed** | Required; 1–1,000 characters after leading and trailing whitespace is removed. The note may contain meaningful spaces and line breaks. |
-   | **Whole minutes, 1 to 1440** | Required; a whole number from 1 through 1,440 inclusive. |
+If an entry is invalid or cannot be saved, correct it and try again. If the
+request has been reassigned, the app refreshes your list instead of saving the
+note.
 
-   The **Add work log** button is disabled until a request is selected and its
-   current status is `IN_PROGRESS`. It is also disabled while the history is
-   loading or another action is in progress. A blank note, a note over 1,000
-   characters, or minutes outside the stated range is rejected without saving a
-   work log. (TEC-005, TEC-006, LIF-007)
-3. Choose **Add work log**. A successful save appends one entry, updates the
-   request's saved updated time, reloads the queue and history, clears both
-   input controls, and shows a confirmation such as **FF-000010 work log saved
-   successfully.** The saved entry retains the Technician author, timestamp,
-   note, and minutes. There are no edit or delete controls; work-log history is
-   append-only through the application. (TEC-007, TEC-013, LIF-007, LIF-010)
-4. If the minutes field is not a whole number, the page immediately shows
-   **Minutes spent must be a whole number from 1 to 1,440.** Other validation,
-   authorization, or storage failures show a safe error message and leave the
-   entered values available for another attempt. If the assignment or status
-   changed while the request was open, the write is rejected, no log is stored,
-   and the queue is refreshed with **The request assignment or status changed.
-   The queue was refreshed.** (TEC-012)
+#### Submit finished work
 
-#### Start assigned work
-
-1. Select a request whose status is `ASSIGNED`. The **Start work** control is
-   enabled only when a request is selected and its current displayed status is
-   `ASSIGNED`; it is disabled for other statuses and while another queue action
-   is in progress.
-2. Choose **Start work**. The application rechecks your Technician role, the
-   current assignment, and the persisted status before saving. A successful
-   action changes the request to `IN_PROGRESS`, records the transition and one
-   audit event, reloads the queue, and shows a confirmation such as **FF-000010
-   is now IN_PROGRESS. Work started successfully.** (TEC-004, TEC-A01, LIF-011,
-   LIF-012, LIF-016)
-3. If the assignment or status changed after the request was displayed, the
-   start is rejected and the queue is refreshed with **The request assignment or
-   status changed. The queue was refreshed.** If the start operation itself
-   fails, a safe error message is shown and no successful confirmation is
-   reported. If the follow-up refresh fails after a successful start, the page
-   shows the refresh error while the saved transition remains in the database.
-   A failed transaction does not leave a partial status or audit-event write.
-
-#### Submit work for Manager review
-
-1. Select an `IN_PROGRESS` request and wait for **Internal work history** to
-   finish loading. At least one saved work log is required. The **Submit for
-   Manager review** button stays disabled until the history has loaded and
-   contains at least one work log.
-2. Enter the outcome in **Resolution summary for Manager review**. This is a
-   required summary of the work completed. After leading and trailing
-   whitespace is removed, it must contain 10–2,000 Unicode code points;
-   meaningful spaces and line breaks inside the summary are kept.
-3. Choose **Submit for Manager review**. The application rechecks your role,
-   current assignment, and `IN_PROGRESS` status before saving. A successful
-   submission changes the request to `COMPLETED`, stores the trimmed summary
-   and completion time, preserves the current Technician assignment, records
-   an audit event, reloads the queue and work-log history, and shows a message
-   such as **FF-000010 was submitted for Manager review successfully.** The
-   summary field is cleared only after the completion write commits. (TEC-008,
-   TEC-009, TEC-013, TEC-A05, LIF-011, LIF-012, LIF-016)
-4. A missing or invalid summary is rejected without changing the request or
-   its work logs. The summary remains in the text area after a validation,
-   authorization, or storage failure so it can be corrected or retried. A
-   request with no work log cannot be completed; the service rejects that
-   attempt and keeps the request `IN_PROGRESS` with guidance to add a work log
-   first. (TEC-008, TEC-A04)
-5. If the assignment or status changes while the request is open, the
-   completion is rejected, no completion data is stored, and the queue is
-   refreshed with **The request assignment or status changed. The queue was
-   refreshed.** (TEC-012, TEC-013, LIF-016)
-
-After a successful submission, the request remains in the Technician's queue
-with status `COMPLETED`, but Technician work actions are disabled. The current
-Manager route does not yet expose review of the work logs or resolution summary,
-or the actions to close, return, or reopen the request. (TEC-009, MGR-007–009)
+An `IN_PROGRESS` request needs at least one saved work note before you can
+submit it. Enter a **Resolution summary for Manager review** of 10 to 2,000
+characters, then choose **Submit for Manager review**. The request changes to
+`COMPLETED`, remains assigned to you, and awaits Manager review. The app keeps
+the summary if submission fails so you can correct it or try again.
 
 ### Facilities Manager
 
-#### Sign in and manage the session
+#### Sign in and manage your account
 
-Sign in with a Facilities Manager account to open the Manager dashboard. The
-header provides the same **Refresh account**, **Change password**, and **Log out**
-actions described for Requesters. The password screen provides **Back**.
+Sign in with a Facilities Manager account. **Refresh account**,
+**Change password**, and **Log out** work as described for Requesters.
 
-#### View the request queue and details
+#### View requests
 
-1. The **All requests** table loads every saved request. It shows Request ID,
-   title, location, reported urgency, Manager priority, and status.
-2. `OPEN` requests appear first by reported urgency and age. Assigned and
-   in-progress work follows by Manager priority and oldest update time. Completed
-   and terminal work follows by newest update time; display ID breaks ties.
-3. Choose **Refresh requests** to reload the queue and active-Technician list.
-4. Select one row to show its display ID, title, and full description in the
-   **Request detail** panel. Selecting a row does not change stored data.
+**All requests** shows requests from every Requester. New requests appear
+first. Choose **Refresh requests** to see recent changes, and select a request
+to read its description.
 
-#### Assign an open request
+#### Assign a new request
 
-1. Select a request whose status is `OPEN`.
-2. In **Assignment**, choose an active Technician and a required Manager priority:
-   Low, Medium, High, or Critical.
-3. Choose **Assign request**. The action remains unavailable until all three
-   selections are valid and is disabled while the save is pending.
-4. A successful assignment saves the Technician and priority, changes the status
-   to `ASSIGNED`, records an audit event, refreshes the queue, and shows a success
-   message. If validation, authorization, or storage fails, a safe error is shown
-   and no successful assignment is reported.
-
-The shared workflow records an audit event for request creation, assignment,
-starting work, each work-log addition, and completion. The audit records retain
-the acting account and event time, but the current dashboards do not provide an
-audit-history viewer. (LIF-011–LIF-012, E2E-003, E2E-005–007)
-
-The Manager layout adapts to the window width. The queue and assignment panel
-stack in narrower windows and appear side by side at wider sizes. The detail panel
-and forms can be scrolled, and the queue can be scrolled horizontally.
+Select a request marked `OPEN`. In **Assignment**, choose an active Technician
+and a Manager priority of Low, Medium, High, or Critical. Choose **Assign
+request**. The request changes to `ASSIGNED`, and the app confirms the
+assignment. If it cannot save the assignment, it shows an error so you can
+correct the selection or try again.
 
 ## Current limitations
 
-- Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
-  the interface, including reason validation and audit storage, but the Manager
-  dashboard has no reassignment controls (MGR-006). Managers can currently assign
-  only `OPEN` requests.
-- Requesters cannot edit, cancel, search, or filter requests; add follow-up
-  information; or view requester-visible activity history.
-- Managers cannot yet record requests on behalf of Requesters, correct request
-  details, review work logs or resolution summaries, cancel or close/return/reopen
-  requests, manage accounts, or view audit history through the dashboard. Manager
-  password reset exists only behind the interface.
-- The Technician route does not currently display Requester follow-up updates or
-  a requester-visible activity history; it shows the original request details
-  and internal Technician work-log history instead. (UIX role screen inventory)
-- Fresh workspaces contain the six demo accounts but no representative requests,
-  so lifecycle examples must first be created and assigned manually.
-- Category rename and removal mappings are not implemented. Removing a category
-  used by a saved request, adding unknown keys, or using invalid category values
-  stops startup safely instead of migrating existing data.
-- FacilityFlow has no release installer. The development build must be launched
-  from the repository with Gradle.
+- Requesters cannot yet edit, cancel, search, or filter their requests, add
+  follow-up information, or view a history of status changes.
+- Managers can assign new requests but cannot yet report a problem for someone
+  else, correct request details, reassign or cancel work, review a Technician's
+  completion, close or reopen requests, manage other accounts, or view the
+  history of changes in the app.
+- A new workspace has demo accounts but no sample requests. A Requester must
+  submit a request before a Manager can assign it.
 
 ## Disclaimers
 
-Do not use this development build as the only channel for a real maintenance
-issue. Use your organisation's established reporting process until FacilityFlow
-has a reviewed release and the complete role workflow.
+Use your organisation's usual reporting channel for real maintenance issues
+until FacilityFlow can handle the full process.
