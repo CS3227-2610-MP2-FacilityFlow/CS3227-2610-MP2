@@ -21,6 +21,8 @@ import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
+import sg.edu.nus.facilityflow.model.RequesterUpdate;
+import sg.edu.nus.facilityflow.model.RequesterHistoryEntry;
 
 /** SQLite implementation whose callback commits all writes or rolls all of them back. */
 public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStore {
@@ -495,6 +497,123 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                 statement.setString(5, event.occurredAt().toString());
                 statement.setLong(6, event.requestId());
                 statement.executeUpdate();
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public boolean updateRequesterRequest(MaintenanceRequest request, long ownerId, RequestStatus expected) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE maintenance_requests SET title=?, description=?, location=?, category=?,
+                        reported_urgency=?, updated_at=?
+                    WHERE id=? AND requester_id=? AND status=?
+                    """)) {
+                statement.setString(1, request.title());
+                statement.setString(2, request.description());
+                statement.setString(3, request.location());
+                statement.setString(4, request.category());
+                statement.setString(5, request.reportedUrgency().name());
+                statement.setString(6, request.updatedAt().toString());
+                statement.setLong(7, request.id());
+                statement.setLong(8, ownerId);
+                statement.setString(9, expected.name());
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public boolean cancelRequesterRequest(long requestId, long ownerId, Instant at) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE maintenance_requests SET status='CANCELLED', updated_at=?
+                    WHERE id=? AND requester_id=? AND status='OPEN'
+                    """)) {
+                statement.setString(1, at.toString());
+                statement.setLong(2, requestId);
+                statement.setLong(3, ownerId);
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public void addRequesterUpdate(long requestId, long authorId, String text, Instant at) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO requester_updates(request_id,author_id,text,created_at)
+                    SELECT ?,?,?,? WHERE EXISTS (
+                        SELECT 1 FROM maintenance_requests
+                        WHERE id=? AND status NOT IN ('CLOSED','CANCELLED'))
+                    """)) {
+                statement.setLong(1, requestId);
+                statement.setLong(2, authorId);
+                statement.setString(3, text);
+                statement.setString(4, at.toString());
+                statement.setLong(5, requestId);
+                if (statement.executeUpdate() != 1) {
+                    throw new StorageException("Request no longer accepts updates.", null);
+                }
+                try (PreparedStatement update = connection.prepareStatement("""
+                        UPDATE maintenance_requests SET updated_at=?
+                        WHERE id=? AND status NOT IN ('CLOSED','CANCELLED')
+                        """)) {
+                    update.setString(1, at.toString());
+                    update.setLong(2, requestId);
+                    if (update.executeUpdate() != 1) {
+                        throw new StorageException("Request no longer accepts updates.", null);
+                    }
+                }
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public List<RequesterUpdate> listRequesterUpdates(long requestId) {
+            List<RequesterUpdate> rows = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT * FROM requester_updates WHERE request_id=? ORDER BY created_at,id
+                    """)) {
+                statement.setLong(1, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        rows.add(new RequesterUpdate(
+                                result.getLong("id"), requestId, result.getLong("author_id"),
+                                result.getString("text"), Instant.parse(result.getString("created_at"))));
+                    }
+                }
+                return rows;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public List<RequesterHistoryEntry> listRequesterHistory(long requestId) {
+            List<RequesterHistoryEntry> rows = new ArrayList<>();
+            String sql = """
+                    SELECT action, detail, occurred_at FROM audit_events
+                    WHERE request_id=? AND action IN ('REQUEST_CREATED','REQUEST_ASSIGNED',
+                        'REQUEST_REASSIGNED','REQUEST_STARTED','REQUEST_COMPLETED','REQUEST_CANCELLED',
+                        'REQUEST_CLOSED','REQUEST_REOPENED','REQUEST_RETURNED')
+                    ORDER BY occurred_at,id
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        String action = result.getString("action");
+                        String text = action.replace("REQUEST_", "").replace('_', ' ');
+                        if (action.equals("REQUEST_CANCELLED") || action.equals("REQUEST_REOPENED")) {
+                            text += ": " + result.getString("detail");
+                        }
+                        rows.add(new RequesterHistoryEntry(
+                                "Status", text, Instant.parse(result.getString("occurred_at"))));
+                    }
+                }
+                return rows;
             } catch (SQLException exception) {
                 throw storageFailure(exception);
             }

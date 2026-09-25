@@ -16,6 +16,8 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -33,6 +35,7 @@ import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.RequesterFilter;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
@@ -196,6 +199,139 @@ class SQLiteRequesterRequestServiceTest {
     }
 
     @Test
+    @DisplayName("REQ-004 LIF-018 searches display ID, title and location without case or surrounding whitespace")
+    void searchesOwnRequestsAcrossSupportedFields() {
+        var request = service.createRequest(OWNER, DRAFT);
+        for (String query : List.of(" ff-000001 ", "LEAKING", "PANTRY")) {
+            assertEquals(List.of(request), service.listOwnRequests(OWNER,
+                    new RequesterFilter(query, null, null, null, null)));
+        }
+        assertTrue(service.listOwnRequests(OWNER,
+                new RequesterFilter("no match", null, null, null, null)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("REQ-005/016 LIF-017/019 filters status, category, and inclusive local dates")
+    void filtersByEnumsCategoryAndInclusiveLocalDates() {
+        var zone = ZoneId.systemDefault();
+        var localToday = LocalDate.ofInstant(NOW, zone);
+        var dayStart = localToday.atStartOfDay(zone).toInstant();
+        var previous = requesterService(store, dayStart.minusNanos(1)).createRequest(OWNER, DRAFT);
+        var first = requesterService(store, dayStart).createRequest(OWNER, DRAFT);
+        var last = requesterService(store, localToday.plusDays(1).atStartOfDay(zone).toInstant().minusNanos(1))
+                .createRequest(OWNER, DRAFT);
+        var next = requesterService(store, localToday.plusDays(1).atStartOfDay(zone).toInstant())
+                .createRequest(OWNER, DRAFT);
+        var manager = new ManagerRequestService(store, Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER);
+        var assignedLast = manager.assignOpenRequest(TestSessions.issue(3), last.id(), 4, ManagerPriority.HIGH);
+
+        var dateFilter = new RequesterFilter(null, null, null, localToday, localToday);
+        assertEquals(List.of(assignedLast, first), service.listOwnRequests(OWNER, dateFilter));
+        assertEquals(List.of(assignedLast), service.listOwnRequests(OWNER,
+                new RequesterFilter(null, RequestStatus.ASSIGNED, "Plumbing", null, null)));
+        assertTrue(service.listOwnRequests(OWNER,
+                new RequesterFilter(null, null, "Electrical", null, null)).isEmpty());
+        assertTrue(service.listOwnRequests(OWNER,
+                new RequesterFilter(null, null, null, localToday.plusDays(5), localToday.plusDays(6))).isEmpty());
+        assertTrue(service.listOwnRequests(OWNER).containsAll(List.of(previous, first, assignedLast, next)));
+    }
+
+    @Test
+    @DisplayName("REQ-007/013 REQ-A04 permits audited owner edits only in OPEN")
+    void editsOnlyOwnedOpenRequests() throws SQLException {
+        var original = service.createRequest(OWNER, DRAFT);
+        var edited = service.editOpenRequest(OWNER, original.id(),
+                new RequestDraft("  New title  ", "  Updated description text  ", "  Room 2  ", "Plumbing", ReportedUrgency.LOW));
+        assertEquals("New title", edited.title());
+        assertEquals("Updated description text", edited.description());
+        assertEquals(RequestStatus.OPEN, edited.status());
+        assertEquals(NOW, edited.updatedAt());
+        assertEquals(2, scalar("SELECT COUNT(*) FROM audit_events"));
+        assertEquals("REQUEST_EDITED", stringScalar("SELECT action FROM audit_events ORDER BY id DESC LIMIT 1"));
+
+        var assigned = new ManagerRequestService(store, Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER)
+                .assignOpenRequest(TestSessions.issue(3), original.id(), 4, ManagerPriority.HIGH);
+        assertThrows(ValidationException.class, () -> service.editOpenRequest(OWNER, original.id(), DRAFT));
+        assertThrows(ValidationException.class,
+                () -> service.cancelOpenRequest(OWNER, original.id(), "valid cancellation reason"));
+        assertEquals(assigned, service.getOwnRequest(OWNER, original.id()));
+        assertThrows(AuthorizationException.class, () -> service.editOpenRequest(OTHER, original.id(), DRAFT));
+        assertEquals(3, scalar("SELECT COUNT(*) FROM audit_events"));
+    }
+
+    @Test
+    @DisplayName("REQ-008 REQ-A05 LIF-015 cancellation needs a valid reason and stores terminal state atomically")
+    void cancelsOpenRequestWithReasonAndHistory() throws SQLException {
+        var created = service.createRequest(OWNER, DRAFT);
+        for (String reason : java.util.Arrays.asList(null, "  ", "four", "x".repeat(501))) {
+            assertThrows(ValidationException.class, () -> service.cancelOpenRequest(OWNER, created.id(), reason));
+        }
+        assertEquals(created, service.getOwnRequest(OWNER, created.id()));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events"));
+
+        var cancelled = service.cancelOpenRequest(OWNER, created.id(), "  No longer needed  ");
+        assertEquals(RequestStatus.CANCELLED, cancelled.status());
+        assertEquals("No longer needed", stringScalar("SELECT detail FROM audit_events WHERE action='REQUEST_CANCELLED'"));
+        assertTrue(service.getVisibleHistory(OWNER, created.id()).stream()
+                .anyMatch(entry -> entry.text().contains("No longer needed")));
+        assertThrows(ValidationException.class, () -> service.cancelOpenRequest(OWNER, created.id(), "again valid"));
+        assertThrows(ValidationException.class, () -> service.addFollowUp(OWNER, created.id(), "Too late update"));
+        assertThrows(AuthorizationException.class, () -> service.cancelOpenRequest(OTHER, created.id(), "valid reason"));
+        assertThrows(AuthorizationException.class, () -> service.addFollowUp(OTHER, created.id(), "Too late update"));
+        assertEquals(2, scalar("SELECT COUNT(*) FROM audit_events"));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM requester_updates"));
+    }
+
+    @Test
+    @DisplayName("REQ-009 LIF-006/009/015 accepts follow-ups through COMPLETED and rejects terminal requests")
+    void addsOwnerFollowUpsOnlyBeforeTerminalState() throws SQLException {
+        var open = service.createRequest(OWNER, DRAFT);
+        for (String text : java.util.Arrays.asList(null, "", "  ", "x".repeat(1001))) {
+            assertThrows(ValidationException.class, () -> service.addFollowUp(OWNER, open.id(), text));
+        }
+        service.addFollowUp(OWNER, open.id(), "  Please call before entry.  ");
+        var updates = store.inTransaction(tx -> tx.listRequesterUpdates(open.id()));
+        assertEquals(1, updates.size());
+        assertEquals("Please call before entry.", updates.get(0).text());
+        assertEquals(OWNER.accountId(), updates.get(0).authorId());
+        assertTrue(service.getVisibleHistory(OWNER, open.id()).stream()
+                .anyMatch(entry -> entry.kind().equals("Follow-up") && entry.text().equals("Please call before entry.")));
+        assertThrows(AuthorizationException.class, () -> service.addFollowUp(OTHER, open.id(), "update"));
+
+        var manager = new ManagerRequestService(store, Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER);
+        var assigned = manager.assignOpenRequest(TestSessions.issue(3), open.id(), 4, ManagerPriority.HIGH);
+        var tech = new sg.edu.nus.facilityflow.service.TechnicianRequestService(store,
+                Clock.fixed(NOW, ZoneOffset.UTC), TestSessions.MANAGER);
+        var inProgress = tech.startWork(TestSessions.issue(4), assigned.id());
+        tech.addWorkLog(TestSessions.issue(4), inProgress.id(), "Inspected and repaired pipe", 15);
+        var completed = tech.completeWork(TestSessions.issue(4), inProgress.id(), "Replaced the leaking pipe.");
+        assertEquals(RequestStatus.COMPLETED, completed.status());
+        service.addFollowUp(OWNER, open.id(), "Thank you for the update.");
+        execute("UPDATE maintenance_requests SET status='CLOSED' WHERE id=" + open.id());
+        assertThrows(ValidationException.class, () -> service.addFollowUp(OWNER, open.id(), "Closed update"));
+        assertEquals(2, store.inTransaction(tx -> tx.listRequesterUpdates(open.id())).size());
+    }
+
+    @Test
+    @DisplayName("REQ-006/010/017 AUT-019 history includes visible events and follow-ups without internal notes or work logs")
+    void visibleHistoryExcludesInternalRecords() {
+        var created = service.createRequest(OWNER, DRAFT);
+        store.inTransaction(tx -> {
+            tx.appendAuditEvent(new AuditEvent(created.id(), 3, "REQUEST_ASSIGNED", "{\"status\":\"ASSIGNED\"}", NOW.plusSeconds(1)));
+            tx.appendAuditEvent(new AuditEvent(created.id(), 3, "PRIVATE_MANAGER_NOTE", "private manager text", NOW.plusSeconds(2)));
+            return null;
+        });
+        service.addFollowUp(OWNER, created.id(), "Owner follow-up");
+        var history = service.getVisibleHistory(OWNER, created.id());
+        assertTrue(history.stream().anyMatch(entry -> entry.text().contains("ASSIGNED")));
+        assertTrue(history.stream().anyMatch(entry -> entry.text().equals("Owner follow-up")));
+        assertFalse(history.stream().anyMatch(entry -> entry.text().contains("private manager text")));
+        assertFalse(history.stream().anyMatch(entry -> entry.kind().toLowerCase().contains("work log")));
+        assertEquals(history.stream().sorted(java.util.Comparator.comparing(sg.edu.nus.facilityflow.model.RequesterHistoryEntry::occurredAt)).toList(), history);
+        assertThrows(AuthorizationException.class, () -> service.getVisibleHistory(OTHER, created.id()));
+    }
+
+    @Test
     @DisplayName("REQ-A07 DAT-001/010 request identity and data survive reopening the database")
     void survivesRestart() {
         var created = service.createRequest(OWNER, DRAFT);
@@ -234,8 +370,8 @@ class SQLiteRequesterRequestServiceTest {
     }
 
     @Test
-    @DisplayName("REQ-014/010 owner reads include Manager-recorded requests but never return raw private audits")
-    void readsManagerRecordedRequestWithoutPrivateNotes() {
+    @DisplayName("REQ-014/A04/A05 LIF-013 Manager-recorded OPEN request retains owner edit and cancellation rights")
+    void managerRecordedRequestHasOwnerEditAndCancelRights() throws SQLException {
         // Fixture for a Manager-recorded request; the Manager creation UI/service is separate work.
         var recorded = store.inTransaction(transaction -> {
             var request = transaction.createOpenRequest(OWNER.accountId(), DRAFT, NOW);
@@ -248,6 +384,24 @@ class SQLiteRequesterRequestServiceTest {
         assertEquals(recorded, service.getOwnRequest(OWNER, recorded.id()));
         assertEquals(List.of(recorded), service.listOwnRequests(OWNER));
         assertTrue(service.listOwnRequests(OTHER).isEmpty());
+
+        var edited = service.editOpenRequest(OWNER, recorded.id(), new RequestDraft(
+                "Corrected manager report", "The manager recorded the same issue for the requester.",
+                "Block B", "Plumbing", ReportedUrgency.HIGH));
+        assertEquals("Corrected manager report", edited.title());
+        assertEquals(RequestStatus.OPEN, edited.status());
+        assertEquals(edited, service.getOwnRequest(OWNER, recorded.id()));
+
+        var cancelled = service.cancelOpenRequest(OWNER, recorded.id(), "Duplicate request from manager");
+        assertEquals(RequestStatus.CANCELLED, cancelled.status());
+        assertEquals("REQUEST_EDITED", stringScalar("SELECT action FROM audit_events WHERE request_id="
+                + recorded.id() + " AND action='REQUEST_EDITED'"));
+        assertEquals(OWNER.accountId(), scalar("SELECT actor_id FROM audit_events WHERE request_id="
+                + recorded.id() + " AND action='REQUEST_EDITED'"));
+        assertEquals(OWNER.accountId(), scalar("SELECT actor_id FROM audit_events WHERE request_id="
+                + recorded.id() + " AND action='REQUEST_CANCELLED'"));
+        assertTrue(service.getVisibleHistory(OWNER, recorded.id()).stream()
+                .anyMatch(entry -> entry.text().contains("Duplicate request from manager")));
     }
 
     @Test
@@ -324,6 +478,15 @@ class SQLiteRequesterRequestServiceTest {
                 ResultSet result = statement.executeQuery()) {
             assertTrue(result.next());
             return result.getLong(1);
+        }
+    }
+
+    private String stringScalar(String sql) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(jdbcUrl);
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet result = statement.executeQuery()) {
+            assertTrue(result.next());
+            return result.getString(1);
         }
     }
 

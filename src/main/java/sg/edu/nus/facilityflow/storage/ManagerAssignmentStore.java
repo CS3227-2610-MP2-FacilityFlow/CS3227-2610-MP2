@@ -11,6 +11,8 @@ import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
+import sg.edu.nus.facilityflow.model.RequesterUpdate;
+import sg.edu.nus.facilityflow.model.RequesterHistoryEntry;
 
 /** Shared transaction seam for authenticated request operations across all roles. */
 public interface ManagerAssignmentStore {
@@ -59,5 +61,21 @@ public interface ManagerAssignmentStore {
         void updateRequest(MaintenanceRequest request);
 
         void appendAuditEvent(AuditEvent event);
+
+        default void addRequesterUpdate(long requestId, long authorId, String text, Instant at) {
+            throw new UnsupportedOperationException("Requester updates are unavailable");
+        }
+
+        default List<RequesterUpdate> listRequesterUpdates(long requestId) { return List.of(); }
+
+        default List<RequesterHistoryEntry> listRequesterHistory(long requestId) { return List.of(); }
+
+        default boolean updateRequesterRequest(MaintenanceRequest request, long ownerId, RequestStatus expected) {
+            throw new UnsupportedOperationException("Requester edits are unavailable");
+        }
+
+        default boolean cancelRequesterRequest(long requestId, long ownerId, Instant at) {
+            throw new UnsupportedOperationException("Requester cancellation is unavailable");
+        }
     }
 }

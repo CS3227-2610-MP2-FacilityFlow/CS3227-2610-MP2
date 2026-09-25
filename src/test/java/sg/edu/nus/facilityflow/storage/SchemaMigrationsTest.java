@@ -41,14 +41,15 @@ class SchemaMigrationsTest {
     }
 
     @Test
-    @DisplayName("DAT-003/004 creates schema version 4 and repeated initialization is idempotent")
+    @DisplayName("DAT-003/004 creates schema version 5 and repeated initialization is idempotent")
     void initializesNewDatabase() throws SQLException {
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(5, scalar("PRAGMA user_version"));
         assertEquals(1, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(0, scalar("SELECT COUNT(*) FROM maintenance_requests"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'work_logs'"));
+        assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'requester_updates'"));
         assertEquals(1, scalar("""
                 SELECT COUNT(*) FROM sqlite_master
                 WHERE type = 'index' AND name = 'maintenance_requests_technician_queue'
@@ -65,7 +66,7 @@ class SchemaMigrationsTest {
         }
         store.initializeSchema();
         store.initializeSchema();
-        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(5, scalar("PRAGMA user_version"));
         assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM user_accounts WHERE password_hash = 'unchanged-hash'"));
         assertEquals(1, scalar("""
@@ -102,7 +103,7 @@ class SchemaMigrationsTest {
             }
         }
         store.initializeSchema();
-        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(5, scalar("PRAGMA user_version"));
         assertEquals(0, scalar("SELECT session_version FROM user_accounts WHERE id = 1"));
         assertEquals(21, scalar("SELECT next_value FROM request_identity_sequence"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7 AND target_id = 10"));
@@ -126,7 +127,7 @@ class SchemaMigrationsTest {
 
         store.initializeSchema();
 
-        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(5, scalar("PRAGMA user_version"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM maintenance_requests WHERE id = 10"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM audit_events WHERE id = 7"));
         assertEquals(1, scalar("SELECT COUNT(*) FROM sqlite_master WHERE name = 'work_logs'"));
@@ -220,7 +221,7 @@ class SchemaMigrationsTest {
         execute("DELETE FROM request_identity_sequence");
         assertThrows(StorageException.class, store::initializeSchema);
         assertEquals(0, scalar("SELECT COUNT(*) FROM request_identity_sequence"));
-        assertEquals(4, scalar("PRAGMA user_version"));
+        assertEquals(5, scalar("PRAGMA user_version"));
     }
 
     private void createVersionThreeWorkspace() throws Exception {
