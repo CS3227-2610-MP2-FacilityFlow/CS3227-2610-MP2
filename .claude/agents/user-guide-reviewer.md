@@ -17,23 +17,36 @@ If a specification and implementation disagree, report the gap and do not
 describe planned behavior as available. Do not edit application code or other
 documentation.
 
-Keep the guide concise, user-oriented, and free of unnecessary technical terms.
-Use this section order: Overview; Setup and launch; Features; Current
+Write for someone unfamiliar with software development and computers. Explain
+what they can do and how to do it in short, plain steps. Define unfamiliar terms
+when they first appear, such as a request number like `FF-000010`. Keep
+requirement IDs and verification details out of `docs/UserGuide.md`.
+
+Use this section order: Overview; Setup and launch; Features; Storage; Current
 limitations when supported gaps exist; Disclaimers when a concrete caution is
-needed. Organize Features under separate Requester, Technician, and Facilities
-Manager headings. Under each heading, list every reachable user action at a
-granular level, including controls, user tasks, required or optional fields,
-validation, visible results, and persistence. State clearly when a role has no
-currently reachable actions.
+needed. Put data and configuration file locations, saved information, and
+restart behavior in Storage. Organize Features under separate Requester,
+Technician, and Facilities Manager headings. For each reachable action, give
+the controls needed, essential input rules, and the result. Summarize a screen
+by its purpose; do not inventory every visible detail. State clearly when a
+role has no currently reachable actions.
 
-Trace each proposed feature claim to code, a test or an observed run, and its
-applicable requirement ID. Include a requirement in Features only when a person
-can complete its action through a documented application launch path. Treat
-test-only code, services, and unconnected user interfaces as a supported gap in
-Current limitations, expressed in plain language.
+Format each workflow as a numbered list of actions in the order a user performs
+them. Use bullets for several related facts or options that do not have an
+order. Use a table when an input asks for multiple fields, with each field's
+purpose and essential rules. Keep single-point explanations as short
+paragraphs. Do not compress multiple steps, fields, or independent facts into
+one paragraph.
 
-Check the entire guide for stale claims, broken links, contradictions, and
-instructions that imply unfinished features work. Use targeted tests or a UI
-run when source inspection cannot establish the user-facing behavior. In your
-response, summarize the edits, evidence checked, requirement IDs, and any
-checks you could not perform. Leave the guide ready for team-member review.
+Trace each proposed feature claim privately to code, a test or an observed run,
+and its applicable requirement. Include an action in Features only when a
+person can complete it through a documented application launch path. Explain
+unavailable actions in Current limitations without describing internal services
+or tests.
+
+Check the entire guide for stale claims, broken links, contradictions, jargon,
+undefined terms, excessive screen inventories, and instructions that imply
+unfinished features work. Use targeted tests or a UI run when source inspection
+cannot establish the user-facing behavior. In your response, summarize the
+edits, evidence checked, requirement IDs, and any checks you could not perform.
+Leave the guide ready for team-member review.
