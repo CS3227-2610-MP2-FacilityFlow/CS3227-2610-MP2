@@ -16,9 +16,11 @@ import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
+import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 import sg.edu.nus.facilityflow.ui.manager.ManagerDashboardController;
 import sg.edu.nus.facilityflow.ui.manager.ManagerDashboardView;
 import sg.edu.nus.facilityflow.ui.requester.RequesterDashboardView;
+import sg.edu.nus.facilityflow.ui.technician.TechnicianDashboardController;
 import sg.edu.nus.facilityflow.ui.technician.TechnicianDashboardView;
 
 /** AUT-014/015/032: identity comes only from the authentication service. */
@@ -26,6 +28,7 @@ public final class ApplicationRouter extends BorderPane {
     private final AuthenticationService auth;
     private final RequesterRequestService requester;
     private final ManagerRequestService manager;
+    private final TechnicianRequestService technician;
     private final List<String> categories;
     private final UiTasks tasks;
     private AuthenticatedSession session;
@@ -34,10 +37,12 @@ public final class ApplicationRouter extends BorderPane {
     private long requesterOwner;
 
     public ApplicationRouter(AuthenticationService auth, RequesterRequestService requester,
-                             ManagerRequestService manager, List<String> categories, UiTasks tasks) {
+                             ManagerRequestService manager, TechnicianRequestService technician,
+                             List<String> categories, UiTasks tasks) {
         this.auth = auth;
         this.requester = requester;
         this.manager = manager;
+        this.technician = technician;
         this.categories = categories;
         this.tasks = tasks;
         getStyleClass().add("application-shell");
@@ -122,7 +127,9 @@ public final class ApplicationRouter extends BorderPane {
             }
             case FACILITIES_MANAGER -> setCenter(new ManagerDashboardView(
                     new ManagerDashboardController(manager, session), tasks, this::handleFailure).root());
-            case TECHNICIAN -> setCenter(new TechnicianDashboardView());
+            case TECHNICIAN -> setCenter(new TechnicianDashboardView(
+                    new TechnicianDashboardController(technician, session), categories,
+                    tasks, this::handleFailure));
         }
     }
 

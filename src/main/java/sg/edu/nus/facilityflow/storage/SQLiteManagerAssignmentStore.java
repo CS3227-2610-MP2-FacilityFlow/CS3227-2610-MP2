@@ -18,6 +18,7 @@ import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
 
@@ -345,6 +346,36 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                     }
                 }
                 return requests;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public TechnicianDashboardCounts getTechnicianDashboardCounts(long technicianId) {
+            String sql = """
+                    SELECT
+                        COALESCE(SUM(CASE WHEN status = 'ASSIGNED' THEN 1 ELSE 0 END), 0)
+                            AS assigned_count,
+                        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0)
+                            AS in_progress_count,
+                        COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0)
+                            AS completed_count
+                    FROM maintenance_requests
+                    WHERE assignee_id = ?
+                        AND status IN ('ASSIGNED', 'IN_PROGRESS', 'COMPLETED')
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, technicianId);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        throw new StorageException("Technician dashboard counts could not be read.", null);
+                    }
+                    return new TechnicianDashboardCounts(
+                            result.getInt("assigned_count"),
+                            result.getInt("in_progress_count"),
+                            result.getInt("completed_count"));
+                }
             } catch (SQLException exception) {
                 throw storageFailure(exception);
             }

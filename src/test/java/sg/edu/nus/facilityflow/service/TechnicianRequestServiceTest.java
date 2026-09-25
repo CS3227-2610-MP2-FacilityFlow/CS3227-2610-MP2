@@ -30,6 +30,7 @@ import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
@@ -92,6 +93,20 @@ class TechnicianRequestServiceTest {
                 .toList();
 
         assertEquals(List.of(21L, 25L, 26L, 27L, 20L, 22L, 23L), ids);
+    }
+
+    @Test
+    @DisplayName("TEC-001 counts only the logged-in Technician's current queue states")
+    void countsOnlyCurrentTechnicianQueueStates() {
+        store.requests.put(14L, request(14, RequestStatus.OPEN, 2L,
+                ManagerPriority.LOW, ReportedUrgency.LOW, null));
+        store.requests.put(15L, request(15, RequestStatus.CLOSED, 2L,
+                ManagerPriority.CRITICAL, ReportedUrgency.EMERGENCY, ASSIGNED_AT));
+
+        assertEquals(new TechnicianDashboardCounts(1, 1, 1),
+                service.getDashboardCounts(technicianSession));
+        assertEquals(new TechnicianDashboardCounts(1, 0, 0),
+                service.getDashboardCounts(TestSessions.issue(3)));
     }
 
     static Stream<Arguments> queueSearchQueries() {
@@ -185,6 +200,7 @@ class TechnicianRequestServiceTest {
     @DisplayName("AUT-018/020/021 rejects absent, wrong-role, inactive and unknown Technician sessions")
     void rejectsUnauthorizedSessions(AuthenticatedSession session) {
         assertThrows(AuthorizationException.class, () -> service.listAssignedRequests(session));
+        assertThrows(AuthorizationException.class, () -> service.getDashboardCounts(session));
         assertThrows(AuthorizationException.class, () -> service.getAssignedRequest(session, 10));
         assertThrows(AuthorizationException.class, () -> service.listWorkLogs(session, 11));
         assertThrows(AuthorizationException.class, () -> service.startWork(session, 10));
@@ -259,6 +275,26 @@ class TechnicianRequestServiceTest {
         assertTrue(error.getMessage().contains("changed"));
         assertEquals(RequestStatus.ASSIGNED, store.requests.get(10L).status());
         assertNoProgressWrites();
+    }
+
+    @Test
+    @DisplayName("LIF-016 rejects stale completion before changing state or writing its audit")
+    void rejectsStaleCompletionBeforeAudit() {
+        WorkLog evidence = new WorkLog(
+                1, 11, 2, "Replaced damaged fitting.", 45, NOW.minusSeconds(60));
+        store.workLogs.add(evidence);
+        store.rejectTechnicianUpdate = true;
+
+        AuthorizationException error = assertThrows(
+                AuthorizationException.class,
+                () -> service.completeWork(
+                        technicianSession, 11, "Replaced fitting and tested water flow."));
+
+        assertTrue(error.getMessage().contains("changed"));
+        assertEquals(RequestStatus.IN_PROGRESS, store.requests.get(11L).status());
+        assertNull(store.requests.get(11L).resolutionSummary());
+        assertEquals(List.of(evidence), store.workLogs);
+        assertTrue(store.auditEvents.isEmpty());
     }
 
     @Test
@@ -583,6 +619,21 @@ class TechnicianRequestServiceTest {
                                 || item.status() == RequestStatus.IN_PROGRESS
                                 || item.status() == RequestStatus.COMPLETED)
                         .toList();
+            }
+
+            @Override
+            public TechnicianDashboardCounts getTechnicianDashboardCounts(long technicianId) {
+                int assigned = countRequests(technicianId, RequestStatus.ASSIGNED);
+                int inProgress = countRequests(technicianId, RequestStatus.IN_PROGRESS);
+                int completed = countRequests(technicianId, RequestStatus.COMPLETED);
+                return new TechnicianDashboardCounts(assigned, inProgress, completed);
+            }
+
+            private int countRequests(long technicianId, RequestStatus status) {
+                return (int) requests.values().stream()
+                        .filter(item -> item.assigneeId() != null && item.assigneeId() == technicianId)
+                        .filter(item -> item.status() == status)
+                        .count();
             }
 
             @Override

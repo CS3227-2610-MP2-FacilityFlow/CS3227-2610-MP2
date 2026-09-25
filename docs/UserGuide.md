@@ -10,12 +10,21 @@ This development build supports sign-in and account actions for all three roles.
 Requesters can submit requests, view their own saved requests, and edit or cancel
 their own `OPEN` requests. Facilities
 Managers can view all requests and assign an `OPEN` request to an active
-Technician. The Technician route is currently a placeholder and has no work
-management controls.
+Technician. Technicians can view a counted personal queue, search, filter, and
+reset it, inspect a selected request, start work on an `ASSIGNED` request, record
+internal work logs, and submit completed work for Manager review.
 
 On first launch, FacilityFlow creates its local database, category configuration,
 and two demo accounts for each role. This is not a completed product release and
 there is no installer.
+
+All three roles use the same local SQLite workspace. A currently reachable
+cross-role workflow is: a Requester submits a request (`OPEN`), a Facilities
+Manager refreshes and assigns an active Technician and priority (`ASSIGNED`),
+then that Technician refreshes, starts work (`IN_PROGRESS`), adds a work log,
+and submits a resolution summary (`COMPLETED`). The completed request remains
+assigned for Manager review, but Manager review and closure controls are not yet
+available in the dashboard. (REQ-A08, E2E-003, E2E-005–007)
 
 ## Setup and launch
 
@@ -72,6 +81,16 @@ comma-separated list. A new workspace starts with Electrical, Plumbing, HVAC,
 Structural, Cleaning, Safety, and Other. Names must be unique, and `Other` must
 remain in the list. Invalid entries or additional configuration keys stop startup
 before the workspace opens.
+
+Role isolation applies across this shared workspace: a signed-in Requester sees
+only their own requests, a Technician sees only requests currently assigned to
+that Technician, and a Manager can view all requests. Wrong-role operations and
+attempts to access another Technician's assignment are rejected without
+revealing the inaccessible record. (AUT-014, AUT-018–021, E2E-014–015)
+
+Restarting FacilityFlow reloads committed accounts, requests, work logs, and
+audit records from these files, but never restores an authenticated session. Sign
+in again after restarting. (AUT-016, E2E-016)
 
 ## Features
 
@@ -199,9 +218,135 @@ actions described for Requesters. The password screen provides **Back**. Passwor
 changes are saved, while logout and application shutdown discard only the
 in-memory session.
 
-The route displays **Technician work management is not available in this
-development build.** There are currently no reachable controls to view assigned
-work, open request details, start work, add work logs, or complete work.
+#### View assigned work
+
+1. When the Technician route opens, the **Technician work queue** loads requests
+   currently assigned to the signed-in Technician. It does not show requests
+   assigned to other Technicians. The table shows Request ID, title, location,
+   Manager priority, reported urgency, and status. Above it, the dashboard shows
+   the number of assigned, in-progress, and awaiting-review requests. With no
+   active filters and no assigned requests, it shows **No requests are
+   currently assigned to you.** A filter that returns no rows instead shows
+   **No requests match the current search and filters.** (TEC-001, UIX-014)
+2. The queue places higher Manager priorities first, then higher reported
+   urgencies, then the oldest assignment. Requests with an unknown assignment
+   time follow requests with a known assignment time. (TEC-003)
+3. To narrow the queue, enter text in **Search ID, title, or location** and press
+   Enter, or choose one or more values in **Status**, **Category**, and
+   **Priority**, then choose **Apply filters**. Search ignores letter case and
+   can match any part of the ID, title, or location. Filters can be combined.
+   (TEC-002)
+4. Choose **Reset filters** to clear the search text and all three filter
+   selections, then reload the unfiltered personal queue. (UIX-015)
+5. Choose **Refresh requests** to reload the queue using the current search and
+   filters and reload the three counts from the database. While a load is in
+   progress, the queue, filter controls, and refresh control are disabled. If
+   the refresh fails, the page shows a safe error message; an expired or invalid
+   session is handled by the normal sign-in flow. (UIX-009, UIX-012, UIX-013)
+
+The feedback area reports loading, starting, work-log saving, and Manager-review
+submission progress. It then shows a success confirmation or a user-safe error;
+successful actions refresh the displayed saved state. (UIX-010, UIX-012)
+
+#### Inspect a request
+
+1. Select one row in the queue. The **Request detail** panel shows the request's
+   display ID and title, location, category, reported urgency, current status,
+   Manager priority (or **Not set**), assignment time (or **Unknown** for legacy
+   data without one), updated time, and description. Times use the computer's
+   local time zone. Selecting a row does not change the saved request. (TEC-001,
+   TEC-011, UIX-016, UIX-023)
+2. If a refresh finds that the selected request is no longer assigned to you,
+   the selection is cleared.
+
+#### Record internal work
+
+1. Select a request and wait for its **Internal work history** to load. The
+   history is available only for requests currently assigned to you. Existing
+   entries show their local timestamp, Technician author identifier, minutes
+   spent, and note in chronological order. **No work logs recorded yet.** means
+   that the selected request has no entries. Work logs are internal: they are
+   not returned to Requester views. (TEC-005, TEC-007, TEC-011, LIF-007–LIF-010)
+2. Add a log only after the request is `IN_PROGRESS`. The **Add accountable
+   progress** area contains:
+
+   | Control | Required value |
+   |---|---|
+   | **Describe the work performed** | Required; 1–1,000 characters after leading and trailing whitespace is removed. The note may contain meaningful spaces and line breaks. |
+   | **Whole minutes, 1 to 1440** | Required; a whole number from 1 through 1,440 inclusive. |
+
+   The **Add work log** button is disabled until a request is selected and its
+   current status is `IN_PROGRESS`. It is also disabled while the history is
+   loading or another action is in progress. A blank note, a note over 1,000
+   characters, or minutes outside the stated range is rejected without saving a
+   work log. (TEC-005, TEC-006, LIF-007)
+3. Choose **Add work log**. A successful save appends one entry, updates the
+   request's saved updated time, reloads the queue and history, clears both
+   input controls, and shows a confirmation such as **FF-000010 work log saved
+   successfully.** The saved entry retains the Technician author, timestamp,
+   note, and minutes. There are no edit or delete controls; work-log history is
+   append-only through the application. (TEC-007, TEC-013, LIF-007, LIF-010)
+4. If the minutes field is not a whole number, the page immediately shows
+   **Minutes spent must be a whole number from 1 to 1,440.** Other validation,
+   authorization, or storage failures show a safe error message and leave the
+   entered values available for another attempt. If the assignment or status
+   changed while the request was open, the write is rejected, no log is stored,
+   and the queue is refreshed with **The request assignment or status changed.
+   The queue was refreshed.** (TEC-012)
+
+#### Start assigned work
+
+1. Select a request whose status is `ASSIGNED`. The **Start work** control is
+   enabled only when a request is selected and its current displayed status is
+   `ASSIGNED`; it is disabled for other statuses and while another queue action
+   is in progress.
+2. Choose **Start work**. The application rechecks your Technician role, the
+   current assignment, and the persisted status before saving. A successful
+   action changes the request to `IN_PROGRESS`, records the transition and one
+   audit event, reloads the queue, and shows a confirmation such as **FF-000010
+   is now IN_PROGRESS. Work started successfully.** (TEC-004, TEC-A01, LIF-011,
+   LIF-012, LIF-016)
+3. If the assignment or status changed after the request was displayed, the
+   start is rejected and the queue is refreshed with **The request assignment or
+   status changed. The queue was refreshed.** If the start operation itself
+   fails, a safe error message is shown and no successful confirmation is
+   reported. If the follow-up refresh fails after a successful start, the page
+   shows the refresh error while the saved transition remains in the database.
+   A failed transaction does not leave a partial status or audit-event write.
+
+#### Submit work for Manager review
+
+1. Select an `IN_PROGRESS` request and wait for **Internal work history** to
+   finish loading. At least one saved work log is required. The **Submit for
+   Manager review** button stays disabled until the history has loaded and
+   contains at least one work log.
+2. Enter the outcome in **Resolution summary for Manager review**. This is a
+   required summary of the work completed. After leading and trailing
+   whitespace is removed, it must contain 10–2,000 Unicode code points;
+   meaningful spaces and line breaks inside the summary are kept.
+3. Choose **Submit for Manager review**. The application rechecks your role,
+   current assignment, and `IN_PROGRESS` status before saving. A successful
+   submission changes the request to `COMPLETED`, stores the trimmed summary
+   and completion time, preserves the current Technician assignment, records
+   an audit event, reloads the queue and work-log history, and shows a message
+   such as **FF-000010 was submitted for Manager review successfully.** The
+   summary field is cleared only after the completion write commits. (TEC-008,
+   TEC-009, TEC-013, TEC-A05, LIF-011, LIF-012, LIF-016)
+4. A missing or invalid summary is rejected without changing the request or
+   its work logs. The summary remains in the text area after a validation,
+   authorization, or storage failure so it can be corrected or retried. A
+   request with no work log cannot be completed; the service rejects that
+   attempt and keeps the request `IN_PROGRESS` with guidance to add a work log
+   first. (TEC-008, TEC-A04)
+5. If the assignment or status changes while the request is open, the
+   completion is rejected, no completion data is stored, and the queue is
+   refreshed with **The request assignment or status changed. The queue was
+   refreshed.** (TEC-012, TEC-013, LIF-016)
+
+After a successful submission, the request remains in the Technician's queue
+with status `COMPLETED`, but Technician work actions are disabled. The current
+Manager route does not yet expose review of the work logs or resolution summary,
+or the actions to close, return, or reopen the request. (TEC-009, MGR-007–009)
 
 ### Facilities Manager
 
@@ -234,19 +379,17 @@ actions described for Requesters. The password screen provides **Back**.
    message. If validation, authorization, or storage fails, a safe error is shown
    and no successful assignment is reported.
 
+The shared workflow records an audit event for request creation, assignment,
+starting work, each work-log addition, and completion. The audit records retain
+the acting account and event time, but the current dashboards do not provide an
+audit-history viewer. (LIF-011–LIF-012, E2E-003, E2E-005–007)
+
 The Manager layout adapts to the window width. The queue and assignment panel
 stack in narrower windows and appear side by side at wider sizes. The detail panel
 and forms can be scrolled, and the queue can be scrolled horizontally.
 
 ## Current limitations
 
-- The complete Technician backend exists for the personal queue and request detail,
-  queue ordering, case-insensitive search by display ID, title, and location,
-  filtering by status, category, and priority, starting work, appending internal
-  work logs, completing work, and rejecting stale writes after reassignment
-  (TEC-001–TEC-013, LIF-016). None of it is connected to the JavaFX Technician
-  route, so no Technician queue, search, filter, detail, start, log, or completion
-  controls are reachable in the application.
 - Manager reassignment of `ASSIGNED` or `IN_PROGRESS` work is implemented behind
   the interface, including reason validation and audit storage, but the Manager
   dashboard has no reassignment controls (MGR-006). Managers can currently assign
@@ -256,9 +399,12 @@ and forms can be scrolled, and the queue can be scrolled horizontally.
   detail view, but a timeline of status changes and updates is not yet available
   (REQ-004–006, REQ-009, REQ-017).
 - Managers cannot yet record requests on behalf of Requesters, correct request
-  details, cancel or review work, close/return/reopen requests, manage accounts,
-  or view audit history through the dashboard. Manager password reset exists only
-  behind the interface.
+  details, review work logs or resolution summaries, cancel or close/return/reopen
+  requests, manage accounts, or view audit history through the dashboard. Manager
+  password reset exists only behind the interface.
+- The Technician route does not currently display Requester follow-up updates or
+  a requester-visible activity history; it shows the original request details
+  and internal Technician work-log history instead. (UIX role screen inventory)
 - Fresh workspaces contain the six demo accounts but no representative requests,
   so lifecycle examples must first be created and assigned manually.
 - Category rename and removal mappings are not implemented. Removing a category
