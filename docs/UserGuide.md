@@ -6,10 +6,14 @@ FacilityFlow helps people report maintenance problems and helps a Facilities
 Manager assign the work to Technicians. Each person signs in to a screen for
 their role.
 
-A Requester can report a problem and follow their own requests. A Manager can
-see all requests and assign new ones. A Technician can see their assigned work,
-record progress, and submit finished work for review. The Manager cannot yet
-complete the review in the app.
+Each role has different tasks:
+
+- Requesters report problems and follow their own requests.
+- Facilities Managers see all requests and assign new ones.
+- Technicians see their assigned work, record progress, and submit finished
+  work for review.
+
+The Manager cannot yet complete the review in the app.
 
 This version runs from the project folder and has no installer.
 
@@ -45,43 +49,23 @@ This version runs from the project folder and has no installer.
    | Technician | `technician1`, `technician2` |
    | Facilities Manager | `manager1`, `manager2` |
 
-## Storage
-
-FacilityFlow saves accounts, requests, and Technician work notes in
-`facilityflow.db`. It keeps the list of request categories in
-`categories.properties`. The app creates both files the first time you start
-it. You can find them here:
-
-| Computer | Folder |
-|---|---|
-| Windows | `%LOCALAPPDATA%\FacilityFlow` |
-| macOS | `~/Library/Application Support/FacilityFlow` |
-| Linux | `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow` if `XDG_DATA_HOME` is not set |
-
-People who use FacilityFlow under the same computer account share these files.
-Saved work is still there after you close and reopen the app. You will need to
-sign in again. Text you have entered but have not saved is normally lost when
-you close the app.
-
-The starting categories are Electrical, Plumbing, HVAC, Structural, Cleaning,
-Safety, and Other. To change the list, edit the `categories` line in
-`categories.properties` while the app is closed. Separate names with commas,
-keep each name unique, and keep `Other`. If the list is invalid, the app will
-ask you to correct the file before it opens. Do not remove or rename a category
-already used by a saved request; this version cannot move those requests to a
-different category.
-
 ## Features
 
 ### Requester
 
 #### Sign in and manage your account
 
-Sign in with a Requester account. Use **Refresh account** if your account has
-changed, **Change password** to set a new password, or **Log out** when finished.
-To change your password, enter the current one and a new one of 8 to 24
-characters. The new password is saved without signing you out. Use **Back** to
-leave the password screen.
+Sign in with a Requester account. You can then:
+
+- Choose **Refresh account** if your account has changed.
+- Choose **Log out** when you are finished.
+
+To change your password:
+
+1. Choose **Change password**.
+2. Enter your current password and a new one of 8 to 24 characters.
+3. Choose **Change password** again. The new password is saved without signing
+   you out. Choose **Back** to leave the password screen.
 
 #### Report a problem
 
@@ -105,30 +89,36 @@ leave the password screen.
    request has the status `OPEN`, meaning it has not yet been assigned to a
    Technician.
 
-If saving fails, your entries remain in the form so you can try again. If your
-sign-in expires, signing in again as the same Requester restores the unfinished
-form. Logging out or closing the app discards an unfinished form.
+An unfinished form behaves as follows:
+
+- If saving fails, your entries remain so you can try again.
+- If your sign-in expires, signing in again as the same Requester restores the
+  form.
+- Logging out or closing the app discards it.
 
 #### View your requests
 
 **My requests** shows only requests you submitted, with the newest first.
-Choose **Refresh requests** to check for changes. Select a request and choose
-**View selected request** to read its details. On that screen, choose
-**Refresh detail** to check its latest status or **Back to my requests** to
-return to the list.
+
+1. Choose **Refresh requests** to check for changes.
+2. Select a request and choose **View selected request** to read its details.
+3. Choose **Refresh detail** to check its latest status, or **Back to my
+   requests** to return to the list.
 
 #### Practise filling out a request
 
-You can open a separate practice form without saving anything. From the
-project folder, run this command on Windows:
+You can open a separate practice form without saving anything:
 
-```powershell
-.\gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"
-```
+1. From the project folder, run this command on Windows:
 
-On macOS or Linux, run `sh ./gradlew run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"`.
-Enter request details and choose **Check details** to see any corrections
-needed. Closing this form discards your entries.
+   ```powershell
+   .\gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"
+   ```
+
+   On macOS or Linux, run
+   `sh ./gradlew run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"`.
+2. Enter request details and choose **Check details** to see any corrections
+   needed. Closing this form discards your entries.
 
 ### Technician
 
@@ -139,44 +129,59 @@ and **Log out** work as described for Requesters.
 
 #### Find and inspect your work
 
-**Technician work queue** shows only requests currently assigned to you. The
-counts above the list show how many are assigned, in progress, or awaiting
-Manager review. The list puts higher-priority work first; within the same
-priority, more urgent work comes first.
+**Technician work queue** shows only requests currently assigned to you:
 
-To find a request, type part of its request number, title, or location in
-**Search**, or choose **Status**, **Category**, or **Priority**. Choose
-**Apply filters**; you can use several filters together. Choose **Reset
-filters** to see your full list again, or **Refresh requests** to check for
-changes. Select a request to read its details and internal work history.
+- The counts above the list show how many are assigned, in progress, or awaiting
+  Manager review.
+- The list puts higher-priority work first. Within the same priority, more
+  urgent work comes first.
+
+1. Type part of a request number, title, or location in **Search**. You can also
+   choose **Status**, **Category**, or **Priority** to narrow the list.
+2. Choose **Apply filters**. You can use several filters together.
+3. Select a request to read its details and internal work history.
+4. Choose **Reset filters** to see your full list again, or **Refresh requests**
+   to check for changes.
 
 #### Start work
 
-Select a request marked `ASSIGNED` and choose **Start work**. Its status becomes
-`IN_PROGRESS`, meaning you are working on it. The list refreshes and shows a
-confirmation. If someone changed the assignment or status while you were
-viewing it, the app rejects the action and refreshes the list.
+1. Select a request marked `ASSIGNED`.
+2. Choose **Start work**. Its status becomes `IN_PROGRESS`, meaning you are
+   working on it. The list refreshes and shows a confirmation.
+
+If someone changed the assignment or status while you were viewing it, the app
+rejects the action and refreshes the list.
 
 #### Record your work
 
-For an `IN_PROGRESS` request, enter a note in **Describe the work performed**
-and the time in **Whole minutes, 1 to 1440**, then choose **Add work log**. The
-note must have 1 to 1,000 characters after spaces at its ends are removed. The
-time must be a whole number from 1 to 1,440 minutes. A saved note appears in
-**Internal work history** with its time and author. You cannot edit or delete
-a saved note through the app. Requesters cannot see these internal notes.
+1. Select a request marked `IN_PROGRESS`.
+2. Complete both fields:
 
-If an entry is invalid or cannot be saved, correct it and try again. If the
-request has been reassigned, the app refreshes your list instead of saving the
-note.
+   | Field | What to enter |
+   |---|---|
+   | **Describe the work performed** | A note of 1 to 1,000 characters after spaces at the ends are removed |
+   | **Whole minutes, 1 to 1440** | The time spent, as a whole number from 1 to 1,440 minutes |
+
+3. Choose **Add work log**. The saved note appears in **Internal work history**
+   with its time and author.
+
+After you submit a note:
+
+- Saved notes cannot be edited or deleted through the app. Requesters cannot
+  see them.
+- If an entry is invalid or cannot be saved, correct it and try again.
+- If the request has been reassigned, the app refreshes your list instead of
+  saving the note.
 
 #### Submit finished work
 
-An `IN_PROGRESS` request needs at least one saved work note before you can
-submit it. Enter a **Resolution summary for Manager review** of 10 to 2,000
-characters, then choose **Submit for Manager review**. The request changes to
-`COMPLETED`, remains assigned to you, and awaits Manager review. The app keeps
-the summary if submission fails so you can correct it or try again.
+1. Select an `IN_PROGRESS` request with at least one saved work note.
+2. Enter a **Resolution summary for Manager review** of 10 to 2,000 characters.
+3. Choose **Submit for Manager review**. The request changes to `COMPLETED`,
+   remains assigned to you, and awaits Manager review.
+
+If submission fails, the app keeps the summary so you can correct it or try
+again.
 
 ### Facilities Manager
 
@@ -188,16 +193,55 @@ Sign in with a Facilities Manager account. **Refresh account**,
 #### View requests
 
 **All requests** shows requests from every Requester. New requests appear
-first. Choose **Refresh requests** to see recent changes, and select a request
-to read its description.
+first.
+
+1. Choose **Refresh requests** to see recent changes.
+2. Select a request to read its description.
 
 #### Assign a new request
 
-Select a request marked `OPEN`. In **Assignment**, choose an active Technician
-and a Manager priority of Low, Medium, High, or Critical. Choose **Assign
-request**. The request changes to `ASSIGNED`, and the app confirms the
-assignment. If it cannot save the assignment, it shows an error so you can
-correct the selection or try again.
+1. Select a request marked `OPEN`.
+2. In **Assignment**, choose an active Technician and a Manager priority of Low,
+   Medium, High, or Critical.
+3. Choose **Assign request**. The request changes to `ASSIGNED`, and the app
+   confirms the assignment.
+
+If the app cannot save the assignment, it shows an error so you can correct the
+selection or try again.
+
+## Storage
+
+FacilityFlow creates two files the first time you start it:
+
+- `facilityflow.db` holds accounts, requests, and Technician work notes.
+- `categories.properties` holds the list of request categories.
+
+You can find the files here:
+
+| Computer | Folder |
+|---|---|
+| Windows | `%LOCALAPPDATA%\FacilityFlow` |
+| macOS | `~/Library/Application Support/FacilityFlow` |
+| Linux | `$XDG_DATA_HOME/FacilityFlow`, or `~/.local/share/FacilityFlow` if `XDG_DATA_HOME` is not set |
+
+People who use FacilityFlow under the same computer account share these files.
+When you close and reopen the app:
+
+- Saved work is still there.
+- You need to sign in again.
+- Text you entered but did not save is normally lost.
+
+The starting categories are Electrical, Plumbing, HVAC, Structural, Cleaning,
+Safety, and Other. To change the list:
+
+1. Close the app and open `categories.properties`.
+2. Edit the `categories` line. Separate names with commas, keep each name
+   unique, and keep `Other`.
+3. Start the app again. If the list is invalid, the app asks you to correct the
+   file before it opens.
+
+Do not remove or rename a category already used by a saved request. This
+version cannot move those requests to a different category.
 
 ## Current limitations
 

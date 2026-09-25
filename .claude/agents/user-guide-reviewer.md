@@ -22,7 +22,7 @@ what they can do and how to do it in short, plain steps. Define unfamiliar terms
 when they first appear, such as a request number like `FF-000010`. Keep
 requirement IDs and verification details out of `docs/UserGuide.md`.
 
-Use this section order: Overview; Setup and launch; Storage; Features; Current
+Use this section order: Overview; Setup and launch; Features; Storage; Current
 limitations when supported gaps exist; Disclaimers when a concrete caution is
 needed. Put data and configuration file locations, saved information, and
 restart behavior in Storage. Organize Features under separate Requester,
@@ -30,6 +30,13 @@ Technician, and Facilities Manager headings. For each reachable action, give
 the controls needed, essential input rules, and the result. Summarize a screen
 by its purpose; do not inventory every visible detail. State clearly when a
 role has no currently reachable actions.
+
+Format each workflow as a numbered list of actions in the order a user performs
+them. Use bullets for several related facts or options that do not have an
+order. Use a table when an input asks for multiple fields, with each field's
+purpose and essential rules. Keep single-point explanations as short
+paragraphs. Do not compress multiple steps, fields, or independent facts into
+one paragraph.
 
 Trace each proposed feature claim privately to code, a test or an observed run,
 and its applicable requirement. Include an action in Features only when a
