@@ -31,7 +31,7 @@ public final class RequesterForm extends VBox {
     private final Consumer<RequestDraft> submit;
 
     public RequesterForm(List<String> categories) {
-        this(categories, null);
+        this(categories, (Consumer<RequestDraft>) null);
     }
 
     public RequesterForm(List<String> categories, Consumer<RequestDraft> submit) {
@@ -87,6 +87,16 @@ public final class RequesterForm extends VBox {
         feedback.setId("feedback");
         feedback.setWrapText(true);
         getChildren().addAll(validate, feedback);
+    }
+
+    public RequesterForm(List<String> categories, RequestDraft initial, String headingText, Consumer<RequestDraft> submit) {
+        this(categories, submit);
+        ((Label) getChildren().get(0)).setText(headingText);
+        title.setText(initial.title());
+        description.setText(initial.description());
+        location.setText(initial.location());
+        category.setValue(initial.category());
+        urgency.setValue(initial.urgency());
     }
 
     private void addField(String id, String text, Control control) {
