@@ -69,7 +69,8 @@ list granular user actions, and put only reachable behaviour under Features.
 Code or tests without a usable launch path are described under Current limitations 
 instead of being presented as available features.
 
-Here is the format of the user guide (along with the description of each part) which I defined:
+Here is the format of the user guide (along with the description of each part) which I defined
+for the **first version** of the user guide version:
 - Overview - Everything written here should be high level, be concise and a user without technical background should be able to understand it.
   - High level description, purpose and target user (if any)
   - Rough high level information of the features in the application.
@@ -82,8 +83,9 @@ Here is the format of the user guide (along with the description of each part) w
 - Current limitations - This section should describe the current limitations of the application. Limitations should be determined based on the existing requirements (e.g. gaps in application features). Note that this may or may not include potential features that are out of scope of the current version of the application. The agent must not come up with new potential features on their own, but focus on what is lacking in the application. This section may be omitted if none can be identified by the agent.
 - Disclaimers - Any important disclaimers or actions the user should actively avoid. This section can be omitted if none can be identified by the agent.
 
-To check the agent, I simply looked through the user guide after implementation of 
-a few features, not limited to features for my role and analyzed the content and formatting provided by the agent. 
+The user guide version went through multiple changes and 
+corrections in the process of agent guidance. To check the agent, I simply looked through the 
+user guide after implementation of a few features, not limited to features for my role and analyzed the content and formatting provided by the agent. 
 
 ## 3. Tasks handled effectively with the agents
 
@@ -132,20 +134,78 @@ generic reusable skill.
 
 ### User guide agent
 
+Unlike the unit test agent, the user guide agent required much more guidance and correction. 
 I had to make the user-guide instructions more specific. The first version did
 not clearly require role-based feature categories or distinguish a tested
 service from a reachable feature. I added the Requester, Technician, and
 Facilities Manager headings and the launch-path requirement.
 
-Some parts of the user guide felt liek the agent simply documenting the requirements rather than describing features in a user-centric manner. It even adds the requirement IDs in paranthesis, for instance (in an older version of the user guide):
+Some parts of the user guide felt like the agent simply documenting the requirements rather than describing features in a user friendly manner. It even adds the requirement IDs in paranthesis, for instance (in an older version of the user guide):
 ```
 Restarting FacilityFlow reloads committed accounts, requests, work logs, and
-audit records from these files, but never restores an authenticated session. Sign
-in again after restarting. (AUT-016, E2E-016)
+audit records from these files, but never restores an authenticated session. Sign in again after restarting. (AUT-016, E2E-016)
 ```
+
+The agent also included overly detailed explanations without a formatting that makes 
+information easily readable. For instance:
+```
+The All requests table loads every saved request. It shows Request ID, title, location, reported urgency, Manager priority, and status.
+```
+Many details of the above can be easily seen by the user and not every single detail has to 
+be documented when it is obvious.
+```
+For an `IN_PROGRESS` request, enter a note in **Describe the work performed**
+and the time in **Whole minutes, 1 to 1440**, then choose **Add work log**. The note must have 1 to 1,000 characters after spaces at its ends are removed. The time must be a whole number from 1 to 1,440 minutes. A saved note appears in **Internal work history** with its time and author. You cannot edit or delete a saved note through the app. Requesters cannot see these internal notes.
+```
+The information is all chunked into one single paragraph which is significantly less readable 
+than if it was put in point form or numbered steps.
+
+Overall, the agent seems to struggle in terms of creating something that is "easily  
+readable and understandable" by a human. As such, I prompted an AI to make corrections to 
+the agent configuration by highlighting these issues, providing examples and corrections to 
+be made.
 
 ## 5. What I would change next time
 
+I would define a clearer handoff format for both agents. Each invocation should
+include the changed files, relevant requirement IDs, expected output, and the
+verification command. This would reduce ambiguity when several features are
+implemented close together and make it easier to check whether the agent has
+completed the correct task.
+
+I would also ask each agent to produce a short evidence summary showing which
+requirements were checked, what source or UI behaviour supported them, what
+tests or observations were used, and what remains uncertain. This would make
+the agent's output easier to review instead of requiring me to reconstruct the
+reasoning from the changed files.
+
+The unit-test agent already followed the test approaches I provided, but I
+would make the selection of each approach more explicit. For every group of
+tests, the agent should state why it selected boundary value analysis,
+finite-state-machine analysis, equivalence partitioning, or a decision table.
+This would help me confirm that the technique matches the component instead of
+being applied mechanically.
+
+I would give the user-guide agent stronger instructions for readability. The
+agent should avoid copying requirement IDs into user-facing paragraphs unless
+they are needed for traceability outside the guide. It should also avoid
+documenting information that is already obvious from the interface, such as
+listing every column in a table without explaining what the user needs to do
+with it.
+
+I would require the agent to break long explanations into bullet points,
+numbered steps, or short paragraphs whenever several fields, rules, or actions
+are being described. I would include examples of acceptable and unacceptable
+formatting in the agent instructions, based on the examples I identified in
+the earlier user-guide versions. I would also add a final readability review
+that checks whether a non-technical user can understand the instructions
+without referring to the specifications or source code.
+
+Since readability is more subjective than checking whether a requirement is
+present, I would add a separate documentation-review step or a lightweight
+Markdown preview check. This would allow me to evaluate the structure and
+presentation of the guide instead of only checking whether its claims match
+the implementation.
 
 ## 6. What I learned about designing an effective AI agent
 
@@ -162,4 +222,8 @@ missing a permission rule, an unreachable screen, or a failed environment
 check. I therefore need to tell the agent what counts as evidence and what it
 must report when evidence is unavailable.
 
+On top of that, while AI is good at automating clearly defined tasks, it struggles a lot more 
+on more subjective aspects such as readability. It does not always understand terms such as 
+"user-oriented" or "easily readable", and this is evident upon the creation of the user guide 
+agent where the content needs to be formatted in a clear, concise and reader-friendly manner.
 
