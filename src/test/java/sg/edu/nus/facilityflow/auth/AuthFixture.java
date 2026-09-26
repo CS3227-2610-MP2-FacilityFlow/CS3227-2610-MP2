@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Set;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
+import sg.edu.nus.facilityflow.service.ManagerAccountService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.service.RequestValidator;
 import sg.edu.nus.facilityflow.service.TechnicianRequestService;
@@ -22,6 +23,7 @@ public final class AuthFixture {
     public final AuthenticationService auth;
     public final RequesterRequestService requester;
     public final ManagerRequestService manager;
+    public final ManagerAccountService managerAccounts;
     public final TechnicianRequestService technician;
 
     public AuthFixture(Path directory) throws SQLException {
@@ -50,7 +52,9 @@ public final class AuthFixture {
         var clock = Clock.fixed(Instant.parse("2026-09-22T12:00:00Z"), ZoneOffset.UTC);
         auth = new AuthenticationService(store, sessions, clock);
         requester = new RequesterRequestService(store, new RequestValidator(Set.of("Plumbing")), clock, sessions);
-        manager = new ManagerRequestService(store, clock, sessions);
+        manager = new ManagerRequestService(
+                store, clock, sessions, new RequestValidator(Set.of("Plumbing")));
+        managerAccounts = new ManagerAccountService(store, clock, sessions);
         technician = new TechnicianRequestService(store, clock, sessions);
     }
 

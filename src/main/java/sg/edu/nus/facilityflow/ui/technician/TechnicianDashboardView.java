@@ -28,9 +28,9 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestStatus;
-import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
+import sg.edu.nus.facilityflow.model.TechnicianHistoryEntry;
 import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.ui.UiTasks;
@@ -180,7 +180,7 @@ public final class TechnicianDashboardView extends BorderPane {
         workLogHistory.setId("technicianWorkLogs");
         workLogHistory.setPlaceholder(new Label("No work logs recorded yet."));
         workLogHistory.setPrefHeight(150);
-        workLogHistory.setAccessibleText("Internal technician work logs");
+        workLogHistory.setAccessibleText("Technician work logs and Requester follow-up updates");
 
         workLogNote.setId("technicianWorkLogNote");
         Label workLogNoteLabel = fieldLabel("_Work performed (required)", workLogNote);
@@ -222,7 +222,7 @@ public final class TechnicianDashboardView extends BorderPane {
                 selectedDetails,
                 new Separator(Orientation.HORIZONTAL),
                 startButton,
-                new Label("Internal work history"),
+                new Label("Work and Requester history"),
                 workLogHistory,
                 new Label("Add accountable progress"),
                 workLogNoteLabel,
@@ -337,15 +337,16 @@ public final class TechnicianDashboardView extends BorderPane {
                             ? "Unknown" : timestampFormat.format(request.assignedAt()))
                     + "\nUpdated: " + timestampFormat.format(request.updatedAt())
                     + "\n\n" + request.description());
-            tasks.run(() -> controller.loadWorkLogs(request), logs -> {
+            tasks.run(() -> controller.loadHistory(request), entries -> {
                 if (requestSelection != selectionVersion) {
                     return;
                 }
                 loadingWorkLogs = false;
-                hasWorkLogs = !logs.isEmpty();
-                workLogHistory.setPlaceholder(new Label("No work logs recorded yet."));
+                hasWorkLogs = entries.stream()
+                        .anyMatch(entry -> entry.type().equals("Work log"));
+                workLogHistory.setPlaceholder(new Label("No work or Requester updates recorded yet."));
                 workLogHistory.setItems(FXCollections.observableArrayList(
-                        logs.stream().map(TechnicianDashboardView::formatWorkLog).toList()));
+                        entries.stream().map(TechnicianDashboardView::formatHistory).toList()));
                 updateActionState();
             }, error -> {
                 if (requestSelection != selectionVersion) {
@@ -507,11 +508,13 @@ public final class TechnicianDashboardView extends BorderPane {
         return column;
     }
 
-    private static String formatWorkLog(WorkLog log) {
+    private static String formatHistory(TechnicianHistoryEntry entry) {
+        String effort = entry.minutesSpent() == null
+                ? "" : " · " + entry.minutesSpent() + " minutes";
         return DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm z")
-                .withZone(ZoneId.systemDefault()).format(log.createdAt())
-                + " · Technician #" + log.authorId()
-                + " · " + log.minutesSpent() + " minutes\n" + log.note();
+                .withZone(ZoneId.systemDefault()).format(entry.occurredAt())
+                + " · " + entry.type() + " · Account #" + entry.authorId()
+                + effort + "\n" + entry.text();
     }
 
     private static Label fieldLabel(String text, javafx.scene.Node field) {

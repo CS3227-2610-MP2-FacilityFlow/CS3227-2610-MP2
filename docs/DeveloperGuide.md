@@ -1,8 +1,8 @@
 # FacilityFlow Developer Guide
 
-Status: authenticated Requester UI, Manager assignment, and Technician work-log
-and completion workflow, updated 24 September 2026. This development build is not a complete
-released maintenance application.
+Status: complete three-role release candidate, updated 27 September 2026.
+Local verification is recorded separately from GitHub release and clean-machine
+evidence.
 
 ## Setup and commands
 
@@ -52,6 +52,9 @@ login flow. To launch the older validation-only preview instead:
 | [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Requester counts, owned list/search/filters, submission, detail/history, edit/cancel and follow-up controls |
 | [TechnicianDashboardController](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardController.java) | Thin presentation adapter for Technician queue, work-log reads, and writes |
 | [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history and entry form, resolution summary, and completion-for-review action |
+| [ManagerRequestService](../src/main/java/sg/edu/nus/facilityflow/service/ManagerRequestService.java) | Manager-wide queue, filters, summaries, history, lifecycle transitions, record-on-behalf, and corrections |
+| [ManagerAccountService](../src/main/java/sg/edu/nus/facilityflow/service/ManagerAccountService.java) | Account creation, activation, role changes, and last-Manager/active-work safety rules |
+| [ManagerDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/manager/ManagerDashboardView.java) | Overview, all requests, lifecycle actions, account administration, and read-only audit viewer |
 | [Workspace](../src/main/java/sg/edu/nus/facilityflow/storage/Workspace.java) | OS-user database location and category startup validation |
 | [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
 | [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
@@ -119,8 +122,9 @@ targets another existing account, and increments that version atomically with
 hash update and audit. `changePassword` verifies the current password and retains
 the version/session. Role changes also retain the version. Logout removes the
 session; application shutdown permanently closes the registry. No auto-login or
-session serialization exists. The Manager account-administration UI is pending;
-reset is currently a tested service API.
+session serialization exists. Manager account administration exposes account
+creation, activation/deactivation, role changes, and password reset through the
+authenticated JavaFX route.
 
 `UiTasks` executes JDBC/password work off the JavaFX thread and reports outcomes
 on it. Pending work disables header navigation; saving disables the form and its
@@ -143,7 +147,7 @@ selected request. The UI enables progress writes only for `IN_PROGRESS`; the
 service still rechecks role, assignment, status, validation limits, and
 conditional ownership inside the transaction.
 
-## Manager foundation architecture
+## Manager architecture
 
 The package boundaries follow `AGENTS.md`:
 
@@ -151,29 +155,26 @@ The package boundaries follow `AGENTS.md`:
   priority values.
 - `auth` contains the authenticated-session identity passed to protected use
   cases.
-- `service` owns Manager authorization, validation, queue ordering, and the
-  named assignment transition.
+- `service` owns Manager authorization, validation, queue ordering, account
+  safety, and named lifecycle transitions.
 - `storage` owns the transaction interface, schema foundation, and SQLite/JDBC
   implementation. It does not depend on JavaFX.
 - `ui.manager` contains the Manager JavaFX view and thin presentation adapter.
   It contains no SQL or lifecycle rules.
 
-`ManagerRequestService.assignOpenRequest` implements the first complete use
-case. It validates the persisted actor, request state, priority, and assignee
-inside one storage transaction. It then updates the request and appends one
-`REQUEST_ASSIGNED` audit event. Any runtime or database failure rolls the
-transaction back.
+`ManagerRequestService` validates the persisted actor and current state inside
+the storage transaction for assignment, reassignment, close, return, reopen,
+cancellation, record-on-behalf, and correction. Each write uses an optimistic
+expected-state condition and appends its audit event before commit. Return and
+reopen retain completion metadata; correction cannot change ownership, workflow
+state, assignment, work logs, or resolution evidence.
 
-`ManagerRequestService.reassignRequest` now provides the backend transition for
-`ASSIGNED` or `IN_PROGRESS` work. It requires a different active Technician and
-a 5–500 character reason, returns the request to `ASSIGNED`, starts a new current
-assignment timestamp, preserves work logs and completion metadata, and appends a
-`REQUEST_REASSIGNED` audit. The Manager UI does not expose this operation yet.
-
-The Manager queue uses the deterministic ordering in MGR-021. The initial view
-shows the queue, request detail, active-Technician selection, Manager-priority
-selection, actionable feedback, visible identity/role, and logout action. It is
-an injectable component rather than a route that bypasses authentication.
+Manager reads cover deterministic MGR-021 queue ordering, combined search and
+filters, status/priority summaries, active Technician workloads, full request
+history, and enriched audit records. `ManagerAccountService` enforces validation,
+self/last-Manager protection, and the active-Technician-work role-change rule.
+The JavaFX workspace exposes these operations in separate Overview, Requests,
+Accounts, and Audit tabs while keeping SQL and lifecycle rules outside the view.
 
 ## Database foundation
 
@@ -194,7 +195,9 @@ transaction, using SQLite `PRAGMA user_version`:
   history indexes, and a Technician queue index. Legacy assignment times remain
   null rather than being inferred from the mutable request update time. The shared
   choices are recorded in [ADR 0002](adr/0002-technician-shared-data-contract.md).
-- Versions newer than 4, missing required columns, and missing/invalid sequence
+- Version 5 adds append-only Requester follow-up updates and its chronological
+  history index.
+- Versions newer than 5, missing required columns, and missing/invalid sequence
   rows stop initialization with a safe error. Failed migrations roll back schema,
   data, and version together; repeated initialization does not reset data.
 
@@ -207,10 +210,10 @@ only structured status metadata, not title, description, or location.
 `initializeWorkspace` applies migrations and initial account seeding in one
 transaction only when no application tables exist. It creates two accounts per
 role with independently salted hashes and account audits. Existing schemas are
-never reseeded, even when empty. Representative lifecycle requests under AUT-008
-remain pending; the initial request list is empty. `initializeSchema` remains an
-unseeded migration entry point for integration tests. Yu-sutong remains the shared
-migration/seeding owner and must review these changes before merge.
+never reseeded, even when empty. A new workspace contains six representative
+requests covering `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `COMPLETED`, `CLOSED`, and
+`CANCELLED`, plus representative work logs and lifecycle audits. `initializeSchema`
+remains an unseeded migration entry point for integration tests.
 
 `Workspace.defaultDirectory()` uses `%LOCALAPPDATA%/FacilityFlow` on Windows,
 `~/Library/Application Support/FacilityFlow` on macOS, and
@@ -236,15 +239,12 @@ resolution summary, completion time, and one audit. Any failure rolls the whole
 operation back. Work-log audit details contain the generated log ID and minutes,
 not the free-text note.
 
-`TechnicianRequestService.getDashboardCounts(session)` is an authenticated,
-read-only Technician operation. The SQLite implementation uses a parameterized
+`TechnicianRequestService.getDashboardCounts(session)` uses a parameterized
 aggregate scoped to the logged-in Technician and returns separate counts for
-`ASSIGNED`, `IN_PROGRESS`, and `COMPLETED` requests; `COMPLETED` means work
-submitted for Manager review in the lifecycle model. The operation is not wired into
-`TechnicianDashboardController` or `TechnicianDashboardView`, so it is a backend
-read model rather than a reachable dashboard feature. The same UI gap applies to
-the service-side queue search and status/category/priority filters: the current
-view loads the unfiltered queue only (TEC-001–003, LIF-017–020).
+`ASSIGNED`, `IN_PROGRESS`, and `COMPLETED` requests. The Technician UI exposes
+those counts plus queue search and status/category/priority filters. Its combined
+history contains internal work logs and Requester follow-up updates for the
+current assignee, satisfying LIF-009 without exposing unrelated requests.
 
 `MaintenanceRequest.assignedAt` records the current assignment time separately
 from `updatedAt`; Manager assignment sets both, while later work-log writes change
@@ -265,9 +265,11 @@ configured category set is supplied through `RequestValidator`; the authenticate
 Requester view calls these operations through background tasks.
 
 
-Manager service tests cover valid assignment, invalid/inactive assignees,
-unauthorized actors, invalid state, and missing priority. SQLite tests verify
-that an injected audit failure rolls back request state and audit writes.
+Manager service tests cover queue search/filter/order, summaries and history,
+valid and forbidden lifecycle transitions, account safety, record-on-behalf,
+corrections, authorization, and invalid inputs. SQLite tests verify Manager
+persistence and that injected audit failures roll back request state and audit
+writes.
 
 `SQLiteRequesterRequestServiceTest` covers valid/invalid creation, role checks,
 live deactivation/role changes, owner isolation and ordering, search, filters,
@@ -301,7 +303,10 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
-distributions. Reports are written to:
+distributions. `releaseZip` produces the current operating system's release
+archive. The 27 September 2026 local release-candidate run executed 241 tests
+with no failures or skips and measured 87.3% line coverage across model, service,
+auth, and storage packages. Reports are written to:
 
 - `build/reports/tests/test/index.html`
 - `build/reports/jacoco/test/html/index.html`
@@ -315,12 +320,15 @@ record actual run links before claiming cross-platform verification.
 Checkstyle currently enforces a small baseline (imports, braces, tabs, and file
 structure). Coverage is reported, not threshold-gated. Extend the checks with
 the team as the codebase grows; the QLT-007 service/domain coverage target still
-applies. Tests now cover login and storage recovery; the full lifecycle,
-accessibility and visual layout across operating systems still need acceptance work.
+applies. The suite covers the complete named lifecycle, authentication, role and
+object authorization, rollback, migrations, demo seeding, role UIs, and responsive
+content layout. Native accessibility and visual layout still need the recorded
+clean-machine acceptance pass on each target operating system.
 
 The current classpath-based JavaFX test emits an upstream warning that JavaFX
-classes are loaded from an unnamed module; the control test passes. Module and
-runtime-image packaging choices remain part of the shared release spike.
+classes are loaded from an unnamed module; the control test passes. The release
+uses platform-specific Gradle application distributions, each containing the
+application JAR, dependency JARs, JavaFX native libraries, and launch scripts.
 
 ## Confirmed integration responsibilities and behavior
 
@@ -341,31 +349,36 @@ Team agreement reported by yooplo on 20 September 2026:
 - Requester lists use creation descending/display ID ascending; date filters are
   inclusive local dates; history includes status/reasons/follow-ups but no private notes.
 
-The Requester slice now provides counts, inclusive local-date filtering, visible
-activity history and the eligible edit/cancel/follow-up operations. Category
-mappings and the Manager review/return/close/reopen stages of the cross-role
-lifecycle remain outstanding.
+All three role slices now share the authenticated transaction boundary and
+complete the specified request lifecycle. Category mappings, Manager review and
+administration, cross-role history visibility, and representative demo data are
+integrated in the release candidate.
 
-## Next integration and release work
+## Release, website, and monitoring
 
-The [confirmed Requester integration decision](decisions/yooplo/0001-requester-integration.md)
-records the shared contracts for the Requester-to-Manager handoff. Login/session
-handling and the Requester workflow are integrated with the existing Manager
-assignment route. The remainder of the cross-role lifecycle still needs Manager
-review/return/close/reopen work.
+`releaseZip` builds `FacilityFlow-1.0.0-<platform>.zip` from Gradle's installed
+application distribution. The tag-triggered [release workflow](../.github/workflows/release.yml)
+runs `clean check releaseZip` on Windows, macOS, and Linux, uploads each package,
+creates `SHA256SUMS.txt`, and publishes the artifacts to a formal GitHub release.
+This configuration is not proof that a tag run or clean-machine smoke test passed;
+record those external results in [SubmissionChecklist.md](SubmissionChecklist.md).
 
-Follow [RequesterPreparation.md](RequesterPreparation.md) for verification and
-review tracking of the Requester slice.
-The Manager slice still needs search/filter/reset,
-the remaining transitions, account administration, summaries, and audit browsing.
+The [Pages workflow](../.github/workflows/pages.yml) builds the `docs/` Jekyll site
+after documentation changes reach `master`. Repository Pages settings must use
+GitHub Actions. The website, guides, reflection, and session summaries are all
+versioned with the release candidate.
 
-Full structured/rotated operational logging and a global UI exception boundary,
-representative demo requests, release installers, and cross-platform launch
-verification remain unimplemented. Current login-failure/startup messages alone
-do not satisfy OBS-001–007.
-Gradle development distributions use host-specific JavaFX libraries and require
-Java; they are not the final universal release artifact. Resolve packaging and
-monitoring evidence with the team under REL-005–007 and OBS-001–007.
+`OperationalLog` writes UTF-8 structured records under the workspace `logs/`
+directory, using `INFO`, `WARNING`, and `SEVERE` severity names. Records include
+UTC timestamp, component, event, safe metadata, and build version at startup.
+Startup/shutdown, schema/category migration outcomes, login failures, handled
+storage failures, and unexpected exceptions are covered. Files rotate at 1 MB
+with five retained generations. Passwords, hashes, full request descriptions,
+and raw free text must never be supplied to this logger. Unexpected errors include
+exception types and bounded stack frames without exception messages; the JavaFX
+boundary also shows a stable recovery message. A user sharing diagnostics should
+close FacilityFlow and send only the relevant rotated log after checking it for
+organisation-specific information.
 
 ## Responsive presentation (UIX-017–021)
 
@@ -394,8 +407,10 @@ headers. Build configuration follows the official
 JavaFX control usage was checked against the
 [JavaFX 25 API](https://openjfx.io/javadoc/25/).
 CI uses the official actions/checkout, actions/setup-java, gradle/actions,
-and actions/upload-artifact projects. These tools and libraries retain their
-respective upstream licenses. No MP1 source or assets were reused.
+actions/upload-artifact, actions/configure-pages, actions/jekyll-build-pages,
+actions/upload-pages-artifact, and actions/deploy-pages projects. These tools
+and libraries retain their respective upstream licenses. No MP1 source or assets
+were reused.
 
 SQLite migration/transaction behavior was checked through Context7 and the
 official [generated-column](https://www.sqlite.org/gencol.html) and
@@ -408,3 +423,10 @@ and the PBKDF2-HMAC-SHA256 work factor documented by
 [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 Background UI work follows [JavaFX Task](https://openjfx.io/javadoc/25/javafx.graphics/javafx/concurrent/Task.html),
 also checked through Context7. No additional runtime dependency was added.
+
+Manager UI review used the locally installed `ui-ux-pro-max` guidance as design
+advice. The team retained desktop-relevant accessibility recommendations such as
+visible labels, focus, keyboard access, form grouping, and responsive density;
+web landing-page typography, animation, icons, and font recommendations were not
+copied into the JavaFX product. AI-generated changes and documentation remain
+subject to human review as recorded in the logs and pull request.

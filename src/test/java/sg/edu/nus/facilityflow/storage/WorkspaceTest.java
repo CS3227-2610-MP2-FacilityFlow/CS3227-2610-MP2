@@ -44,6 +44,29 @@ class WorkspaceTest {
     }
 
     @Test
+    @DisplayName("AUT-008/010 initial workspace atomically seeds every lifecycle state with request audits")
+    void seedsRepresentativeRequestsAcrossEveryLifecycleState() throws Exception {
+        Workspace.open(directory);
+
+        assertEquals(6, scalar("SELECT COUNT(DISTINCT status) FROM maintenance_requests"));
+        for (String status : List.of(
+                "OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CLOSED", "CANCELLED")) {
+            assertEquals(1, scalar("SELECT COUNT(*) FROM maintenance_requests WHERE status='"
+                    + status + "'"), status);
+        }
+        assertEquals(6, scalar("SELECT COUNT(*) FROM audit_events WHERE action='REQUEST_CREATED'"));
+        assertEquals(6, scalar("SELECT COUNT(*) FROM maintenance_requests request "
+                + "WHERE EXISTS (SELECT 1 FROM audit_events event "
+                + "WHERE event.request_id=request.id AND event.target_type='REQUEST' "
+                + "AND event.target_id=request.id)"));
+        assertEquals(3, scalar("SELECT COUNT(*) FROM work_logs"));
+
+        Workspace.open(directory);
+        assertEquals(6, scalar("SELECT COUNT(*) FROM maintenance_requests"));
+        assertEquals(6, scalar("SELECT COUNT(*) FROM audit_events WHERE action='REQUEST_CREATED'"));
+    }
+
+    @Test
     @DisplayName("LIF-021/022 invalid categories stop before database creation")
     void rejectsInvalidCatalogueBeforeWritingDatabase() throws Exception {
         Files.writeString(directory.resolve("categories.properties"), "categories=Other,other\n");
@@ -66,8 +89,8 @@ class WorkspaceTest {
         var migrated = Workspace.open(directory);
 
         assertEquals(List.of("HVAC", "Other"), migrated.categories());
-        assertEquals("HVAC", category(1));
-        assertEquals("Other", category(2));
+        assertEquals("HVAC", category(7));
+        assertEquals("Other", category(8));
         assertEquals(2, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED'"));
         assertEquals(2, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED' AND actor_id=5"));
         assertEquals(2, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED' "
@@ -85,7 +108,7 @@ class WorkspaceTest {
                 """);
 
         assertThrows(java.io.IOException.class, () -> Workspace.open(directory));
-        assertEquals("Electrical", category(1));
+        assertEquals("Electrical", category(7));
         assertEquals(0, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED'"));
     }
 
@@ -97,7 +120,7 @@ class WorkspaceTest {
         Files.writeString(directory.resolve("categories.properties"), "categories=Other\n");
 
         assertThrows(StorageException.class, () -> Workspace.open(directory));
-        assertEquals("Electrical", category(1));
+        assertEquals("Electrical", category(7));
         assertEquals(0, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED'"));
     }
 
@@ -112,7 +135,7 @@ class WorkspaceTest {
                 """);
 
         assertThrows(java.io.IOException.class, () -> Workspace.open(directory));
-        assertEquals("Electrical", category(1));
+        assertEquals("Electrical", category(7));
         assertEquals(0, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED'"));
     }
 
@@ -125,7 +148,7 @@ class WorkspaceTest {
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + directory.resolve("facilityflow.db"));
                 var statement = connection.createStatement()) {
             statement.execute("CREATE TRIGGER reject_second_category_audit BEFORE INSERT ON audit_events "
-                    + "WHEN NEW.action='CATEGORY_MIGRATED' AND NEW.request_id=2 "
+                    + "WHEN NEW.action='CATEGORY_MIGRATED' AND NEW.request_id=8 "
                     + "BEGIN SELECT RAISE(ABORT, 'fail'); END");
         }
         Files.writeString(directory.resolve("categories.properties"), """
@@ -153,7 +176,7 @@ class WorkspaceTest {
                 """);
 
         assertThrows(StorageException.class, () -> Workspace.open(directory));
-        assertEquals("Electrical", category(1));
+        assertEquals("Electrical", category(7));
         assertEquals(0, scalar("SELECT COUNT(*) FROM audit_events WHERE action='CATEGORY_MIGRATED'"));
     }
 

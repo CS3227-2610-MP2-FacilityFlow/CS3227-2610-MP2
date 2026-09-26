@@ -58,7 +58,8 @@ class AuthenticatedWorkflowTest {
     void setUp() throws Exception {
         fixture = new AuthFixture(directory);
         fx(() -> {
-            router = new ApplicationRouter(fixture.auth, fixture.requester, fixture.manager,
+            router = new ApplicationRouter(
+                    fixture.auth, fixture.requester, fixture.manager, fixture.managerAccounts,
                     fixture.technician, List.of("Plumbing"), new UiTasks(work::add));
             stage = new Stage();
             // Keep layout dimensions independent of native window limits and resize events.
@@ -306,6 +307,44 @@ class AuthenticatedWorkflowTest {
         });
         drain();
         fx(() -> assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("Status: ASSIGNED")));
+    }
+
+    @Test
+    @DisplayName("MGR-001/007 QLT-005 Manager reviews completed work and closes it from the dashboard")
+    void managerClosesCompletedWorkFromDashboard() throws Exception {
+        seedTechnicianQueue();
+        login("manager");
+
+        fx(() -> {
+            var table = (TableView<MaintenanceRequest>) router.lookup("#managerRequests");
+            MaintenanceRequest completed = table.getItems().stream()
+                    .filter(request -> request.status() == RequestStatus.COMPLETED)
+                    .findFirst()
+                    .orElseThrow();
+            table.getSelectionModel().select(completed);
+        });
+        drain();
+        fx(() -> {
+            assertFalse(button("closeRequest").isDisabled());
+            confirmNextDialog();
+            button("closeRequest").fire();
+        });
+        drain();
+
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE id=3 AND status='CLOSED' AND resolution_summary IS NOT NULL"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id=3 AND actor_id=3 AND action='REQUEST_CLOSED'"));
+        fx(() -> {
+            var table = (TableView<MaintenanceRequest>) router.lookup("#managerRequests");
+            MaintenanceRequest closed = table.getItems().stream()
+                    .filter(request -> request.id() == 3)
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals(RequestStatus.CLOSED, closed.status());
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("Completed work closed"));
+        });
     }
 
     @Test
@@ -1063,6 +1102,22 @@ class AuthenticatedWorkflowTest {
                 pause.setOnFinished(event -> responder[0].run());
                 pause.playFromStart();
             }
+        };
+        Platform.runLater(responder[0]);
+    }
+
+    private void confirmNextDialog() {
+        Runnable[] responder = new Runnable[1];
+        responder[0] = () -> {
+            Window dialog = Window.getWindows().stream().filter(Window::isShowing)
+                    .filter(window -> window != stage).findFirst().orElse(null);
+            if (dialog == null || !(dialog.getScene().getRoot() instanceof DialogPane pane)) {
+                var pause = new PauseTransition(Duration.millis(50));
+                pause.setOnFinished(event -> responder[0].run());
+                pause.playFromStart();
+                return;
+            }
+            ((Button) pane.lookupButton(ButtonType.OK)).fire();
         };
         Platform.runLater(responder[0]);
     }

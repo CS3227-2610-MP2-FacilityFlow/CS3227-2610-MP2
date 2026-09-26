@@ -11,6 +11,6 @@ final class UserAccountStringConverter extends StringConverter<UserAccount> {
 
     @Override
     public UserAccount fromString(String value) {
-        throw new UnsupportedOperationException("Technicians must be selected from the list");
+        throw new UnsupportedOperationException("Accounts must be selected from the list");
     }
 }

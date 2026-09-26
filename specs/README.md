@@ -1,6 +1,6 @@
 # FacilityFlow specification index
 
-Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
+Status: **Release-candidate baseline, 27 September 2026**
 
 These specifications are the source of truth for product behavior. They are
 written before implementation so that the three role owners can work against a
@@ -62,17 +62,19 @@ removed, mark it withdrawn rather than renumbering the remaining requirements.
 
 Minor wording fixes that do not alter behavior do not require a separate proposal.
 
-## Baseline decisions still required
+## Resolved baseline decisions and external verification
 
 The [Requester integration decision](../docs/decisions/yooplo/0001-requester-integration.md)
-records the team agreement. Shared
-ownership, password/session rules, data/configuration location, IDs/audit, and
-Requester ordering/filtering/history have been resolved in the relevant specs.
-Implementation and verification remain outstanding; historical session logs
-retain their original observations rather than being rewritten as approvals.
+records the team agreement. Shared ownership, password/session rules,
+data/configuration location, IDs/audit, Requester ordering/filtering/history,
+platform-specific release ZIPs, and rotating local operational logs are resolved
+in the relevant specifications and release-candidate implementation. Historical
+session logs retain their original observations rather than being rewritten as
+later approvals.
 
-- Confirm the exact JavaFX release-packaging strategy after a cross-platform spike.
-- Confirm with the teaching team what evidence they expect for desktop-app monitoring.
+- Run and record the tagged release workflow and clean-machine smoke tests.
+- Retain any teaching-team clarification about acceptable desktop monitoring with
+  the submission evidence.
 
 These decisions do not prevent repository setup, architecture scaffolding, or
 test-harness work. Role feature implementation must wait when a listed decision

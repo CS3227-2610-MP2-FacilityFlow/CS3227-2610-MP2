@@ -6,6 +6,7 @@ import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.WorkLog;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
+import sg.edu.nus.facilityflow.model.TechnicianHistoryEntry;
 import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 
@@ -40,6 +41,11 @@ public final class TechnicianDashboardController {
     public List<WorkLog> loadWorkLogs(MaintenanceRequest request) {
         Objects.requireNonNull(request, "request");
         return requestService.listWorkLogs(session, request.id());
+    }
+
+    public List<TechnicianHistoryEntry> loadHistory(MaintenanceRequest request) {
+        Objects.requireNonNull(request, "request");
+        return requestService.listHistory(session, request.id());
     }
 
     public WorkLog addWorkLog(MaintenanceRequest request, String note, int minutesSpent) {

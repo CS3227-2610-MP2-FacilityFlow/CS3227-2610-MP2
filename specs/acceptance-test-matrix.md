@@ -1,6 +1,6 @@
 # Acceptance test matrix
 
-Status: **Baseline with team-confirmed integration amendments, 20 September 2026**
+Status: **Release-candidate traceability, 27 September 2026**
 
 This file defines release-level scenarios. Detailed unit and integration cases
 are derived from the role/component requirements and tracked in test names or
@@ -38,7 +38,7 @@ test metadata using the listed requirement identifiers.
 
 ## Test naming convention
 
-Additional team-confirmed integration checks (20 September 2026; not yet executed):
+Additional team-confirmed integration checks (20 September 2026):
 
 | ID | Scenario | Principal requirements | Expected result |
 |---|---|---|---|
@@ -50,8 +50,8 @@ Additional team-confirmed integration checks (20 September 2026; not yet execute
 | E2E-033 | ID exhaustion and safe creation audit | LIF-002, DAT-007, DAT-015–019 | Generated IDs stay unique and six-digit; beyond FF-999999 fails atomically; creation audit includes identity/actor/target/time/action but no full title, description, or location |
 | E2E-034 | Shared data and catalogue location | DAT-001, DAT-010, LIF-021–022 | Roles use one OS-user application-data database and adjacent properties catalogue; invalid configuration changes nothing; tests use separate temporary databases |
 
-Requester integration milestone (backend and authenticated JavaFX evidence added
-22 September 2026; release acceptance and visible history remain outstanding):
+Requester integration milestone (backend, history, and authenticated JavaFX
+evidence completed locally by 26 September 2026):
 
 | Role acceptance | Existing release scenarios | Integration evidence required |
 |---|---|---|
@@ -72,8 +72,9 @@ covers each role route, login/logout, one pending submission, recovery, same-own
 draft restoration, and Requester-to-Manager handoff through real controls.
 `WorkspaceTest` covers initial account seeding and category startup validation.
 These are local automated results, not signed release-level E2E passes. Visible
-history, date filtering, representative lifecycle demo requests, category mappings,
-and the complete Manager review/closure workflow remain outstanding.
+history, inclusive date filtering, representative lifecycle demo requests,
+category mappings, and the complete Manager review/closure workflow are now
+covered by the release-candidate implementation and automated suite.
 
 Technician cross-role hardening evidence (24 September 2026):
 `SQLiteTechnicianCrossRoleIntegrationTest` uses real authenticated sessions and one
@@ -84,6 +85,16 @@ from a second Technician, wrong-role denial, and rejection of the old process-lo
 session after restart. This verifies the local service/storage integration covered
 by E2E-003, E2E-005–007, E2E-014–016 and REQ-A08; it does not certify the entire
 release matrix or cross-platform packaging.
+
+Manager completion evidence (27 September 2026):
+`ManagerRequestCompletionTest` covers close/return/reopen/cancel, record-on-behalf,
+corrections in every state, search/filter, dashboard summaries, history/audit
+filters, and authorization. `ManagerAccountServiceTest` covers account validation,
+creation, active state, last-Manager/self protection, role changes, and active-work
+guarding. `SQLiteManagerCompletionIntegrationTest` covers atomic lifecycle and
+account writes, rollback, safe detailed audits, and deterministic combined history.
+`WorkspaceTest` verifies the six-state demo workspace. These remain local automated
+results until the release commit's CI and clean-machine evidence are recorded.
 
 Automated tests SHOULD include at least one requirement identifier in the test
 name or display name, for example:

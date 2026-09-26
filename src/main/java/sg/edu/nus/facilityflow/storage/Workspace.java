@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import sg.edu.nus.facilityflow.util.OperationalLog;
 
 /** DAT-001: one workspace per OS user; category validation precedes any database migration. */
 public record Workspace(SQLiteManagerAssignmentStore store, List<String> categories) {
@@ -40,14 +41,21 @@ public record Workspace(SQLiteManagerAssignmentStore store, List<String> categor
         try (var reader = Files.newBufferedReader(catalogue, StandardCharsets.UTF_8)) {
             properties.load(reader);
         } catch (IllegalArgumentException exception) {
+            OperationalLog.warning(
+                    "category_catalogue", "validation_failed", "reason=malformed_properties");
             throw new IOException("Invalid categories.properties. Correct it before restarting.", exception);
         }
         var categories = parseNames(properties.getProperty("categories", ""), "categories");
         if (categories.stream().anyMatch(String::isBlank) || !categories.contains("Other")
                 || categories.stream().map(value -> value.toLowerCase(Locale.ROOT)).distinct().count() != categories.size()) {
+            OperationalLog.warning(
+                    "category_catalogue", "validation_failed", "reason=invalid_categories");
             throw new IOException("Invalid categories.properties. Use unique categories including Other.");
         }
         var migrations = parseMigrations(properties, categories);
+        OperationalLog.info(
+                "category_catalogue", "validation_complete",
+                "categories=" + categories.size() + " mappings=" + migrations.size());
         var store = new SQLiteManagerAssignmentStore("jdbc:sqlite:" + directory.resolve("facilityflow.db"));
         store.initializeWorkspace(categories, migrations);
         return new Workspace(store, categories);
@@ -104,6 +112,8 @@ public record Workspace(SQLiteManagerAssignmentStore store, List<String> categor
     }
 
     private static IOException invalidMappings() {
+        OperationalLog.warning(
+                "category_catalogue", "validation_failed", "reason=invalid_mappings");
         return new IOException("Invalid category rename/removal mappings. Rename entries use Old>New; "
                 + "removals list old categories to move to Other. Targets must be configured categories.");
     }
