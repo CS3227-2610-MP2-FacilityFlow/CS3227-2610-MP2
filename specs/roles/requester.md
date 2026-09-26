@@ -5,13 +5,15 @@ Team owner: **yooplo** (team agreement confirmed 14 September 2026)
 
 ## Development starter scope
 
-The default application now provides real login and Requester create/list/detail
-through the shared SQLite services (22 September 2026). The optional validation-only
-preview remains available separately and must never describe validation as a save.
-Backend and JavaFX tests cover role isolation, rollback/retry, retained input,
-duplicate-click prevention, and Manager handoff. Visible history, edit/cancel,
-follow-ups, filtering, and dashboard summaries remain outstanding. The requirements
-and complete product acceptance criteria below remain unchanged.
+The default application now provides authenticated Requester create/list/detail,
+dashboard counts, own-request search and filters, eligible edits/cancellation,
+follow-ups, and requester-visible history through the shared SQLite services
+(25 September 2026). The optional validation-only preview remains available
+separately and must never describe validation as a save. The requirements and
+complete product acceptance criteria below remain unchanged. The Windows
+repository `check` and targeted Requester integration/UI checks passed on
+26 September 2026. On 26 September, the Requester owner confirmed manual UI
+smoke testing and Windows/Linux/macOS CI passed; team review remains pending.
 
 ## Role objective
 
@@ -70,10 +72,10 @@ gaining access to other requesters' data or internal maintenance notes.
 
 ## Acceptance scenarios
 
-The next planned increment is authenticated creation and own-request list/detail,
-followed by Manager assignment handoff. The
+Authenticated creation, own-request list/detail, and Manager assignment handoff
+are implemented. The
 [confirmed integration decision](../../docs/decisions/yooplo/0001-requester-integration.md)
-records implementation dependencies; it does not supersede these requirements.
+records the shared integration contract; it does not supersede these requirements.
 
 ### REQ-A01 — create a valid request
 

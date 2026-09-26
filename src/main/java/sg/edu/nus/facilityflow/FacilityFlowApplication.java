@@ -1,5 +1,6 @@
 package sg.edu.nus.facilityflow;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -15,6 +16,7 @@ import sg.edu.nus.facilityflow.service.ManagerRequestService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.service.RequestValidator;
 import sg.edu.nus.facilityflow.service.TechnicianRequestService;
+import sg.edu.nus.facilityflow.storage.StorageException;
 import sg.edu.nus.facilityflow.storage.Workspace;
 import sg.edu.nus.facilityflow.ui.ApplicationRouter;
 import sg.edu.nus.facilityflow.ui.UiTasks;
@@ -46,9 +48,10 @@ public final class FacilityFlowApplication extends Application {
             scene.setRoot(new ApplicationRouter(
                     auth, requester, manager, technician, workspace.categories(), tasks));
         }, error -> {
+            String detail = error instanceof IOException || error instanceof StorageException
+                    ? error.getMessage() : "Check database access, the application version, and categories.properties.";
             var message = new Label("FacilityFlow could not open its workspace.\n"
-                    + "Check database access, the application version, and categories.properties, then restart.\n"
-                    + Workspace.defaultDirectory());
+                    + detail + "\n" + Workspace.defaultDirectory());
             message.setWrapText(true);
             root.setCenter(message);
             System.getLogger(FacilityFlowApplication.class.getName()).log(System.Logger.Level.ERROR,

@@ -25,7 +25,7 @@ actionable error and leaves persistent data unchanged.
 
 ## Consequences
 
-one Java `.properties` file beside the shared database in the OS user's application-data directory, owned by yu-sutong along with startup validation and atomic category migrations. This records an accepted design, not completed implementation.
+one Java `.properties` file beside the shared database in the OS user's application-data directory, owned by yu-sutong along with startup validation and atomic category migrations. `docs/CategoryCatalogue.md` records the configuration keys and current implementation behavior.
 
 - Managers cannot add, rename, or delete categories through the MVP interface.
 - The User Guide and Developer Guide must explain the catalogue contract.

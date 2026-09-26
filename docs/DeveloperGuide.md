@@ -49,18 +49,18 @@ login flow. To launch the older validation-only preview instead:
 | [AuthenticationService](../src/main/java/sg/edu/nus/facilityflow/auth/AuthenticationService.java) | Password verification, login audits, own changes and Manager resets |
 | [SessionManager](../src/main/java/sg/edu/nus/facilityflow/auth/SessionManager.java) | Opaque process-local sessions and persisted active/role/version checks |
 | [ApplicationRouter](../src/main/java/sg/edu/nus/facilityflow/ui/ApplicationRouter.java) | Login, logout, role routing and own-password UI |
-| [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Own list, submission, detail, and retained drafts |
+| [RequesterDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterDashboardView.java) | Requester counts, owned list/search/filters, submission, detail/history, edit/cancel and follow-up controls |
 | [TechnicianDashboardController](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardController.java) | Thin presentation adapter for Technician queue, work-log reads, and writes |
 | [TechnicianDashboardView](../src/main/java/sg/edu/nus/facilityflow/ui/technician/TechnicianDashboardView.java) | Assigned queue, request detail, start-work action, internal work-log history and entry form, resolution summary, and completion-for-review action |
 | [Workspace](../src/main/java/sg/edu/nus/facilityflow/storage/Workspace.java) | OS-user database location and category startup validation |
 | [RequesterPreviewLauncher](../src/main/java/sg/edu/nus/facilityflow/RequesterPreviewLauncher.java) | Development entry point; starts JavaFX without impersonating an account |
 | [RequesterPreview](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterPreview.java) | Window and initial-category preview fixture |
-| [RequesterForm](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterForm.java) | Input controls and field feedback; no SQL, authentication, or persistence |
+| [RequesterForm](../src/main/java/sg/edu/nus/facilityflow/ui/requester/RequesterForm.java) | New/edit input controls and field feedback; no SQL, authentication, or persistence |
 | [RequestDraft](../src/main/java/sg/edu/nus/facilityflow/model/RequestDraft.java) | Normalized, still-untrusted input; no caller-supplied ownership or status |
 | [ReportedUrgency](../src/main/java/sg/edu/nus/facilityflow/model/ReportedUrgency.java) | The four reported urgency values from LIF-005 |
 | [RequestValidator](../src/main/java/sg/edu/nus/facilityflow/service/RequestValidator.java) | Field validation against a supplied catalogue, independent of JavaFX |
-| [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, atomic creation/audit, and owner-only list/detail |
-| [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–4 and schema compatibility checks |
+| [RequesterRequestService](../src/main/java/sg/edu/nus/facilityflow/service/RequesterRequestService.java) | Requester authorization, validation, owner-only search/filter/detail, audited edits/cancellation and visible history/follow-ups |
+| [SchemaMigrations](../src/main/java/sg/edu/nus/facilityflow/storage/SchemaMigrations.java) | Ordered versions 1–5 and schema compatibility checks |
 | [TechnicianRequestService](../src/main/java/sg/edu/nus/facilityflow/service/TechnicianRequestService.java) | Authenticated Technician-scoped queue, dashboard-count read, filtering, progress, work-log, completion, and stale-write checks |
 | [TechnicianQueueFilter](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianQueueFilter.java) | Normalized TEC-002 queue search and enum/category filters |
 | [TechnicianDashboardCounts](../src/main/java/sg/edu/nus/facilityflow/model/TechnicianDashboardCounts.java) | Non-negative counts for assigned, in-progress, and completed work awaiting Manager review |
@@ -85,10 +85,12 @@ and [persistence contract](../specs/components/persistence-observability.md).
 
 The optional preview retains its category fixture. The real app loads the
 `categories` comma-separated key from UTF-8 `categories.properties` beside the
-database. Duplicate/blank categories, missing `Other`, and unknown keys fail
-before database changes. Startup also rejects a catalogue that omits a category
-already stored on a request. Rename/removal mappings remain unimplemented and
-are rejected rather than ignored. See [CategoryCatalogue.md](CategoryCatalogue.md).
+database. Optional `renames=Old>New,...` entries migrate names to configured
+categories; `removals=Old,...` entries move those categories to `Other`.
+Unknown keys, duplicate/blank categories, invalid mappings, and unmapped stored
+categories stop startup before data changes. Each affected request update and
+`CATEGORY_MIGRATED` audit event shares the startup transaction. See
+[CategoryCatalogue.md](CategoryCatalogue.md).
 
 The cross-role integration test uses the real authentication boundary and one
 temporary SQLite database. It proves that a Requester-created request can be
@@ -250,23 +252,28 @@ only `updatedAt`. Work-log history retains its original Technician author after
 reassignment. Requester queries do not join or expose internal work logs.
 
 `RequesterRequestService.createRequest(session, draft)`, `listOwnRequests(session)`
-and `getOwnRequest(session, requestId)` reuse that transaction boundary. Owner reads
+and `getOwnRequest(session, requestId)` reuse that transaction boundary. Filtered
+list reads also support case-insensitive search, enum/category filters, and local
+inclusive date ranges. Owner reads
 are scoped in SQL and checked in the service. Lists order by creation Instant
 descending, then display ID ascending; absent and inaccessible details have the
 same safe error. Returned records contain no audit details or internal notes.
-Visible activity history under REQ-017 is not implemented yet. The configured
-category set is supplied through `RequestValidator`; the authenticated Requester
-view now calls these operations through background tasks.
+Edit, cancellation, and follow-up writes recheck owner and current status inside
+the transaction. Visible history reads only approved status audit actions and
+Requester updates; it does not return work logs or private Manager notes. The
+configured category set is supplied through `RequestValidator`; the authenticated
+Requester view calls these operations through background tasks.
 
 
 Manager service tests cover valid assignment, invalid/inactive assignees,
 unauthorized actors, invalid state, and missing priority. SQLite tests verify
 that an injected audit failure rolls back request state and audit writes.
 
-`SQLiteRequesterRequestServiceTest` covers valid/invalid creation, all three
-operations' role checks, live deactivation/role changes, owner isolation and
-ordering, reopening the database, Manager handoff, request/audit failure rollback,
-ID exhaustion, foreign keys, and safe read errors. `SchemaMigrationsTest` covers
+`SQLiteRequesterRequestServiceTest` covers valid/invalid creation, role checks,
+live deactivation/role changes, owner isolation and ordering, search, filters,
+inclusive local dates, edit/cancel/follow-up state rules, visible-history privacy,
+reopening the database, Manager handoff, request/audit failure rollback, ID
+exhaustion, foreign keys, and safe read errors. `SchemaMigrationsTest` covers
 fresh/repeated startup, legacy preservation, seed identity advancement, rollback,
 and incompatible schemas. Every integration test uses a temporary database;
 legacy session fixtures remain isolated from the new real-authentication tests.
@@ -278,8 +285,8 @@ submission, repeated-click prevention, safe recovery, draft restoration, and
 Requester-to-Manager handoff. `WorkspaceTest` checks seeding and category startup.
 `TechnicianRequestServiceTest` and `SQLiteTechnicianRequestServiceTest` cover
 Technician dashboard-count ownership/role checks and persisted queue search,
-filtering, and ordering. These are backend tests; no JavaFX control currently
-loads the counts or exposes the queue filters.
+filtering, and ordering. The Requester dashboard presents its owner-scoped
+counts and exposes the corresponding search and filters in JavaFX.
 
 ## Verification and CI
 
@@ -334,20 +341,21 @@ Team agreement reported by yooplo on 20 September 2026:
 - Requester lists use creation descending/display ID ascending; date filters are
   inclusive local dates; history includes status/reasons/follow-ups but no private notes.
 
-The implemented subset is described above. Date filtering, visible activity
-history, category mappings, and the Manager review/return/close/reopen stages
-of the cross-role lifecycle remain outstanding.
+The Requester slice now provides counts, inclusive local-date filtering, visible
+activity history and the eligible edit/cancel/follow-up operations. Category
+mappings and the Manager review/return/close/reopen stages of the cross-role
+lifecycle remain outstanding.
 
 ## Next integration and release work
 
 The [confirmed Requester integration decision](decisions/yooplo/0001-requester-integration.md)
-defines the next create/list/detail milestone and team-agreed shared contracts.
-Login/session handling and authenticated create/list/detail are integrated with
-the existing Manager assignment route. This does not complete visible history or
-the remainder of the cross-role lifecycle.
+records the shared contracts for the Requester-to-Manager handoff. Login/session
+handling and the Requester workflow are integrated with the existing Manager
+assignment route. The remainder of the cross-role lifecycle still needs Manager
+review/return/close/reopen work.
 
-Follow [RequesterPreparation.md](RequesterPreparation.md) for the ordered tasks.
-Add edit/cancel, visible history, and filters next.
+Follow [RequesterPreparation.md](RequesterPreparation.md) for verification and
+review tracking of the Requester slice.
 The Manager slice still needs search/filter/reset,
 the remaining transitions, account administration, summaries, and audit browsing.
 

@@ -96,14 +96,56 @@ An unfinished form behaves as follows:
   form.
 - Logging out or closing the app discards it.
 
-#### View your requests
+#### Find and review your requests
 
-**My requests** shows only requests you submitted, with the newest first.
+**My requests** shows requests owned by your account, newest first. The summary
+shows the number of requests in total and the counts that are open, assigned,
+in progress, awaiting Manager review, closed, or cancelled.
 
-1. Choose **Refresh requests** to check for changes.
-2. Select a request and choose **View selected request** to read its details.
-3. Choose **Refresh detail** to check its latest status, or **Back to my
-   requests** to return to the list.
+1. Enter any part of a request number, title, or location in **Search**. Search
+   ignores letter case and extra spaces at the beginning or end.
+2. Optionally choose a status or category, and/or select **From date** and
+   **Through date** to limit requests by when they were created. The chosen
+   dates are included.
+3. Choose **Apply filters**. You can combine search and filters. If nothing
+   matches, the list is empty.
+4. Choose **Reset filters** to clear the search and all selections.
+5. Choose **Refresh requests** to reload the list, then select a request and
+   choose **View selected request**.
+6. On the detail screen, choose **Refresh detail** to reload its current
+   information, or **Back to my requests** to return to the list.
+
+The detail screen shows the current status, reported urgency, Manager priority
+when one has been set, and the created and updated times. **Activity history**
+shows status events and follow-up updates visible to you. Technician work notes
+and private Manager notes are not shown.
+
+#### Edit or cancel an open request
+
+Only requests with status `OPEN` can be edited or cancelled.
+
+1. Open the request from **My requests**.
+2. Choose **Edit request** to change its details. The form starts with the
+   saved values. The same required fields and length rules as a new request
+   apply.
+3. Choose **Submit request** to save. The updated detail appears with a success
+   message. If a field is invalid or saving fails, the form keeps your entries
+   and shows a message.
+
+To cancel instead, choose **Cancel request**, enter a reason of 5 to 500
+characters, and submit it in the dialog. The request becomes `CANCELLED`, and
+the reason appears in its activity history. Cancelled requests cannot be edited
+or receive follow-up updates.
+
+#### Add a follow-up
+
+1. Open a request that is not `CLOSED` or `CANCELLED`.
+2. Enter an update of 1 to 1,000 characters in **Add a follow-up update**.
+3. Choose **Add follow-up**. The detail reloads and the update appears in
+   **Activity history**.
+
+If the update cannot be saved, the app shows an error. Correct the text or
+refresh the request and try again.
 
 #### Practise filling out a request
 
@@ -237,16 +279,27 @@ Safety, and Other. To change the list:
 1. Close the app and open `categories.properties`.
 2. Edit the `categories` line. Separate names with commas, keep each name
    unique, and keep `Other`.
-3. Start the app again. If the list is invalid, the app asks you to correct the
-   file before it opens.
+3. If saved requests use a category that you are renaming or removing, add the
+   matching mapping. `renames` and `removals` are optional; omit a line when it
+   has no entries. For example:
 
-Do not remove or rename a category already used by a saved request. This
-version cannot move those requests to a different category.
+   ```properties
+   categories=Plumbing,Climate Control,Other
+   renames=HVAC>Climate Control
+   removals=Electrical,Cleaning,Safety
+   ```
+
+   In `renames`, write each old category followed by `>` and its replacement.
+   Separate multiple mappings with commas. Each replacement must be in the new
+   `categories` list. In `removals`, list old category names separated by
+   commas; requests in those categories move to `Other`.
+4. Save the file and start the app again. Startup moves affected requests and
+   records each change for auditing as one operation. If the file or a mapping
+   is invalid, or a change cannot be recorded, the app will not start and its
+   database changes are rolled back.
 
 ## Current limitations
 
-- Requesters cannot yet edit, cancel, search, or filter their requests, add
-  follow-up information, or view a history of status changes.
 - Managers can assign new requests but cannot yet report a problem for someone
   else, correct request details, reassign or cancel work, review a Technician's
   completion, close or reopen requests, manage other accounts, or view the

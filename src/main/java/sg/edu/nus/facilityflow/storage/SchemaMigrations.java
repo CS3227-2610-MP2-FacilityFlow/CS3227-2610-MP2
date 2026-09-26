@@ -61,7 +61,7 @@ final class SchemaMigrations {
                 }
                 version = result.getInt(1);
             }
-            if (version < 0 || version > 4) {
+            if (version < 0 || version > 5) {
                 throw new SQLException("Unsupported schema version; use a compatible FacilityFlow build.");
             }
             if (version == 0) {
@@ -160,6 +160,11 @@ final class SchemaMigrations {
                         """);
                 statement.execute("PRAGMA user_version = 4");
             }
+            if (version < 5) {
+                statement.execute("CREATE TABLE requester_updates (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER NOT NULL REFERENCES maintenance_requests(id), author_id INTEGER NOT NULL REFERENCES user_accounts(id), text TEXT NOT NULL CHECK(length(text) BETWEEN 1 AND 1000), created_at TEXT NOT NULL)");
+                statement.execute("CREATE INDEX requester_updates_history ON requester_updates(request_id, created_at, id)");
+                statement.execute("PRAGMA user_version = 5");
+            }
             // Fail at startup rather than accepting a version marker on an incompatible schema.
             statement.executeQuery("""
                     SELECT id, username, display_name, role, password_hash, active, created_at, updated_at, session_version
@@ -174,6 +179,10 @@ final class SchemaMigrations {
             statement.executeQuery("""
                     SELECT id, request_id, author_id, note, minutes_spent, created_at
                     FROM work_logs LIMIT 0
+                    """).close();
+            statement.executeQuery("""
+                    SELECT id, request_id, author_id, text, created_at
+                    FROM requester_updates LIMIT 0
                     """).close();
             statement.executeQuery("""
                     SELECT id, request_id, actor_id, action, detail, occurred_at, target_type, target_id

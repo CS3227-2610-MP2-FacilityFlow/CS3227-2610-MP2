@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.AccountCredentials;
@@ -21,6 +22,8 @@ import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
+import sg.edu.nus.facilityflow.model.RequesterHistoryEntry;
+import sg.edu.nus.facilityflow.model.RequesterUpdate;
 
 /** SQLite implementation whose callback commits all writes or rolls all of them back. */
 public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStore {
@@ -34,14 +37,18 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
     }
 
     public void initializeSchema() {
-        initialize(null);
+        initialize(null, Map.of());
     }
 
     public void initializeWorkspace(List<String> categories) {
-        initialize(List.copyOf(categories));
+        initialize(List.copyOf(categories), Map.of());
     }
 
-    private void initialize(List<String> categories) {
+    public void initializeWorkspace(List<String> categories, Map<String, String> categoryMigrations) {
+        initialize(List.copyOf(categories), Map.copyOf(categoryMigrations));
+    }
+
+    private void initialize(List<String> categories, Map<String, String> categoryMigrations) {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -56,11 +63,13 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                     if (fresh) {
                         DemoWorkspace.seed(connection);
                     }
+                    applyCategoryMigrations(connection, categoryMigrations);
                     try (Statement statement = connection.createStatement();
                             ResultSet rows = statement.executeQuery("SELECT DISTINCT category FROM maintenance_requests")) {
                         while (rows.next()) {
                             if (!categories.contains(rows.getString(1))) {
-                                throw new SQLException("Stored categories require an explicit category migration.");
+                                throw new SQLException("Stored category '" + rows.getString(1)
+                                        + "' has no valid rename or removal mapping.");
                             }
                         }
                     }
@@ -72,7 +81,58 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
             }
         } catch (SQLException exception) {
             throw new StorageException("Could not initialize the local database. "
-                    + "Use a compatible app version or restore a valid backup.", exception);
+                    + exception.getMessage() + " Use a compatible app version or restore a valid backup.", exception);
+        }
+    }
+
+    private static void applyCategoryMigrations(Connection connection, Map<String, String> migrations)
+            throws SQLException {
+        if (migrations.isEmpty()) {
+            return;
+        }
+        var at = Instant.now().toString();
+        Long actorId = null;
+        try (var find = connection.prepareStatement("SELECT id FROM maintenance_requests WHERE category=?");
+                var update = connection.prepareStatement("UPDATE maintenance_requests SET category=?, updated_at=? WHERE id=?");
+                var audit = connection.prepareStatement("""
+                        INSERT INTO audit_events(request_id, actor_id, action, detail, occurred_at, target_type, target_id)
+                        VALUES (?, ?, 'CATEGORY_MIGRATED', ?, ?, 'REQUEST', ?)
+                        """)) {
+            for (var migration : migrations.entrySet()) {
+                find.setString(1, migration.getKey());
+                List<Long> requestIds = new ArrayList<>();
+                try (var affected = find.executeQuery()) {
+                    while (affected.next()) {
+                        requestIds.add(affected.getLong(1));
+                    }
+                }
+                if (!requestIds.isEmpty() && actorId == null) {
+                    try (var manager = connection.createStatement(); var result = manager.executeQuery("""
+                            SELECT id FROM user_accounts
+                            WHERE role='FACILITIES_MANAGER' AND active=1 ORDER BY id LIMIT 1
+                            """)) {
+                        if (!result.next()) {
+                            throw new SQLException("A Facilities Manager account is required to audit category migrations.");
+                        }
+                        actorId = result.getLong(1);
+                    }
+                }
+                for (long requestId : requestIds) {
+                    update.setString(1, migration.getValue());
+                    update.setString(2, at);
+                    update.setLong(3, requestId);
+                    if (update.executeUpdate() != 1) {
+                        throw new SQLException("A request changed while applying the category migration.");
+                    }
+                    audit.setLong(1, requestId);
+                    audit.setLong(2, actorId);
+                    audit.setString(3, "Category changed from '" + migration.getKey()
+                            + "' to '" + migration.getValue() + "' by startup catalogue migration.");
+                    audit.setString(4, at);
+                    audit.setLong(5, requestId);
+                    audit.executeUpdate();
+                }
+            }
         }
     }
 
@@ -495,6 +555,123 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                 statement.setString(5, event.occurredAt().toString());
                 statement.setLong(6, event.requestId());
                 statement.executeUpdate();
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public boolean updateRequesterRequest(MaintenanceRequest request, long ownerId, RequestStatus expected) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE maintenance_requests SET title=?, description=?, location=?, category=?,
+                        reported_urgency=?, updated_at=?
+                    WHERE id=? AND requester_id=? AND status=?
+                    """)) {
+                statement.setString(1, request.title());
+                statement.setString(2, request.description());
+                statement.setString(3, request.location());
+                statement.setString(4, request.category());
+                statement.setString(5, request.reportedUrgency().name());
+                statement.setString(6, request.updatedAt().toString());
+                statement.setLong(7, request.id());
+                statement.setLong(8, ownerId);
+                statement.setString(9, expected.name());
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public boolean cancelRequesterRequest(long requestId, long ownerId, Instant at) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE maintenance_requests SET status='CANCELLED', updated_at=?
+                    WHERE id=? AND requester_id=? AND status='OPEN'
+                    """)) {
+                statement.setString(1, at.toString());
+                statement.setLong(2, requestId);
+                statement.setLong(3, ownerId);
+                return statement.executeUpdate() == 1;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public void addRequesterUpdate(long requestId, long authorId, String text, Instant at) {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO requester_updates(request_id,author_id,text,created_at)
+                    SELECT ?,?,?,? WHERE EXISTS (
+                        SELECT 1 FROM maintenance_requests
+                        WHERE id=? AND status NOT IN ('CLOSED','CANCELLED'))
+                    """)) {
+                statement.setLong(1, requestId);
+                statement.setLong(2, authorId);
+                statement.setString(3, text);
+                statement.setString(4, at.toString());
+                statement.setLong(5, requestId);
+                if (statement.executeUpdate() != 1) {
+                    throw new StorageException("Request no longer accepts updates.", null);
+                }
+                try (PreparedStatement update = connection.prepareStatement("""
+                        UPDATE maintenance_requests SET updated_at=?
+                        WHERE id=? AND status NOT IN ('CLOSED','CANCELLED')
+                        """)) {
+                    update.setString(1, at.toString());
+                    update.setLong(2, requestId);
+                    if (update.executeUpdate() != 1) {
+                        throw new StorageException("Request no longer accepts updates.", null);
+                    }
+                }
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public List<RequesterUpdate> listRequesterUpdates(long requestId) {
+            List<RequesterUpdate> rows = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT * FROM requester_updates WHERE request_id=? ORDER BY created_at,id
+                    """)) {
+                statement.setLong(1, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        rows.add(new RequesterUpdate(
+                                result.getLong("id"), requestId, result.getLong("author_id"),
+                                result.getString("text"), Instant.parse(result.getString("created_at"))));
+                    }
+                }
+                return rows;
+            } catch (SQLException exception) {
+                throw storageFailure(exception);
+            }
+        }
+
+        @Override
+        public List<RequesterHistoryEntry> listRequesterHistory(long requestId) {
+            List<RequesterHistoryEntry> rows = new ArrayList<>();
+            String sql = """
+                    SELECT action, detail, occurred_at FROM audit_events
+                    WHERE request_id=? AND action IN ('REQUEST_CREATED','REQUEST_ASSIGNED',
+                        'REQUEST_REASSIGNED','REQUEST_STARTED','REQUEST_COMPLETED','REQUEST_CANCELLED',
+                        'REQUEST_CLOSED','REQUEST_REOPENED','REQUEST_RETURNED')
+                    ORDER BY occurred_at,id
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, requestId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        String action = result.getString("action");
+                        String text = action.replace("REQUEST_", "").replace('_', ' ');
+                        if (action.equals("REQUEST_CANCELLED") || action.equals("REQUEST_REOPENED")) {
+                            text += ": " + result.getString("detail");
+                        }
+                        rows.add(new RequesterHistoryEntry(
+                                "Status", text, Instant.parse(result.getString("occurred_at"))));
+                    }
+                }
+                return rows;
             } catch (SQLException exception) {
                 throw storageFailure(exception);
             }
