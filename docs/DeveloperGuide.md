@@ -85,10 +85,12 @@ and [persistence contract](../specs/components/persistence-observability.md).
 
 The optional preview retains its category fixture. The real app loads the
 `categories` comma-separated key from UTF-8 `categories.properties` beside the
-database. Duplicate/blank categories, missing `Other`, and unknown keys fail
-before database changes. Startup also rejects a catalogue that omits a category
-already stored on a request. Rename/removal mappings remain unimplemented and
-are rejected rather than ignored. See [CategoryCatalogue.md](CategoryCatalogue.md).
+database. Optional `renames=Old>New,...` entries migrate names to configured
+categories; `removals=Old,...` entries move those categories to `Other`.
+Unknown keys, duplicate/blank categories, invalid mappings, and unmapped stored
+categories stop startup before data changes. Each affected request update and
+`CATEGORY_MIGRATED` audit event shares the startup transaction. See
+[CategoryCatalogue.md](CategoryCatalogue.md).
 
 The cross-role integration test uses the real authentication boundary and one
 temporary SQLite database. It proves that a Requester-created request can be

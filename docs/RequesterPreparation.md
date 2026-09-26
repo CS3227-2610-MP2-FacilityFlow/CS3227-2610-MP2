@@ -11,7 +11,9 @@ Manager — yu-sutong. Integration decisions were confirmed on
 
 ## Start here
 
-The next milestone is **verification and team review of the complete Requester workflow**.
+The next milestone is **team review of the complete Requester workflow**. The
+Requester owner reports that manual smoke testing and CI on Windows, Linux, and
+macOS are complete; team review remains pending.
 Start with the [confirmed integration decision](decisions/yooplo/0001-requester-integration.md).
 Yooplo owns authentication/session/routing as well as Requester. Yu-sutong owns
 migrations, demo seeding, and category configuration together. The decisions are
@@ -57,7 +59,10 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [ ] Human-review the resulting documentation and implementation changes.
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
-- [ ] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR.
+- [x] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR
+  (reported complete by the Requester owner; review the CI run when reviewing).
+- [x] Manually smoke-test the authenticated Requester workflow (reported
+  complete by the Requester owner; detailed scenario results were not recorded here).
 - [x] Implement Requester backend persistence with the SQLite foundation,
   versioned migrations, owner-read queries, and rollback/handoff tests.
 - [x] Connect backend operations to authenticated Requester screens.
@@ -76,13 +81,16 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
   Team review remains pending.
 - [x] Load the `categories` key in `categories.properties` and seed six accounts
   atomically on fresh workspace creation. Document shared workspace paths.
-- [ ] Finish category rename/removal migrations and representative lifecycle demo
-  requests with yu-sutong; the current initial request list is empty.
+- [x] Implement category rename/removal migrations with audit events in the
+  startup transaction; migration tests pass. Team review remains pending.
+- [ ] Add representative lifecycle demo requests with yu-sutong; the current
+  initial request list is empty.
 - [ ] Assign a shared packaging spike and clarify monitoring evidence with the
   teaching team, as tracked in the specification index.
 
 Requester requirements REQ-001–017 now have implementation coverage. Test-agent
-verification and team review remain required. Shared responsibilities follow the
+verification, manual smoke testing, and three-platform CI are reported complete;
+team review remains required. Shared responsibilities follow the
 confirmed ownership above; packaging and monitoring questions remain separate release work.
 
 ## Suggested small pull requests

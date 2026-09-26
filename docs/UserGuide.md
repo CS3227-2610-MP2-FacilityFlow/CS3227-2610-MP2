@@ -279,11 +279,24 @@ Safety, and Other. To change the list:
 1. Close the app and open `categories.properties`.
 2. Edit the `categories` line. Separate names with commas, keep each name
    unique, and keep `Other`.
-3. Start the app again. If the list is invalid, the app asks you to correct the
-   file before it opens.
+3. If saved requests use a category that you are renaming or removing, add the
+   matching mapping. `renames` and `removals` are optional; omit a line when it
+   has no entries. For example:
 
-Do not remove or rename a category already used by a saved request. This
-version cannot move those requests to a different category.
+   ```properties
+   categories=Plumbing,Climate Control,Other
+   renames=HVAC>Climate Control
+   removals=Electrical,Cleaning,Safety
+   ```
+
+   In `renames`, write each old category followed by `>` and its replacement.
+   Separate multiple mappings with commas. Each replacement must be in the new
+   `categories` list. In `removals`, list old category names separated by
+   commas; requests in those categories move to `Other`.
+4. Save the file and start the app again. Startup moves affected requests and
+   records each change for auditing as one operation. If the file or a mapping
+   is invalid, or a change cannot be recorded, the app will not start and its
+   database changes are rolled back.
 
 ## Current limitations
 

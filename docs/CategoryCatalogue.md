@@ -15,8 +15,7 @@ Team-confirmed on 20 September 2026: use one Java `.properties` file alongside
 the shared SQLite database in the OS user's application-data directory. It holds
 the category list and explicit rename/removal mappings and is validated at startup.
 `yu-sutong` owns configuration and migrations together. Exact filenames/property
-keys are implementation details to document when implemented; no particular keys
-or working configuration loader are claimed here.
+keys are documented below.
 
 ## Changing the catalogue
 
@@ -29,6 +28,27 @@ or working configuration loader are claimed here.
 - The category migration and its audit events are one atomic operation. A failure
   leaves neither partial request changes nor partial audit records.
 
+The application uses UTF-8 `categories.properties` beside `facilityflow.db`:
+
+```properties
+categories=Plumbing,Climate Control,Other
+renames=HVAC>Climate Control
+removals=Electrical,Cleaning,Safety
+```
+
+`renames` is an optional comma-separated list of `old>new` pairs. Each target
+must exactly match a category in the new `categories` list. `removals` is an
+optional comma-separated list of old categories; affected requests move to
+`Other`. Omit either key when it has no entries. A source can appear in only
+one mapping and cannot also be in the new category list. Category names cannot
+contain commas; rename entries also use `>` as a separator.
+
+At startup, each affected request is updated and receives a
+`CATEGORY_MIGRATED` audit event. The event records the old and new names and the
+startup time. Since the application has no system audit identity, it attributes
+the event to the first active Facilities Manager account by ID. If no such
+account exists, startup fails and the database transaction rolls back.
+
 ## Invalid configuration
 
 The application must stop startup with an actionable message, without changing
@@ -37,12 +57,10 @@ or includes an invalid rename/removal mapping.
 
 Facilities Managers do not manage categories through the MVP interface.
 
-## Current implementation (22 September 2026)
+## Implementation status (26 September 2026)
 
 The application loads UTF-8 `categories.properties` beside `facilityflow.db` with
 one key, `categories`, containing comma-separated names. A new file receives the
 initial catalogue. Startup rejects empty/duplicate names, missing `Other`, unknown
-keys, and catalogues omitting a stored request's category. Rename/removal mapping
-syntax and migrations are not yet implemented; supplying mapping keys stops
-startup instead of silently applying an incomplete change. The agreed complete
-contract above remains required for LIF-021–022.
+keys, malformed mappings, and unmapped stored categories. Valid mappings migrate
+all affected requests and append their audit events in one startup transaction.

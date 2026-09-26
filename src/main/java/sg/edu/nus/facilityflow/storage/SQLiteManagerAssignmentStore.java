@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import sg.edu.nus.facilityflow.model.AuditEvent;
 import sg.edu.nus.facilityflow.model.AccountCredentials;
@@ -21,8 +22,8 @@ import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
-import sg.edu.nus.facilityflow.model.RequesterUpdate;
 import sg.edu.nus.facilityflow.model.RequesterHistoryEntry;
+import sg.edu.nus.facilityflow.model.RequesterUpdate;
 
 /** SQLite implementation whose callback commits all writes or rolls all of them back. */
 public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStore {
@@ -36,14 +37,18 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
     }
 
     public void initializeSchema() {
-        initialize(null);
+        initialize(null, Map.of());
     }
 
     public void initializeWorkspace(List<String> categories) {
-        initialize(List.copyOf(categories));
+        initialize(List.copyOf(categories), Map.of());
     }
 
-    private void initialize(List<String> categories) {
+    public void initializeWorkspace(List<String> categories, Map<String, String> categoryMigrations) {
+        initialize(List.copyOf(categories), Map.copyOf(categoryMigrations));
+    }
+
+    private void initialize(List<String> categories, Map<String, String> categoryMigrations) {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -58,11 +63,13 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                     if (fresh) {
                         DemoWorkspace.seed(connection);
                     }
+                    applyCategoryMigrations(connection, categoryMigrations);
                     try (Statement statement = connection.createStatement();
                             ResultSet rows = statement.executeQuery("SELECT DISTINCT category FROM maintenance_requests")) {
                         while (rows.next()) {
                             if (!categories.contains(rows.getString(1))) {
-                                throw new SQLException("Stored categories require an explicit category migration.");
+                                throw new SQLException("Stored category '" + rows.getString(1)
+                                        + "' has no valid rename or removal mapping.");
                             }
                         }
                     }
@@ -74,7 +81,58 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
             }
         } catch (SQLException exception) {
             throw new StorageException("Could not initialize the local database. "
-                    + "Use a compatible app version or restore a valid backup.", exception);
+                    + exception.getMessage() + " Use a compatible app version or restore a valid backup.", exception);
+        }
+    }
+
+    private static void applyCategoryMigrations(Connection connection, Map<String, String> migrations)
+            throws SQLException {
+        if (migrations.isEmpty()) {
+            return;
+        }
+        var at = Instant.now().toString();
+        Long actorId = null;
+        try (var find = connection.prepareStatement("SELECT id FROM maintenance_requests WHERE category=?");
+                var update = connection.prepareStatement("UPDATE maintenance_requests SET category=?, updated_at=? WHERE id=?");
+                var audit = connection.prepareStatement("""
+                        INSERT INTO audit_events(request_id, actor_id, action, detail, occurred_at, target_type, target_id)
+                        VALUES (?, ?, 'CATEGORY_MIGRATED', ?, ?, 'REQUEST', ?)
+                        """)) {
+            for (var migration : migrations.entrySet()) {
+                find.setString(1, migration.getKey());
+                List<Long> requestIds = new ArrayList<>();
+                try (var affected = find.executeQuery()) {
+                    while (affected.next()) {
+                        requestIds.add(affected.getLong(1));
+                    }
+                }
+                if (!requestIds.isEmpty() && actorId == null) {
+                    try (var manager = connection.createStatement(); var result = manager.executeQuery("""
+                            SELECT id FROM user_accounts
+                            WHERE role='FACILITIES_MANAGER' AND active=1 ORDER BY id LIMIT 1
+                            """)) {
+                        if (!result.next()) {
+                            throw new SQLException("A Facilities Manager account is required to audit category migrations.");
+                        }
+                        actorId = result.getLong(1);
+                    }
+                }
+                for (long requestId : requestIds) {
+                    update.setString(1, migration.getValue());
+                    update.setString(2, at);
+                    update.setLong(3, requestId);
+                    if (update.executeUpdate() != 1) {
+                        throw new SQLException("A request changed while applying the category migration.");
+                    }
+                    audit.setLong(1, requestId);
+                    audit.setLong(2, actorId);
+                    audit.setString(3, "Category changed from '" + migration.getKey()
+                            + "' to '" + migration.getValue() + "' by startup catalogue migration.");
+                    audit.setString(4, at);
+                    audit.setLong(5, requestId);
+                    audit.executeUpdate();
+                }
+            }
         }
     }
 
