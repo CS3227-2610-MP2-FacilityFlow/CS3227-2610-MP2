@@ -33,12 +33,14 @@ uncommitted. The relevant requirements were REQ-001 through REQ-017.
 - `compileJava`: passed.
 - Focused `SQLiteRequesterRequestServiceTest` and `SchemaMigrationsTest`: passed.
 - Full Gradle `check`: passed, including the then-current 179-test suite and Checkstyle. After the test agent added final Requester state/ownership assertions, its focused Requester service suite passed and a clean `check` passed. The isolated Gradle report for that last run contained the 32 Requester service cases only, so it is not counted as a new full-suite run.
+- A later clean repository `check` on 26 September passed 185 tests across 13 suites with Checkstyle.
 - `git diff --check`: passed.
 - Gradle required an isolated build output directory because the normal build
   tree and cached JavaFX jar were locked by Windows/OneDrive file access. The
   successful check used a temporary Gradle init script and the repository's
   workspace Gradle cache.
-- No interactive application smoke test or cross-platform run was performed.
+- On 26 September, the Requester owner confirmed manual UI smoke testing and
+  Windows/Linux/macOS CI passed. This agent did not independently rerun those checks.
 
 ## Errors and corrections
 
@@ -57,5 +59,5 @@ uncommitted. The relevant requirements were REQ-001 through REQ-017.
 
 Requester requirements REQ-001–017 have implementation coverage. The unit-test
 agent's tests and User Guide update are present. A team member still needs to
-review the code, tests, and documentation. The Requester workflow was not
-manually smoke-tested in the running JavaFX application.
+review the code, tests, and documentation. The Requester owner reports the
+workflow's manual smoke test is complete.

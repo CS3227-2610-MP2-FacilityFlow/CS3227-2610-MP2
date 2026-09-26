@@ -12,7 +12,8 @@ follow-ups, and requester-visible history through the shared SQLite services
 separately and must never describe validation as a save. The requirements and
 complete product acceptance criteria below remain unchanged. The Windows
 repository `check` and targeted Requester integration/UI checks passed on
-26 September 2026; a manual UI smoke test and team review remain pending.
+26 September 2026. On 26 September, the Requester owner confirmed manual UI
+smoke testing and Windows/Linux/macOS CI passed; team review remains pending.
 
 ## Role objective
 
