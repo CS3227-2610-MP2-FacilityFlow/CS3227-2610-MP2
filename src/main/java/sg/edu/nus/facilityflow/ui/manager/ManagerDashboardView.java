@@ -53,6 +53,7 @@ import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianWorkload;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.ui.UiTasks;
+import sg.edu.nus.facilityflow.ui.AuditDescriptions;
 
 /** Complete Facilities Manager workspace for MGR-001–015 and MGR-018–021. */
 public final class ManagerDashboardView {
@@ -454,8 +455,9 @@ public final class ManagerDashboardView {
                 textColumn("Request / target", record -> record.requestDisplayId() == null
                         ? record.targetType() + " " + record.targetId() : record.requestDisplayId()),
                 textColumn("Actor", AuditRecord::actorName),
-                textColumn("Action", record -> record.action().replace('_', ' ')),
-                textColumn("Details", AuditRecord::detail));
+                textColumn("Action", record -> AuditDescriptions.action(record.action())),
+                textColumn("Details", record -> AuditDescriptions.detail(
+                        record.action(), record.detail())));
         auditTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         auditTable.setPlaceholder(new Label("No audit events match the current filters."));
         auditTable.setAccessibleText("Read-only audit events");
@@ -877,8 +879,17 @@ public final class ManagerDashboardView {
     }
 
     private static String historyText(ManagerHistoryEntry entry) {
+        String description = entry.description();
+        if (entry.type().equals("Audit")) {
+            int separator = description.indexOf(" — ");
+            if (separator >= 0) {
+                String action = description.substring(0, separator).replace(' ', '_');
+                description = AuditDescriptions.describe(action,
+                        description.substring(separator + 3));
+            }
+        }
         return TIME.format(entry.occurredAt()) + " — " + entry.type() + " — "
-                + entry.actor() + "\n" + entry.description();
+                + entry.actor() + "\n" + description;
     }
 
     private static String joinCounts(java.util.Map<? extends Enum<?>, Integer> counts) {
