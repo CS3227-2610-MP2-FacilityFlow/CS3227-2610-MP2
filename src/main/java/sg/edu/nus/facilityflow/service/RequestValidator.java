@@ -36,7 +36,7 @@ public final class RequestValidator {
         int length = value.codePointCount(0, value.length());
         if (length < min || length > max) {
             errors.put(field, label + " must contain " + min + "–" + max
-                    + " characters after trimming.");
+                    + " characters.");
         }
     }
 }
