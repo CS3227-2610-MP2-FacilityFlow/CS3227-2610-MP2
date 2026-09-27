@@ -101,7 +101,7 @@ public final class ApplicationRouter extends BorderPane {
             requesterView = null;
             showLogin("");
         });
-        var refresh = new Button("Refresh account");
+        var refresh = new Button("Main workspace");
         refresh.setId("refreshAccount");
         refresh.setOnAction(event -> refreshIdentity());
         var password = new Button("Change password");

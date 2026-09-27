@@ -14,6 +14,7 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   in navigation and MUST still be blocked by service authorization.
 - **UIX-005:** Users MUST be able to return from a detail/form view to their role's
   list or dashboard without losing committed work.
+  The shared header MUST label the role dashboard route **Main workspace**.
 
 ## Forms and feedback
 
