@@ -4,6 +4,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -98,6 +99,7 @@ public final class ManagerDashboardView {
     private final Button cancelButton = new Button("_Cancel request");
     private boolean busy;
     private List<UserAccount> requesters = List.of();
+    private Map<Long, String> usernames = Map.of();
 
     public ManagerDashboardView(
             ManagerDashboardController controller,
@@ -477,11 +479,13 @@ public final class ManagerDashboardView {
         auditTable.getColumns().addAll(
                 textColumn("Time", record -> TIME.format(record.occurredAt())),
                 textColumn("Request / target", record -> record.requestDisplayId() == null
-                        ? record.targetType() + " " + record.targetId() : record.requestDisplayId()),
+                        ? (record.targetType().equals("ACCOUNT")
+                                ? username(record.targetId()) : record.targetType() + " " + record.targetId())
+                        : record.requestDisplayId()),
                 textColumn("Actor", AuditRecord::actorName),
                 textColumn("Action", record -> AuditDescriptions.action(record.action())),
                 textColumn("Details", record -> AuditDescriptions.detail(
-                        record.action(), record.detail())));
+                        record.action(), record.detail(), this::username)));
         auditTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         auditTable.setPlaceholder(new Label("No audit events match the current filters."));
         auditTable.setAccessibleText("Read-only audit events");
@@ -499,6 +503,8 @@ public final class ManagerDashboardView {
                         controller.loadAccounts(),
                         controller.loadAudit(selectedAuditFilter)),
                 data -> {
+                    usernames = data.accounts().stream().collect(java.util.stream.Collectors.toMap(
+                            UserAccount::id, UserAccount::username));
                     setRequestData(data.requests(), data.technicians(), data.requesters());
                     updateSummary(data.summary());
                     accountTable.setItems(FXCollections.observableArrayList(data.accounts()));
@@ -580,9 +586,9 @@ public final class ManagerDashboardView {
                             ? "Not set" : display(selected.managerPriority()))
                     + "\nLocation: " + selected.location()
                     + "\nCategory: " + selected.category()
-                    + "\nRequester account: " + selected.requesterId()
+                    + "\nRequester account: " + username(selected.requesterId())
                     + " | Technician account: " + (selected.assigneeId() == null
-                            ? "Unassigned" : selected.assigneeId())
+                            ? "Unassigned" : username(selected.assigneeId()))
                     + "\nCreated: " + TIME.format(selected.createdAt())
                     + " | Updated: " + TIME.format(selected.updatedAt())
                     + "\n\n" + selected.description()
@@ -592,7 +598,7 @@ public final class ManagerDashboardView {
                 if (requestTable.getSelectionModel().getSelectedItem() != null
                         && requestTable.getSelectionModel().getSelectedItem().id() == selected.id()) {
                     history.setItems(FXCollections.observableArrayList(
-                            entries.stream().map(ManagerDashboardView::historyText).toList()));
+                            entries.stream().map(this::historyText).toList()));
                 }
             }, error -> handleHistoryError(selected.id(), error));
         }
@@ -746,7 +752,7 @@ public final class ManagerDashboardView {
                 showError("Select an existing Requester account.");
             } else {
                 runRequestChange(() -> controller.recordOnBehalf(selectedRequester, draft),
-                        "Request recorded on behalf of " + selectedRequester.displayName() + ".");
+                        "Request recorded on behalf of " + selectedRequester.username() + ".");
             }
         }
     }
@@ -914,14 +920,18 @@ public final class ManagerDashboardView {
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
-    private static String historyText(ManagerHistoryEntry entry) {
+    private String username(long accountId) {
+        return usernames.getOrDefault(accountId, "Unknown account");
+    }
+
+    private String historyText(ManagerHistoryEntry entry) {
         String description = entry.description();
         if (entry.type().equals("Audit")) {
             int separator = description.indexOf(" — ");
             if (separator >= 0) {
                 String action = description.substring(0, separator).replace(' ', '_');
                 description = AuditDescriptions.describe(action,
-                        description.substring(separator + 3));
+                        description.substring(separator + 3), this::username);
             }
         }
         return TIME.format(entry.occurredAt()) + " — " + entry.type() + " — "

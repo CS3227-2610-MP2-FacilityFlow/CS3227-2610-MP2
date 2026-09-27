@@ -755,7 +755,7 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
             List<ManagerHistoryEntry> entries = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement("""
                     SELECT event.action, event.detail, event.occurred_at,
-                        account.display_name AS actor_name
+                        account.username AS actor_name
                     FROM audit_events event
                     JOIN user_accounts account ON account.id = event.actor_id
                     WHERE event.request_id = ?
@@ -776,7 +776,7 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                 throw storageFailure(exception);
             }
             try (PreparedStatement statement = connection.prepareStatement("""
-                    SELECT item.text, item.created_at, account.display_name AS actor_name
+                    SELECT item.text, item.created_at, account.username AS actor_name
                     FROM requester_updates item
                     JOIN user_accounts account ON account.id = item.author_id
                     WHERE item.request_id = ?
@@ -797,7 +797,7 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
             }
             try (PreparedStatement statement = connection.prepareStatement("""
                     SELECT item.note, item.minutes_spent, item.created_at,
-                        account.display_name AS actor_name
+                        account.username AS actor_name
                     FROM work_logs item
                     JOIN user_accounts account ON account.id = item.author_id
                     WHERE item.request_id = ?
@@ -826,7 +826,7 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
         public List<AuditRecord> listAuditRecords() {
             String sql = """
                     SELECT event.id, event.request_id, request.display_id,
-                        event.actor_id, account.display_name AS actor_name,
+                        event.actor_id, account.username AS actor_name,
                         event.action, event.target_type, event.target_id,
                         event.detail, event.occurred_at
                     FROM audit_events event

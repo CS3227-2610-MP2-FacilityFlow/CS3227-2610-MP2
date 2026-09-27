@@ -1,5 +1,7 @@
 package sg.edu.nus.facilityflow.ui;
 
+import java.util.function.LongFunction;
+
 /** Short descriptions for structured audit details shown to people. */
 public final class AuditDescriptions {
     private AuditDescriptions() { }
@@ -28,6 +30,11 @@ public final class AuditDescriptions {
     }
 
     public static String detail(String action, String storedDetail) {
+        return detail(action, storedDetail, id -> "Technician");
+    }
+
+    public static String detail(String action, String storedDetail,
+                                LongFunction<String> accountName) {
         if (storedDetail == null || storedDetail.isBlank() || storedDetail.equals("{}")) {
             return "";
         }
@@ -40,7 +47,26 @@ public final class AuditDescriptions {
                 String minutes = jsonNumber(storedDetail, "minutesSpent");
                 return minutes == null ? "" : minutes + " minutes recorded";
             }
+            if (action.equals("REQUEST_ASSIGNED")) {
+                String id = jsonNumber(storedDetail, "technicianId");
+                return id == null ? "" : "Technician: " + accountName.apply(Long.parseLong(id));
+            }
             return "";
+        }
+        if (action.equals("REQUEST_ASSIGNED")
+                && storedDetail.startsWith("Assigned to account ")) {
+            String rest = storedDetail.substring("Assigned to account ".length());
+            int priority = rest.indexOf(" with priority ");
+            if (priority > 0) {
+                try {
+                    long id = Long.parseLong(rest.substring(0, priority));
+                    String level = readable(rest.substring(priority + " with priority ".length()));
+                    return "Technician: " + accountName.apply(id) + ". Priority: " + level;
+                } catch (NumberFormatException ignored) {
+                    return "Technician assigned";
+                }
+            }
+            return "Technician assigned";
         }
         return switch (action) {
             case "REQUEST_CANCELLED", "REQUEST_REOPENED", "REQUEST_RETURNED" ->
@@ -50,7 +76,12 @@ public final class AuditDescriptions {
     }
 
     public static String describe(String action, String storedDetail) {
-        String extra = detail(action, storedDetail);
+        return describe(action, storedDetail, id -> "Technician");
+    }
+
+    public static String describe(String action, String storedDetail,
+                                  LongFunction<String> accountName) {
+        String extra = detail(action, storedDetail, accountName);
         return action(action) + (extra.isEmpty() ? "." : ". " + extra);
     }
 
