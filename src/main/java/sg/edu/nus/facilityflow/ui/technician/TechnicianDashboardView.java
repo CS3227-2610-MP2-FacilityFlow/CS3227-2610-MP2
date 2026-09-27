@@ -59,6 +59,12 @@ public final class TechnicianDashboardView extends BorderPane {
     private final TextArea resolutionSummary = new TextArea();
     private final Button completeWorkButton = new Button("_Submit for Manager review");
     private final Label feedback = new Label();
+    private final Label startError = fieldError("technicianStartError");
+    private final Label workLogNoteError = fieldError("technicianWorkLogNoteError");
+    private final Label workLogMinutesError = fieldError("technicianWorkLogMinutesError");
+    private final Label workLogActionError = fieldError("technicianWorkLogActionError");
+    private final Label resolutionError = fieldError("technicianResolutionError");
+    private final Label completionError = fieldError("technicianCompletionError");
     private final Label selectedId = new Label("Select a request");
     private final Label selectedDetails = new Label("Choose a row to inspect its details.");
     private final List<String> categories;
@@ -222,17 +228,23 @@ public final class TechnicianDashboardView extends BorderPane {
                 selectedDetails,
                 new Separator(Orientation.HORIZONTAL),
                 startButton,
+                startError,
                 new Label("Work and Requester history"),
                 workLogHistory,
                 new Label("Add accountable progress"),
                 workLogNoteLabel,
                 workLogNote,
+                workLogNoteError,
                 workLogMinutesLabel,
                 workLogMinutes,
+                workLogMinutesError,
                 addWorkLogButton,
+                workLogActionError,
                 resolutionLabel,
                 resolutionSummary,
+                resolutionError,
                 completeWorkButton,
+                completionError,
                 feedback);
         detailArea.setPadding(new Insets(24));
         detailArea.setMinWidth(300);
@@ -314,6 +326,7 @@ public final class TechnicianDashboardView extends BorderPane {
     }
 
     private void showSelection(MaintenanceRequest request) {
+        clearActionErrors();
         selectionVersion++;
         long requestSelection = selectionVersion;
         if (request == null) {
@@ -382,6 +395,7 @@ public final class TechnicianDashboardView extends BorderPane {
             return;
         }
         setBusy(true);
+        startError.setText("");
         feedback.setText("Starting work…");
         tasks.run(() -> controller.startWork(selected), started -> {
             refresh(started.displayId() + " is now IN_PROGRESS. Work started successfully.");
@@ -390,7 +404,8 @@ public final class TechnicianDashboardView extends BorderPane {
             if (isStaleAssignment(error)) {
                 refresh("The request assignment or status changed. The queue was refreshed.");
             } else {
-                showError(UiTasks.safeMessage(error));
+                startError.setText(UiTasks.safeMessage(error));
+                feedback.setText("");
                 failure.accept(error);
             }
         });
@@ -401,11 +416,14 @@ public final class TechnicianDashboardView extends BorderPane {
         if (selected == null || selected.status() != RequestStatus.IN_PROGRESS) {
             return;
         }
+        workLogNoteError.setText("");
+        workLogMinutesError.setText("");
+        workLogActionError.setText("");
         int minutes;
         try {
             minutes = Integer.parseInt(workLogMinutes.getText().strip());
         } catch (NumberFormatException error) {
-            showError("Minutes spent must be a whole number from 1 to 1,440.");
+            workLogMinutesError.setText("Minutes spent must be a whole number from 1 to 1,440.");
             return;
         }
         setBusy(true);
@@ -419,7 +437,7 @@ public final class TechnicianDashboardView extends BorderPane {
             if (isStaleAssignment(error)) {
                 refresh("The request assignment or status changed. The queue was refreshed.");
             } else {
-                showError(UiTasks.safeMessage(error));
+                showWorkLogError(UiTasks.safeMessage(error));
                 failure.accept(error);
             }
         });
@@ -430,6 +448,8 @@ public final class TechnicianDashboardView extends BorderPane {
         if (selected == null || selected.status() != RequestStatus.IN_PROGRESS || !hasWorkLogs) {
             return;
         }
+        resolutionError.setText("");
+        completionError.setText("");
         setBusy(true);
         feedback.setText("Submitting work for Manager review…");
         tasks.run(() -> controller.completeWork(selected, resolutionSummary.getText()), completed -> {
@@ -440,7 +460,10 @@ public final class TechnicianDashboardView extends BorderPane {
             if (isStaleAssignment(error)) {
                 refresh("The request assignment or status changed. The queue was refreshed.");
             } else {
-                showError(UiTasks.safeMessage(error));
+                String message = UiTasks.safeMessage(error);
+                (message.startsWith("Resolution summary") ? resolutionError : completionError)
+                        .setText(message);
+                feedback.setText("");
                 failure.accept(error);
             }
         });
@@ -488,6 +511,32 @@ public final class TechnicianDashboardView extends BorderPane {
             feedback.getStyleClass().add("feedback-error");
         }
         feedback.setText(message);
+    }
+
+    private void showWorkLogError(String message) {
+        Label target = message.startsWith("Work-log note") ? workLogNoteError
+                : message.startsWith("Minutes spent") ? workLogMinutesError : workLogActionError;
+        target.setText(message);
+        feedback.setText("");
+    }
+
+    private void clearActionErrors() {
+        startError.setText("");
+        workLogNoteError.setText("");
+        workLogMinutesError.setText("");
+        workLogActionError.setText("");
+        resolutionError.setText("");
+        completionError.setText("");
+    }
+
+    private static Label fieldError(String id) {
+        Label label = new Label();
+        label.setId(id);
+        label.setWrapText(true);
+        label.getStyleClass().add("feedback-error");
+        label.managedProperty().bind(label.visibleProperty());
+        label.visibleProperty().bind(label.textProperty().isNotEmpty());
+        return label;
     }
 
     private static boolean isStaleAssignment(Throwable error) {

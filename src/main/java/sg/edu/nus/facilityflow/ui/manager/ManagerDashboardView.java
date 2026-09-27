@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javafx.beans.property.SimpleStringProperty;
@@ -55,6 +56,7 @@ import sg.edu.nus.facilityflow.model.TechnicianWorkload;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.ui.UiTasks;
 import sg.edu.nus.facilityflow.ui.AuditDescriptions;
+import sg.edu.nus.facilityflow.service.RequestValidator;
 
 /** Complete Facilities Manager workspace for MGR-001–015 and MGR-018–021. */
 public final class ManagerDashboardView {
@@ -68,6 +70,9 @@ public final class ManagerDashboardView {
     private final BorderPane root = new BorderPane();
     private final Label feedback = new Label();
     private final Label lifecycleFeedback = new Label();
+    private final Label technicianError = fieldError("managerTechnicianError");
+    private final Label priorityError = fieldError("managerPriorityError");
+    private final Label reasonError = fieldError("managerReasonError");
     private final TableView<MaintenanceRequest> requestTable = new TableView<>();
     private final TableView<UserAccount> accountTable = new TableView<>();
     private final TableView<AuditRecord> auditTable = new TableView<>();
@@ -306,7 +311,7 @@ public final class ManagerDashboardView {
         reason.textProperty().addListener((observable, oldValue, value) -> updateActions());
         FlowPane actions = new FlowPane(8, 8,
                 assignButton, reassignButton, closeButton, returnButton, reopenButton, cancelButton);
-        assignmentPriorityField = labeled("Manager _priority", priorityBox);
+        assignmentPriorityField = new VBox(4, labeled("Manager _priority", priorityBox), priorityError);
         lifecycleFeedback.setId("managerLifecycleFeedback");
         lifecycleFeedback.setWrapText(true);
         lifecycleFeedback.getStyleClass().add("feedback-label");
@@ -319,9 +324,9 @@ public final class ManagerDashboardView {
                 history,
                 new Separator(),
                 section("Lifecycle actions"),
-                labeled("_Technician", technicianBox),
+                new VBox(4, labeled("_Technician", technicianBox), technicianError),
                 assignmentPriorityField,
-                labeled("_Reason", reason),
+                new VBox(4, labeled("_Reason", reason), reasonError),
                 actions,
                 lifecycleFeedback);
     }
@@ -336,6 +341,9 @@ public final class ManagerDashboardView {
         usernameFeedback.getStyleClass().addAll("feedback-label", "feedback-error");
         username.textProperty().addListener((observable, oldValue, value) ->
                 usernameFeedback.setText(""));
+        Label displayNameError = fieldError("newAccountDisplayNameError");
+        Label roleError = fieldError("newAccountRoleError");
+        Label passwordError = fieldError("newAccountPasswordError");
         TextField displayName = new TextField();
         displayName.setId("newAccountDisplayName");
         ComboBox<Role> role = new ComboBox<>(FXCollections.observableArrayList(Role.values()));
@@ -348,6 +356,9 @@ public final class ManagerDashboardView {
         create.getStyleClass().add("primary-button");
         create.setOnAction(event -> {
             usernameFeedback.setText("");
+            displayNameError.setText("");
+            roleError.setText("");
+            passwordError.setText("");
             String accountUsername = username.getText();
             String accountDisplayName = displayName.getText();
             Role accountRole = role.getValue();
@@ -367,6 +378,15 @@ public final class ManagerDashboardView {
                 if (message.startsWith("Username ")) {
                     usernameFeedback.setText(message);
                     feedback.setText("");
+                } else if (message.startsWith("Display name ")) {
+                    displayNameError.setText(message);
+                    feedback.setText("");
+                } else if (message.startsWith("Account role ")) {
+                    roleError.setText(message);
+                    feedback.setText("");
+                } else if (message.startsWith("Password ")) {
+                    passwordError.setText(message);
+                    feedback.setText("");
                 } else {
                     showError(message);
                 }
@@ -379,8 +399,11 @@ public final class ManagerDashboardView {
         addLabeled(createForm, 0, "_Username", username);
         createForm.add(usernameFeedback, 0, 2);
         addLabeled(createForm, 1, "Display _name", displayName);
+        createForm.add(displayNameError, 1, 2);
         addLabeled(createForm, 2, "_Role", role);
+        createForm.add(roleError, 2, 2);
         addLabeled(createForm, 3, "Initial _password", password);
+        createForm.add(passwordError, 3, 2);
         createForm.add(create, 0, 3, 4, 1);
 
         ComboBox<Role> newRole = new ComboBox<>(FXCollections.observableArrayList(Role.values()));
@@ -577,6 +600,9 @@ public final class ManagerDashboardView {
 
     private void showSelection(MaintenanceRequest selected) {
         lifecycleFeedback.setText("");
+        technicianError.setText("");
+        priorityError.setText("");
+        reasonError.setText("");
         if (selected == null) {
             selectedDetails.setText("Select a request to inspect its details and history.");
             history.getItems().clear();
@@ -681,6 +707,9 @@ public final class ManagerDashboardView {
     private void runRequestChange(
             java.util.concurrent.Callable<MaintenanceRequest> action, String confirmation) {
         setBusy(true);
+        technicianError.setText("");
+        priorityError.setText("");
+        reasonError.setText("");
         lifecycleFeedback.setText("Working…");
         tasks.run(action, changed -> {
             lifecycleFeedback.setText("");
@@ -691,9 +720,16 @@ public final class ManagerDashboardView {
 
     private void handleLifecycleError(Throwable error) {
         setBusy(false);
+        String message = UiTasks.safeMessage(error);
+        Label field = message.contains(" reason ") || message.endsWith(" reason is required.")
+                ? reasonError : message.startsWith("Select a different Technician")
+                || message.startsWith("Assignee") ? technicianError
+                : message.startsWith("Manager priority") && assignmentPriorityField.isVisible()
+                        ? priorityError : lifecycleFeedback;
         lifecycleFeedback.getStyleClass().removeAll("feedback-success", "feedback-error");
         lifecycleFeedback.getStyleClass().add("feedback-error");
-        lifecycleFeedback.setText(UiTasks.safeMessage(error));
+        lifecycleFeedback.setText("");
+        field.setText(message);
         feedback.setText("");
         failure.accept(error);
     }
@@ -727,22 +763,52 @@ public final class ManagerDashboardView {
         priority.setValue(correction ? existing.managerPriority() : null);
         ComboBox<UserAccount> requester = new ComboBox<>(FXCollections.observableArrayList(requesters));
         requester.setConverter(new UserAccountStringConverter());
+        Label requesterError = fieldError("managerDialogRequesterError");
+        Label titleError = fieldError("managerDialogTitleError");
+        Label descriptionError = fieldError("managerDialogDescriptionError");
+        Label locationError = fieldError("managerDialogLocationError");
+        Label categoryError = fieldError("managerDialogCategoryError");
+        Label urgencyError = fieldError("managerDialogUrgencyError");
+        Label correctionPriorityError = fieldError("managerDialogPriorityError");
         GridPane form = new GridPane();
         form.setHgap(8);
         form.setVgap(8);
         int row = 0;
         if (!correction) {
-            addFormRow(form, row++, "Requester (required)", requester);
+            addFormRow(form, row++, "Requester (required)", requester, requesterError);
         }
-        addFormRow(form, row++, "Title (required)", title);
-        addFormRow(form, row++, "Description (required)", description);
-        addFormRow(form, row++, "Location (required)", location);
-        addFormRow(form, row++, "Category (required)", category);
-        addFormRow(form, row++, "Reported urgency (required)", urgency);
+        addFormRow(form, row++, "Title (required)", title, titleError);
+        addFormRow(form, row++, "Description (required)", description, descriptionError);
+        addFormRow(form, row++, "Location (required)", location, locationError);
+        addFormRow(form, row++, "Category (required)", category, categoryError);
+        addFormRow(form, row++, "Reported urgency (required)", urgency, urgencyError);
         if (correction) {
-            addFormRow(form, row, "Manager priority", priority);
+            addFormRow(form, row, "Manager priority", priority, correctionPriorityError);
         }
         dialog.getDialogPane().setContent(form);
+        dialog.getDialogPane().lookupButton(save).addEventFilter(
+                javafx.event.ActionEvent.ACTION, event -> {
+                    RequestDraft entered = new RequestDraft(title.getText(), description.getText(),
+                            location.getText(), category.getValue(), urgency.getValue());
+                    Map<String, String> errors = new RequestValidator(Set.copyOf(categories))
+                            .validate(entered);
+                    titleError.setText(errors.getOrDefault("title", ""));
+                    descriptionError.setText(errors.getOrDefault("description", ""));
+                    locationError.setText(errors.getOrDefault("location", ""));
+                    categoryError.setText(errors.getOrDefault("category", ""));
+                    urgencyError.setText(errors.getOrDefault("urgency", ""));
+                    boolean missingRequester = !correction && requester.getValue() == null;
+                    requesterError.setText(missingRequester
+                            ? "Select an existing Requester account." : "");
+                    boolean missingPriority = correction && priority.getValue() == null
+                            && existing.status() != RequestStatus.OPEN
+                            && existing.status() != RequestStatus.CANCELLED;
+                    correctionPriorityError.setText(missingPriority
+                            ? "Manager priority is required for assigned or historical work." : "");
+                    if (!errors.isEmpty() || missingRequester || missingPriority) {
+                        event.consume();
+                    }
+                });
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == save) {
             RequestDraft draft = new RequestDraft(
@@ -873,6 +939,16 @@ public final class ManagerDashboardView {
         return new VBox(4, label, control);
     }
 
+    private static Label fieldError(String id) {
+        Label label = new Label();
+        label.setId(id);
+        label.setWrapText(true);
+        label.getStyleClass().add("feedback-error");
+        label.managedProperty().bind(label.visibleProperty());
+        label.visibleProperty().bind(label.textProperty().isNotEmpty());
+        return label;
+    }
+
     private static void addLabeled(
             GridPane pane, int column, String text, javafx.scene.control.Control control) {
         Label label = new Label(text);
@@ -883,11 +959,12 @@ public final class ManagerDashboardView {
     }
 
     private static void addFormRow(
-            GridPane pane, int row, String text, javafx.scene.control.Control control) {
+            GridPane pane, int row, String text, javafx.scene.control.Control control,
+            Label error) {
         Label label = new Label(text);
         label.setLabelFor(control);
         pane.add(label, 0, row);
-        pane.add(control, 1, row);
+        pane.add(new VBox(4, control, error), 1, row);
         control.setMaxWidth(Double.MAX_VALUE);
         GridPane.setHgrow(control, Priority.ALWAYS);
     }

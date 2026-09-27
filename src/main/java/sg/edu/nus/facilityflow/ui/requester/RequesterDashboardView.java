@@ -260,18 +260,29 @@ public final class RequesterDashboardView extends BorderPane {
             var update = new TextArea();
             update.setPromptText("Add a follow-up update");
             update.setPrefRowCount(2);
+            var updateError = new Label();
+            updateError.setId("requesterFollowUpError");
+            updateError.setWrapText(true);
+            updateError.getStyleClass().add("feedback-error");
+            updateError.managedProperty().bind(updateError.visibleProperty());
+            updateError.visibleProperty().bind(updateError.textProperty().isNotEmpty());
+            update.textProperty().addListener((observable, oldValue, value) ->
+                    updateError.setText(""));
             var add = new Button("Add follow-up");
-            add.setOnAction(event -> tasks.run(() -> {
-                service.addFollowUp(session, request.id(), update.getText());
-                return service.getOwnRequest(session, request.id());
-            }, updated -> {
-                update.clear();
-                showDetail(updated, "Follow-up saved successfully.");
-            }, error -> {
-                feedback.setText(UiTasks.safeMessage(error));
-                failure.accept(error);
-            }));
-            pane.getChildren().add(new VBox(8, update, add));
+            add.setOnAction(event -> {
+                updateError.setText("");
+                tasks.run(() -> {
+                    service.addFollowUp(session, request.id(), update.getText());
+                    return service.getOwnRequest(session, request.id());
+                }, updated -> {
+                    update.clear();
+                    showDetail(updated, "Follow-up saved successfully.");
+                }, error -> {
+                    updateError.setText(UiTasks.safeMessage(error));
+                    failure.accept(error);
+                });
+            });
+            pane.getChildren().add(new VBox(8, update, updateError, add));
         }
         var history = new VBox(6);
         history.getChildren().add(new Label("Activity history"));
