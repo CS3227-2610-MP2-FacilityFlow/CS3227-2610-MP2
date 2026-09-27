@@ -113,8 +113,12 @@ public final class ApplicationRouter extends BorderPane {
             var dialog = new Alert(Alert.AlertType.INFORMATION);
             dialog.setTitle("About FacilityFlow");
             dialog.setHeaderText("FacilityFlow " + AppVersion.CURRENT);
-            dialog.setContentText("Auditable facilities maintenance coordination for "
+            var description = new Label("Auditable facilities maintenance coordination for "
                     + "Requesters, Technicians, and Facilities Managers.");
+            description.setWrapText(true);
+            description.setPrefWidth(460);
+            dialog.getDialogPane().setContent(description);
+            dialog.getDialogPane().setPrefWidth(520);
             dialog.showAndWait();
         });
         var brand = new Label("FacilityFlow");
