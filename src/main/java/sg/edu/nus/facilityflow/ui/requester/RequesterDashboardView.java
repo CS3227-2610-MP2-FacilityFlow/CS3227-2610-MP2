@@ -29,6 +29,7 @@ import sg.edu.nus.facilityflow.model.RequesterFilter;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.ui.UiTasks;
+import sg.edu.nus.facilityflow.ui.AuditDescriptions;
 
 /** Owner-only navigation; all persistence happens in background service calls. */
 public final class RequesterDashboardView extends BorderPane {
@@ -278,7 +279,20 @@ public final class RequesterDashboardView extends BorderPane {
             if (entries.isEmpty()) {
                 history.getChildren().add(new Label("No activity yet."));
             }
-            entries.forEach(entry -> history.getChildren().add(new Label(dates.format(entry.occurredAt()) + " · " + entry.kind() + ": " + entry.text())));
+            entries.forEach(entry -> {
+                String text = entry.text();
+                if (entry.kind().equals("Status")) {
+                    int separator = text.indexOf(": ");
+                    String action = separator < 0 ? text : text.substring(0, separator);
+                    String eventDetail = separator < 0 ? "" : text.substring(separator + 2);
+                    text = AuditDescriptions.describe("REQUEST_" + action.replace(' ', '_'), eventDetail);
+                } else {
+                    text = "Follow-up added: " + text;
+                }
+                Label item = new Label(dates.format(entry.occurredAt()) + " · " + text);
+                item.setWrapText(true);
+                history.getChildren().add(item);
+            });
         }, error -> {
             feedback.setText(UiTasks.safeMessage(error));
             failure.accept(error);
