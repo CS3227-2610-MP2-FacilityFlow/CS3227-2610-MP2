@@ -22,6 +22,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestStatus;
@@ -101,12 +102,40 @@ public final class RequesterDashboardView extends BorderPane {
         search.setPromptText("Search ID, title, location");
         search.setId("requesterSearch");
         search.setAccessibleText("Search requests by ID, title, or location");
-        statusFilter.setPromptText("Any status");
+        statusFilter.setPromptText("-");
         statusFilter.setId("requesterStatusFilter");
-        statusFilter.getItems().setAll(RequestStatus.values());
-        categoryFilter.setPromptText("Any category");
+        statusFilter.getItems().add(null);
+        statusFilter.getItems().addAll(RequestStatus.values());
+        statusFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(RequestStatus value) {
+                if (value == null) {
+                    return "-";
+                }
+                String text = value.name().replace('_', ' ').toLowerCase();
+                return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+            }
+
+            @Override
+            public RequestStatus fromString(String value) {
+                throw new UnsupportedOperationException("Choose a status from the list");
+            }
+        });
+        categoryFilter.setPromptText("-");
         categoryFilter.setId("requesterCategoryFilter");
-        categoryFilter.getItems().setAll(categories);
+        categoryFilter.getItems().add(null);
+        categoryFilter.getItems().addAll(categories);
+        categoryFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                return value == null ? "-" : value;
+            }
+
+            @Override
+            public String fromString(String value) {
+                throw new UnsupportedOperationException("Choose a category from the list");
+            }
+        });
         fromDate.setPromptText("From date");
         fromDate.setId("requesterFromDate");
         throughDate.setPromptText("Through date");

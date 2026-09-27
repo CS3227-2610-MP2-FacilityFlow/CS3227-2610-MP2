@@ -131,16 +131,27 @@ public final class TechnicianDashboardView extends BorderPane {
         statusFilter.setId("technicianStatusFilter");
         statusFilter.getItems().add(null);
         statusFilter.getItems().addAll(RequestStatus.values());
-        statusFilter.setPromptText("Status");
+        statusFilter.setPromptText("-");
         statusFilter.setConverter(enumConverter());
         categoryFilter.setId("technicianCategoryFilter");
         categoryFilter.getItems().add(null);
         categoryFilter.getItems().addAll(categories);
-        categoryFilter.setPromptText("Category");
+        categoryFilter.setPromptText("-");
+        categoryFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                return value == null ? "-" : value;
+            }
+
+            @Override
+            public String fromString(String value) {
+                throw new UnsupportedOperationException("Choose a category from the list");
+            }
+        });
         priorityFilter.setId("technicianPriorityFilter");
         priorityFilter.getItems().add(null);
         priorityFilter.getItems().addAll(ManagerPriority.values());
-        priorityFilter.setPromptText("Priority");
+        priorityFilter.setPromptText("-");
         priorityFilter.setConverter(enumConverter());
         applyFiltersButton.setId("applyTechnicianFilters");
         applyFiltersButton.setOnAction(event -> refresh());
@@ -583,7 +594,7 @@ public final class TechnicianDashboardView extends BorderPane {
         return new StringConverter<>() {
             @Override
             public String toString(T value) {
-                return value == null ? "" : display(value);
+                return value == null ? "-" : display(value);
             }
 
             @Override

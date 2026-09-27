@@ -41,6 +41,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import sg.edu.nus.facilityflow.model.AuditFilter;
 import sg.edu.nus.facilityflow.model.AuditRecord;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
@@ -235,16 +236,20 @@ public final class ManagerDashboardView {
         search.setPromptText("ID, title, location, Requester, or Technician");
         statusFilter.setId("managerStatusFilter");
         statusFilter.setItems(withNull(RequestStatus.values()));
-        statusFilter.setPromptText("Any status");
+        statusFilter.setPromptText("-");
+        statusFilter.setConverter(filterConverter(ManagerDashboardView::display));
         categoryFilter.setId("managerCategoryFilter");
         categoryFilter.setItems(withNull(categories));
-        categoryFilter.setPromptText("Any category");
+        categoryFilter.setPromptText("-");
+        categoryFilter.setConverter(filterConverter(Function.identity()));
         priorityFilter.setId("managerPriorityFilter");
         priorityFilter.setItems(withNull(ManagerPriority.values()));
-        priorityFilter.setPromptText("Any priority");
+        priorityFilter.setPromptText("-");
+        priorityFilter.setConverter(filterConverter(ManagerDashboardView::display));
         technicianFilter.setId("managerTechnicianFilter");
-        technicianFilter.setPromptText("Any Technician");
-        technicianFilter.setConverter(new UserAccountStringConverter());
+        technicianFilter.setPromptText("-");
+        technicianFilter.setConverter(filterConverter(
+                account -> account.displayName() + " (" + account.username() + ")"));
         requestFrom.setId("managerFromDate");
         requestThrough.setId("managerThroughDate");
         Button apply = new Button("_Apply filters");
@@ -572,7 +577,8 @@ public final class ManagerDashboardView {
         technicianBox.setItems(FXCollections.observableArrayList(technicians));
         technicianBox.setValue(findAccount(technicians, selectedTechnicianId));
         technicianFilter.setItems(withNull(technicians));
-        technicianFilter.setConverter(new UserAccountStringConverter());
+        technicianFilter.setConverter(filterConverter(
+                account -> account.displayName() + " (" + account.username() + ")"));
         technicianFilter.setValue(findAccount(technicians, filteredTechnicianId));
         requesters = List.copyOf(activeRequesters);
         restoreSelection(selected);
@@ -1000,6 +1006,20 @@ public final class ManagerDashboardView {
     private static String display(Enum<?> value) {
         String text = value.name().replace('_', ' ').toLowerCase();
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+    }
+
+    private static <T> StringConverter<T> filterConverter(Function<T, String> label) {
+        return new StringConverter<>() {
+            @Override
+            public String toString(T value) {
+                return value == null ? "-" : label.apply(value);
+            }
+
+            @Override
+            public T fromString(String value) {
+                throw new UnsupportedOperationException("Choose a filter option from the list");
+            }
+        };
     }
 
     private String username(long accountId) {

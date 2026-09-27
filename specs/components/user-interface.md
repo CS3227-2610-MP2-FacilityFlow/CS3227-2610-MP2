@@ -39,6 +39,7 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   ordering, and show progress for operations that can visibly take time.
 - **UIX-014:** Empty collections and zero-result filters MUST show distinct messages.
 - **UIX-015:** Search/filter state MUST be visible, and a one-action reset MUST exist.
+  Selectable filters MUST show “-” as the no-filter choice across role views.
 - **UIX-016:** Status, priority, category, and timestamps MUST use consistent wording
   and formatting across all three role interfaces.
 
