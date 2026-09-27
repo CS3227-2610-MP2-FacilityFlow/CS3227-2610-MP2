@@ -74,8 +74,8 @@ or from a platform-specific release archive. Both methods require Java 25.
    | Technician | `technician1`, `technician2` |
    | Facilities Manager | `manager1`, `manager2` |
 
-4. Choose **About** after signing in to see the application version. Choose
-   **Log out** when finished.
+4. Choose **About** after signing in to see the application version and a short
+   description of FacilityFlow. Choose **Log out** when finished.
 
 If the app cannot open its workspace, read the message on the opening screen.
 Correct an invalid `categories.properties` file, check that the workspace folder
@@ -87,10 +87,10 @@ is writable, and then restart the app.
 
 #### Sign in and manage your account
 
-Sign in with a Requester account. You can then:
-
-- Choose **Refresh account** if your account has changed.
-- Choose **Log out** when you are finished.
+Sign in with a Requester account. The header shows your role and username, such
+as **Requester - requester1**. Choose **Main workspace** to return to your
+role's main screen and load any account changes. Choose **Log out** when you
+are finished.
 
 To change your password:
 
@@ -138,7 +138,8 @@ in progress, awaiting Manager review, closed, or cancelled.
    ignores letter case and extra spaces at the beginning or end.
 2. Optionally choose a status or category, and/or select **From date** and
    **Through date** to limit requests by when they were created. The chosen
-   dates are included.
+   dates are included. Choose **-** in a status or category list to remove that
+   filter.
 3. Choose **Apply filters**. You can combine search and filters. If nothing
    matches, the list is empty.
 4. Choose **Reset filters** to clear the search and all selections.
@@ -147,10 +148,11 @@ in progress, awaiting Manager review, closed, or cancelled.
 6. On the detail screen, choose **Refresh detail** to reload its current
    information, or **Back to my requests** to return to the list.
 
-The detail screen shows the current status, reported urgency, Manager priority
-when one has been set, and the created and updated times. **Activity history**
-shows status events and follow-up updates visible to you. Technician work notes
-and private Manager notes are not shown.
+The detail screen labels your **Description** and shows the current status,
+reported urgency, Manager priority when one has been set, and the created and
+updated times. **Activity history** describes status changes, reasons, and your
+follow-up updates in plain language. Technician work notes and private Manager
+notes are not shown.
 
 #### Edit or cancel an open request
 
@@ -176,8 +178,8 @@ or receive follow-up updates.
 3. Choose **Add follow-up**. The detail reloads and the update appears in
    **Activity history**.
 
-If the update cannot be saved, the app shows an error. Correct the text or
-refresh the request and try again.
+If the update cannot be saved, an error appears beside the follow-up box.
+Correct the text or refresh the request and try again.
 
 #### Practise filling out a request
 
@@ -198,8 +200,9 @@ You can open a separate practice form without saving anything:
 
 #### Sign in and manage your account
 
-Sign in with a Technician account. **Refresh account**, **Change password**,
-and **Log out** work as described for Requesters.
+Sign in with a Technician account. The header shows **Technician -** followed
+by your username. **Main workspace**, **Change password**, and **Log out** work
+as described for Requesters.
 
 #### Find and inspect your work
 
@@ -211,10 +214,12 @@ and **Log out** work as described for Requesters.
   urgent work comes first.
 
 1. Type part of a request number, title, or location in **Search**. You can also
-   choose **Status**, **Category**, or **Priority** to narrow the list.
+   choose **Status**, **Category**, or **Priority** to narrow the list. Choose
+   **-** in any of these lists to remove that filter.
 2. Choose **Apply filters**. You can use several filters together.
-3. Select a request to read its details, internal work history, and any follow-up
-   updates from its Requester.
+3. Select a request to read its details, work notes, and any follow-up updates
+   from its Requester in **Work and Requester history**. Each entry names its
+   author by username.
 4. Choose **Reset filters** to see your full list again, or **Refresh requests**
    to check for changes.
 
@@ -237,14 +242,15 @@ rejects the action and refreshes the list.
    | **Describe the work performed** | A note of 1 to 1,000 characters after spaces at the ends are removed |
    | **Whole minutes, 1 to 1440** | The time spent, as a whole number from 1 to 1,440 minutes |
 
-3. Choose **Add work log**. The saved note appears in **Internal work history**
-   with its time and author.
+3. Choose **Add work log**. The saved note appears in **Work and Requester
+   history** with its time and the author's username.
 
 After you submit a note:
 
 - Saved notes cannot be edited or deleted through the app. Requesters cannot
   see them.
-- If an entry is invalid or cannot be saved, correct it and try again.
+- If an entry is invalid or cannot be saved, read the error beside the affected
+  field or **Add work log**, correct it, and try again.
 - If the request has been reassigned, the app refreshes your list instead of
   saving the note.
 
@@ -262,8 +268,9 @@ again.
 
 #### Sign in and manage your account
 
-Sign in with a Facilities Manager account. **Refresh account**,
-**Change password**, and **Log out** work as described for Requesters.
+Sign in with a Facilities Manager account. The header shows **Manager -**
+followed by your username. **Main workspace**, **Change password**, and
+**Log out** work as described for Requesters.
 
 The Manager workspace has **Overview**, **Requests**, **Accounts**, and **Audit**
 tabs. It opens on **Requests**.
@@ -289,16 +296,17 @@ recently updated first.
    case and spaces at the beginning or end.
 2. Optionally choose a status, category, Manager priority, Technician, **From**
    date, and/or **Through** date. Dates limit requests by creation date and
-   include both chosen dates.
+   include both chosen dates. Choose **-** in a list to remove that filter.
 3. Choose **Apply filters**. You can combine search and filters, and an empty
    result is allowed.
 4. Choose **Reset filters** to clear every search and filter value, or **Refresh
    requests** to reload the current result without changing the filters.
-5. Select a request. **Request detail** shows its description, ownership,
-   assignment, dates, and resolution summary when available.
+5. Select a request. **Request detail** shows its description, the Requester and
+   Technician usernames, creation and update times on separate lines, and a
+   resolution summary when available.
 6. Read **Full history** for its important actions, Requester updates, and
-   Technician work logs, including time spent. Selecting another request loads
-   that request's history.
+   Technician work logs, including time spent. Actions and reasons appear in
+   plain language. Selecting another request loads that request's history.
 
 #### Record a request for a Requester
 
@@ -360,6 +368,11 @@ Only active Technician accounts appear in the selection. If another user has
 changed the request since it was loaded, choose **Refresh requests** and try
 again.
 
+**Manager priority** appears under **Lifecycle actions** only while an `OPEN`
+request is being assigned. To change it later, use **Correct selected details**.
+If a lifecycle action fails, read the error beside the affected field or the
+action buttons.
+
 #### Review and finish completed work
 
 1. Select a request marked `COMPLETED`.
@@ -403,7 +416,8 @@ To create an account:
    | Initial password | 8 to 24 characters |
 
 2. Choose **Create account**. The new account is active and can sign in with
-   the chosen password.
+   the chosen password. If the username is already taken, the error appears
+   beside **Username**.
 
 To update an existing account:
 
@@ -411,7 +425,7 @@ To update an existing account:
 2. To change its active status, choose **Deactivate / reactivate**, then confirm.
    A deactivated user is rejected when they next use a protected action.
 3. To change its role, choose the new role and **Change role**. A user who is
-   signed in can choose **Refresh account** to move to the new role's screen.
+   signed in can choose **Main workspace** to move to the new role's screen.
 4. To set a new password for another account, enter 8 to 24 characters and
    choose **Reset password**. The affected user's current session ends when they
    next use a protected action; the Manager performing the reset stays signed
@@ -438,6 +452,8 @@ It can be read but not changed or deleted in the app.
    choose **From** and **Through** dates. The chosen dates are included.
 3. Choose **Apply audit filters** to show matching events.
 4. Choose **Reset audit filters** to return to the full audit trail.
+
+Actions and reasons in the audit trail appear in plain language.
 
 ## Storage
 
