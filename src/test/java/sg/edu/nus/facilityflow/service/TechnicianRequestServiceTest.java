@@ -454,8 +454,10 @@ class TechnicianRequestServiceTest {
         assertEquals(List.of("Requester update", "Work log"),
                 history.stream().map(entry -> entry.type()).toList());
         assertEquals("Please call before entering.", history.get(0).text());
+        assertEquals("user4", history.get(0).authorUsername());
         assertNull(history.get(0).minutesSpent());
         assertEquals("Inspected the affected pipe.", history.get(1).text());
+        assertEquals("user2", history.get(1).authorUsername());
         assertEquals(20, history.get(1).minutesSpent());
     }
 
