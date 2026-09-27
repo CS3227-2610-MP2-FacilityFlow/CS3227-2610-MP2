@@ -28,6 +28,8 @@ existing Requesters, and can explain past decisions through audit history.
 - **MGR-003:** The queue MUST support status, category, priority, Technician, and
   creation-date filters and MUST provide a reset action.
 - **MGR-004:** The Manager MUST set an operational priority before first assignment.
+  The lifecycle panel MUST show the priority input only while assigning an
+  `OPEN` request. Later priority changes use the separate correction action.
 - **MGR-005:** The Manager MAY assign an `OPEN` request to one active Technician,
   changing the request to `ASSIGNED`.
 - **MGR-006:** The Manager MAY reassign an `ASSIGNED` or `IN_PROGRESS` request to

@@ -75,6 +75,7 @@ public final class ManagerDashboardView {
     private final ListView<String> history = new ListView<>();
     private final ComboBox<UserAccount> technicianBox = new ComboBox<>();
     private final ComboBox<ManagerPriority> priorityBox = new ComboBox<>();
+    private Parent assignmentPriorityField;
     private final ComboBox<UserAccount> technicianFilter = new ComboBox<>();
     private final ComboBox<RequestStatus> statusFilter = new ComboBox<>();
     private final ComboBox<String> categoryFilter = new ComboBox<>();
@@ -305,6 +306,7 @@ public final class ManagerDashboardView {
         reason.textProperty().addListener((observable, oldValue, value) -> updateActions());
         FlowPane actions = new FlowPane(8, 8,
                 assignButton, reassignButton, closeButton, returnButton, reopenButton, cancelButton);
+        assignmentPriorityField = labeled("Manager _priority", priorityBox);
         lifecycleFeedback.setId("managerLifecycleFeedback");
         lifecycleFeedback.setWrapText(true);
         lifecycleFeedback.getStyleClass().add("feedback-label");
@@ -318,7 +320,7 @@ public final class ManagerDashboardView {
                 new Separator(),
                 section("Lifecycle actions"),
                 labeled("_Technician", technicianBox),
-                labeled("Manager _priority", priorityBox),
+                assignmentPriorityField,
                 labeled("_Reason", reason),
                 actions,
                 lifecycleFeedback);
@@ -607,6 +609,9 @@ public final class ManagerDashboardView {
 
     private void updateActions() {
         MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        boolean needsPriority = selected != null && selected.status() == RequestStatus.OPEN;
+        assignmentPriorityField.setVisible(needsPriority);
+        assignmentPriorityField.setManaged(needsPriority);
         boolean hasTechnician = technicianBox.getValue() != null;
         boolean hasReason = !reason.getText().strip().isEmpty();
         assignButton.setDisable(busy || selected == null || selected.status() != RequestStatus.OPEN
