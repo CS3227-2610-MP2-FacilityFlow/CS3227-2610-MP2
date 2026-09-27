@@ -62,7 +62,9 @@ public final class AuthenticationService {
                     throw new ValidationException("Current password is incorrect.");
                 }
                 transaction.updatePassword(actor.id(), PasswordHasher.hash(replacement), false, clock.instant());
-                transaction.appendAccountAudit(actor.id(), actor.id(), "PASSWORD_CHANGED", clock.instant());
+                transaction.appendAccountAudit(
+                        actor.id(), actor.id(), "PASSWORD_CHANGED",
+                        "{\"fields\":[\"password_hash\"]}", clock.instant());
                 return null;
             });
         } finally {
@@ -79,7 +81,10 @@ public final class AuthenticationService {
                     throw new ValidationException("Select another existing account to reset.");
                 }
                 transaction.updatePassword(targetId, PasswordHasher.hash(replacement), true, clock.instant());
-                transaction.appendAccountAudit(actor.id(), targetId, "PASSWORD_RESET", clock.instant());
+                transaction.appendAccountAudit(
+                        actor.id(), targetId, "PASSWORD_RESET",
+                        "{\"fields\":[\"password_hash\",\"session_version\"]}",
+                        clock.instant());
                 return null;
             });
         } finally {

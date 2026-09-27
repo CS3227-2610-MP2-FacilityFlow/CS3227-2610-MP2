@@ -7,21 +7,28 @@ requests through an auditable workflow.
 
 ## Current status
 
-The development application now opens a real login screen. Requesters can submit
-requests and view their own list/detail; Managers can view and assign `OPEN`
-requests. Sessions are revoked on logout, shutdown, observed deactivation, and
-Manager password reset. Role changes retain sessions and reroute on the next
-protected action or **Refresh account**. **Change password** retains the session.
+The release candidate implements the complete shared workflow:
+`OPEN → ASSIGNED → IN_PROGRESS → COMPLETED → CLOSED`, plus audited cancellation,
+reassignment, return-for-rework, reopening, and factual Manager corrections.
+Requesters can create and follow their own requests; Technicians manage assigned
+work and evidence; Facilities Managers operate the full queue, lifecycle,
+accounts, dashboard, and audit viewer. Authorization is rechecked in services,
+and all roles use one versioned SQLite workspace.
+
+Sessions are revoked on logout, shutdown, observed deactivation, and Manager
+password reset. Role changes retain sessions and reroute on the next protected
+action or **Refresh account**. **Change password** retains the session.
 
 New workspaces create two accounts per role. All six demo accounts use
 `Welcome123`: `requester1`, `requester2`, `technician1`, `technician2`, `manager1`,
-`manager2`. Existing workspaces are never reseeded. See the [User Guide](docs/UserGuide.md).
+`manager2`. A new workspace also contains representative requests across all six
+lifecycle states. Existing workspaces are never reseeded. See the
+[User Guide](docs/UserGuide.md).
 
-The Technician route is a separate placeholder. Requester edit/cancel, follow-ups,
-visible history, search/filtering, the remaining workflow, representative demo
-requests, and category rename/removal migrations remain unfinished. Manager reset
-is implemented as a protected service; its account-administration screen is pending.
-Generated changes still require teammate review. This is not a finished release.
+Local automated checks and packaging can be run from this repository. A formal
+tagged GitHub release, GitHub Pages deployment, teammate review, and recorded
+clean-machine smoke tests on Windows, macOS, and Linux remain release actions;
+see the [submission checklist](docs/SubmissionChecklist.md).
 
 ## Run the development application
 
@@ -31,14 +38,15 @@ the repository root in PowerShell:
 ```powershell
 ./gradlew.bat test
 ./gradlew.bat check
+./gradlew.bat releaseZip
 ./gradlew.bat run
 ```
 
 The wrapper downloads Gradle and dependencies on first use; no separate Gradle
 or JavaFX SDK installation is needed. On macOS/Linux use `sh ./gradlew` in place
 of `./gradlew.bat`. Linux UI tests need a display; CI uses `xvfb-run`.
-See [Requester preparation](docs/RequesterPreparation.md) for the next tasks and
-the [Developer Guide](docs/DeveloperGuide.md) for the file map and setup details.
+See the [Developer Guide](docs/DeveloperGuide.md) for architecture, verification,
+monitoring, packaging, and release details.
 
 ## Product roles
 

@@ -40,11 +40,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import sg.edu.nus.facilityflow.auth.AuthFixture;
+import sg.edu.nus.facilityflow.model.AuditRecord;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
-import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianWorkload;
+import sg.edu.nus.facilityflow.model.UserAccount;
 
 class AuthenticatedWorkflowTest {
     @TempDir
@@ -58,7 +62,8 @@ class AuthenticatedWorkflowTest {
     void setUp() throws Exception {
         fixture = new AuthFixture(directory);
         fx(() -> {
-            router = new ApplicationRouter(fixture.auth, fixture.requester, fixture.manager,
+            router = new ApplicationRouter(
+                    fixture.auth, fixture.requester, fixture.manager, fixture.managerAccounts,
                     fixture.technician, List.of("Plumbing"), new UiTasks(work::add));
             stage = new Stage();
             // Keep layout dimensions independent of native window limits and resize events.
@@ -306,6 +311,44 @@ class AuthenticatedWorkflowTest {
         });
         drain();
         fx(() -> assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("Status: ASSIGNED")));
+    }
+
+    @Test
+    @DisplayName("MGR-001/007 QLT-005 Manager reviews completed work and closes it from the dashboard")
+    void managerClosesCompletedWorkFromDashboard() throws Exception {
+        seedTechnicianQueue();
+        login("manager");
+
+        fx(() -> {
+            var table = (TableView<MaintenanceRequest>) router.lookup("#managerRequests");
+            MaintenanceRequest completed = table.getItems().stream()
+                    .filter(request -> request.status() == RequestStatus.COMPLETED)
+                    .findFirst()
+                    .orElseThrow();
+            table.getSelectionModel().select(completed);
+        });
+        drain();
+        fx(() -> {
+            assertFalse(button("closeRequest").isDisabled());
+            confirmNextDialog();
+            button("closeRequest").fire();
+        });
+        drain();
+
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE id=3 AND status='CLOSED' AND resolution_summary IS NOT NULL"));
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events "
+                + "WHERE request_id=3 AND actor_id=3 AND action='REQUEST_CLOSED'"));
+        fx(() -> {
+            var table = (TableView<MaintenanceRequest>) router.lookup("#managerRequests");
+            MaintenanceRequest closed = table.getItems().stream()
+                    .filter(request -> request.id() == 3)
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals(RequestStatus.CLOSED, closed.status());
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("Completed work closed"));
+        });
     }
 
     @Test
@@ -959,6 +1002,289 @@ class AuthenticatedWorkflowTest {
         snapshot("manager-" + width);
     }
 
+    @Test
+    @DisplayName("MGR-012 AUT-023 UIX-008 account creation refreshes dependent Manager data and retains eligible selections")
+    void managerAccountCreationRefreshesDependentDataAndRetainsTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            ComboBox<UserAccount> assignee = comboBox("assignee");
+            ComboBox<UserAccount> filter = comboBox("managerTechnicianFilter");
+            UserAccount existing = assignee.getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            assignee.setValue(existing);
+            filter.setValue(existing);
+            ((TextField) router.lookup("#newAccountUsername")).setText("tech-new");
+            ((TextField) router.lookup("#newAccountDisplayName")).setText("Technician New");
+            ((ComboBox<Role>) router.lookup("#newAccountRole")).setValue(Role.TECHNICIAN);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+        });
+        drain();
+
+        fx(() -> {
+            ComboBox<UserAccount> assignee = comboBox("assignee");
+            ComboBox<UserAccount> filter = comboBox("managerTechnicianFilter");
+            assertEquals(4L, assignee.getValue().id());
+            assertEquals(4L, filter.getValue().id());
+            assertTrue(assignee.getItems().stream()
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(filter.getItems().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(accountTable().getItems().stream()
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.displayName().equals("Technician New")));
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("ACCOUNT_CREATED")));
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("tech-new was created"));
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-028/032 UIX-008 role change removes an ineligible Technician from all dependent choices")
+    void managerRoleChangeClearsIneligibleTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            ((ComboBox<Role>) router.lookup("#accountRoleChange")).setValue(Role.REQUESTER);
+            buttonWithText("Change _role").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertNull(comboBox("assignee").getValue());
+            assertNull(comboBox("managerTechnicianFilter").getValue());
+            assertFalse(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            assertFalse(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.technicianId() == 4));
+            assertEquals(Role.REQUESTER, accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow()
+                    .role());
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("ACCOUNT_ROLE_CHANGED")));
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-024/027 UIX-012 deactivation clears Technician choices and reactivation refreshes them")
+    void managerActivationChangesRefreshTechnicianEligibility() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            confirmNextDialog();
+            button("toggleAccountActive").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertNull(comboBox("assignee").getValue());
+            assertNull(comboBox("managerTechnicianFilter").getValue());
+            assertFalse(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            UserAccount inactive = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            assertFalse(inactive.active());
+            accountTable().getSelectionModel().select(inactive);
+            confirmNextDialog();
+            button("toggleAccountActive").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertTrue(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            assertTrue(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.technicianId() == 4));
+            assertEquals(2, auditTable().getItems().stream()
+                    .filter(record -> record.action().equals("ACCOUNT_DEACTIVATED")
+                            || record.action().equals("ACCOUNT_REACTIVATED"))
+                    .count());
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-030 UIX-008 password reset refreshes audit data without losing eligible choices")
+    void managerPasswordResetRefreshesAuditAndRetainsTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            ((PasswordField) router.lookup("#resetAccountPassword")).setText("new-pass-1");
+            buttonWithText("Reset _password").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertEquals(4L, comboBox("assignee").getValue().id());
+            assertEquals(4L, comboBox("managerTechnicianFilter").getValue().id());
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("PASSWORD_RESET")));
+            assertEquals("", ((PasswordField) router.lookup("#resetAccountPassword")).getText());
+        });
+    }
+
+    @Test
+    @DisplayName("UIX-008/009/012 history failure cannot re-enable Manager UI during a foreground account mutation")
+    void managerHistoryFailureDoesNotEndForegroundBusyState() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.auth.logout(owner);
+        login("manager");
+        fixture.execute("DROP TABLE requester_updates");
+
+        fx(() -> {
+            ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
+            ((TextField) router.lookup("#newAccountUsername")).setText("new-requester");
+            ((TextField) router.lookup("#newAccountDisplayName")).setText("New Requester");
+            ((ComboBox<Role>) router.lookup("#newAccountRole")).setValue(Role.REQUESTER);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+            assertTrue(router.lookup("#managerDashboard").isDisabled());
+            assertEquals("Working…", ((Label) router.lookup("#managerFeedback")).getText());
+            assertEquals(2, work.size());
+        });
+
+        drainOne();
+        fx(() -> {
+            assertTrue(router.lookup("#managerDashboard").isDisabled(),
+                    "background history failure must not end the foreground busy state");
+            assertEquals("Working…", ((Label) router.lookup("#managerFeedback")).getText());
+        });
+        assertEquals(0, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='new-requester'"));
+
+        drainOne();
+        fx(() -> {
+            assertTrue(router.lookup("#managerDashboard").isDisabled(),
+                    "the dependent refresh remains a foreground operation");
+            assertEquals(1, work.size());
+        });
+
+        drainOne();
+        fx(() -> {
+            assertFalse(router.lookup("#managerDashboard").isDisabled());
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("new-requester was created"));
+        });
+        assertEquals(1, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='new-requester'"));
+    }
+
+    @Test
+    @DisplayName("UIX-009/012 stale history failure does not overwrite feedback for the current selection")
+    void staleManagerHistoryFailureDoesNotOverwriteCurrentFeedback() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.requester.createRequest(owner, requesterDraft("Broken light", "Room 13"));
+        fixture.auth.logout(owner);
+        login("manager");
+        fx(() -> button("applyManagerFilters").fire());
+        drain();
+        fixture.execute("DROP TABLE requester_updates");
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#managerRequests");
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+            assertEquals(2, work.size());
+            assertEquals("Filters applied.", ((Label) router.lookup("#managerFeedback")).getText());
+        });
+
+        drainOne();
+        fx(() -> assertEquals(
+                "Filters applied.", ((Label) router.lookup("#managerFeedback")).getText(),
+                "failure for a no-longer-selected request must remain silent"));
+
+        drainOne();
+        fx(() -> assertEquals(
+                "The operation could not be completed. Your input has been kept. Please try again.",
+                ((Label) router.lookup("#managerFeedback")).getText()));
+    }
+
+    @Test
+    @DisplayName("UIX-008/009/021 Manager workers use FX-thread snapshots rather than later control values")
+    void managerWorkersUseFxThreadControlSnapshots() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.auth.logout(owner);
+        login("manager");
+
+        fx(() -> {
+            TextField search = (TextField) router.lookup("#managerSearch");
+            search.setText("Leaking pipe");
+            button("applyManagerFilters").fire();
+            search.setText("changed after scheduling");
+        });
+        drain();
+        fx(() -> assertEquals(1,
+                ((TableView<?>) router.lookup("#managerRequests")).getItems().size(),
+                "the queued filter must use the value captured by its FX event handler"));
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#managerRequests");
+            table.getSelectionModel().selectFirst();
+            UserAccount technician = comboBox("assignee").getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            ((ComboBox<ManagerPriority>) router.lookup("#managerPriority"))
+                    .setValue(ManagerPriority.HIGH);
+            button("assignRequest").fire();
+            comboBox("assignee").setValue(null);
+            ((ComboBox<ManagerPriority>) router.lookup("#managerPriority")).setValue(null);
+        });
+        drain();
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE status='ASSIGNED' AND assignee_id=4 AND manager_priority='HIGH'"));
+
+        fx(() -> {
+            TextField username = (TextField) router.lookup("#newAccountUsername");
+            TextField displayName = (TextField) router.lookup("#newAccountDisplayName");
+            ComboBox<Role> role = (ComboBox<Role>) router.lookup("#newAccountRole");
+            username.setText("snapshot-user");
+            displayName.setText("Snapshot User");
+            role.setValue(Role.REQUESTER);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+            username.setText("later-user");
+            displayName.setText("Later User");
+            role.setValue(Role.TECHNICIAN);
+        });
+        drain();
+
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM user_accounts "
+                + "WHERE username='snapshot-user' AND display_name='Snapshot User' AND role='REQUESTER'"));
+        assertEquals(0, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='later-user'"));
+    }
+
     // Optional review artifacts use fixture data only; normal test runs write no screenshots.
     private void snapshot(String name) throws Exception {
         String output = System.getenv("FACILITYFLOW_UI_SNAPSHOTS");
@@ -1016,6 +1342,30 @@ class AuthenticatedWorkflowTest {
         return (Button) router.lookup("#" + id);
     }
 
+    @SuppressWarnings("unchecked")
+    private ComboBox<UserAccount> comboBox(String id) {
+        return (ComboBox<UserAccount>) router.lookup("#" + id);
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<UserAccount> accountTable() {
+        return (TableView<UserAccount>) router.lookup("#managerAccounts");
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<AuditRecord> auditTable() {
+        return (TableView<AuditRecord>) router.lookup("#managerAudit");
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<TechnicianWorkload> workloadTable() {
+        return (TableView<TechnicianWorkload>) router.lookupAll(".table-view").stream()
+                .map(TableView.class::cast)
+                .filter(table -> "Active assignments per Technician".equals(table.getAccessibleText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing Manager Technician workload table"));
+    }
+
     private Button buttonWithText(String text) {
         return router.lookupAll(".button").stream().map(Button.class::cast)
                 .filter(candidate -> text.equals(candidate.getText())).findFirst()
@@ -1067,6 +1417,22 @@ class AuthenticatedWorkflowTest {
         Platform.runLater(responder[0]);
     }
 
+    private void confirmNextDialog() {
+        Runnable[] responder = new Runnable[1];
+        responder[0] = () -> {
+            Window dialog = Window.getWindows().stream().filter(Window::isShowing)
+                    .filter(window -> window != stage).findFirst().orElse(null);
+            if (dialog == null || !(dialog.getScene().getRoot() instanceof DialogPane pane)) {
+                var pause = new PauseTransition(Duration.millis(50));
+                pause.setOnFinished(event -> responder[0].run());
+                pause.playFromStart();
+                return;
+            }
+            ((Button) pane.lookupButton(ButtonType.OK)).fire();
+        };
+        Platform.runLater(responder[0]);
+    }
+
     private TextField dialogTextField(DialogPane pane) {
         TextField field = findTextField(pane.getContent());
         if (field == null) {
@@ -1112,6 +1478,14 @@ class AuthenticatedWorkflowTest {
             task.run();
             fx(() -> { });
         }
+    }
+
+    private void drainOne() throws Exception {
+        Runnable task = work.poll();
+        assertNotNull(task, "Expected one queued background operation");
+        assertFalse(Platform.isFxApplicationThread());
+        task.run();
+        fx(() -> { });
     }
 
     private void fx(Runnable action) throws Exception {

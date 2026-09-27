@@ -15,6 +15,7 @@ import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
+import sg.edu.nus.facilityflow.model.TechnicianHistoryEntry;
 import sg.edu.nus.facilityflow.model.TechnicianQueueFilter;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.model.WorkLog;
@@ -69,6 +70,34 @@ public final class TechnicianRequestService {
             UserAccount actor = sessions.requireRole(transaction, session, Role.TECHNICIAN);
             requireAssignedRequest(transaction, actor.id(), requestId);
             return List.copyOf(transaction.listWorkLogs(requestId));
+        });
+    }
+
+    /** LIF-009/010: internal work and Requester follow-ups visible to the assignee. */
+    public List<TechnicianHistoryEntry> listHistory(
+            AuthenticatedSession session, long requestId) {
+        return store.inTransaction(transaction -> {
+            UserAccount actor = sessions.requireRole(transaction, session, Role.TECHNICIAN);
+            requireAssignedRequest(transaction, actor.id(), requestId);
+            var entries = new java.util.ArrayList<TechnicianHistoryEntry>();
+            transaction.listWorkLogs(requestId).forEach(log -> entries.add(
+                    new TechnicianHistoryEntry(
+                            "Work log",
+                            log.authorId(),
+                            log.note(),
+                            log.minutesSpent(),
+                            log.createdAt())));
+            transaction.listRequesterUpdates(requestId).forEach(update -> entries.add(
+                    new TechnicianHistoryEntry(
+                            "Requester update",
+                            update.authorId(),
+                            update.text(),
+                            null,
+                            update.createdAt())));
+            entries.sort(Comparator.comparing(TechnicianHistoryEntry::occurredAt)
+                    .thenComparing(TechnicianHistoryEntry::type)
+                    .thenComparingLong(TechnicianHistoryEntry::authorId));
+            return List.copyOf(entries);
         });
     }
 

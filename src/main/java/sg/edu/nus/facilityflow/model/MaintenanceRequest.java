@@ -135,6 +135,84 @@ public record MaintenanceRequest(
         return copyWith(RequestStatus.COMPLETED, summary, completionTime, completionTime);
     }
 
+    public MaintenanceRequest close(Instant closedAt) {
+        if (status != RequestStatus.COMPLETED || resolutionSummary == null || completedAt == null) {
+            throw new IllegalStateException("Only completed work can be closed");
+        }
+        Objects.requireNonNull(closedAt, "closedAt");
+        return copyWith(RequestStatus.CLOSED, resolutionSummary, completedAt, closedAt);
+    }
+
+    public MaintenanceRequest returnForRework(long technicianId, Instant returnedAt) {
+        if (status != RequestStatus.COMPLETED) {
+            throw new IllegalStateException("Only completed work can be returned");
+        }
+        return resumeAssignment(technicianId, returnedAt);
+    }
+
+    public MaintenanceRequest reopen(long technicianId, Instant reopenedAt) {
+        if (status != RequestStatus.CLOSED) {
+            throw new IllegalStateException("Only closed work can be reopened");
+        }
+        return resumeAssignment(technicianId, reopenedAt);
+    }
+
+    public MaintenanceRequest cancel(Instant cancelledAt) {
+        if (status != RequestStatus.OPEN
+                && status != RequestStatus.ASSIGNED
+                && status != RequestStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Only open or active work can be cancelled");
+        }
+        Objects.requireNonNull(cancelledAt, "cancelledAt");
+        return copyWith(RequestStatus.CANCELLED, resolutionSummary, completedAt, cancelledAt);
+    }
+
+    public MaintenanceRequest correct(RequestDraft draft, ManagerPriority priority, Instant correctedAt) {
+        Objects.requireNonNull(draft, "draft");
+        Objects.requireNonNull(correctedAt, "correctedAt");
+        return new MaintenanceRequest(
+                id,
+                displayId,
+                requesterId,
+                draft.title(),
+                draft.description(),
+                draft.location(),
+                draft.category(),
+                draft.urgency(),
+                priority,
+                status,
+                assigneeId,
+                assignedAt,
+                resolutionSummary,
+                completedAt,
+                createdAt,
+                correctedAt);
+    }
+
+    private MaintenanceRequest resumeAssignment(long technicianId, Instant at) {
+        if (technicianId <= 0) {
+            throw new IllegalArgumentException("Technician ID must be positive");
+        }
+        Objects.requireNonNull(at, "at");
+        return new MaintenanceRequest(
+                id,
+                displayId,
+                requesterId,
+                title,
+                description,
+                location,
+                category,
+                reportedUrgency,
+                managerPriority,
+                RequestStatus.ASSIGNED,
+                technicianId,
+                at,
+                resolutionSummary,
+                completedAt,
+                createdAt,
+                at);
+    }
+
     private MaintenanceRequest copyWith(
             RequestStatus newStatus,
             String newResolutionSummary,

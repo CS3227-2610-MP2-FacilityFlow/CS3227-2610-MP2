@@ -56,3 +56,32 @@ first test run. A future JavaFX project-foundation skill should also distinguish
 between generic web-style design recommendations and desktop enterprise UI
 needs earlier, and should include a checklist for authentication-safe previewing
 of role screens.
+
+## Session: Manager and release-candidate completion, 27 September 2026
+
+Human verification: **Pending review by `yu-sutong`.**
+
+I asked the AI to treat an automated gap screenshot as reference rather than an
+authority, re-read the changed MP2 brief, complete my Facilities Manager role,
+and audit the full team submission. This changed the work from “add the missing
+buttons” into a requirement-to-evidence exercise.
+
+The requirement-based unit-test agent added normal, boundary, authorization,
+state-machine, and SQLite rollback cases. It found two defects that ordinary
+happy-path UI checking had missed: account audit details were empty, and a numeric
+request audit search could include an account event with the same target ID. The
+implementation agent fixed both, and the regressions passed. The user-guide
+reviewer found three further mismatches: inactive Requester owners were excluded,
+untriaged cancelled requests could not be corrected without inventing a priority,
+and the Manager queue lacked a direct refresh action. These were also corrected.
+
+The most useful lesson was that an agent should report completion in layers. The
+code can be implemented, locally tested, packaged, and documented while the
+formal release is still not ready: Pages, tag-triggered artifacts, cross-platform
+clean-machine smoke tests, teammate review, and human verification are external
+evidence. Recording those as pending is more useful than presenting workflow
+configuration as proof that the workflow passed.
+
+I still need to review the new Manager screens manually, compare the User Guide
+with the built app, confirm this reflection/log reflects what I learned, and ask
+a teammate to review the pull request before changing this status to approved.

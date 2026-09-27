@@ -3,6 +3,7 @@ package sg.edu.nus.facilityflow.ui;
 import java.util.List;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.layout.BorderPane;
@@ -11,10 +12,12 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
+import sg.edu.nus.facilityflow.AppVersion;
 import sg.edu.nus.facilityflow.auth.AuthenticationService;
 import sg.edu.nus.facilityflow.model.UserAccount;
 import sg.edu.nus.facilityflow.service.AuthorizationException;
 import sg.edu.nus.facilityflow.service.ManagerRequestService;
+import sg.edu.nus.facilityflow.service.ManagerAccountService;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.service.TechnicianRequestService;
 import sg.edu.nus.facilityflow.ui.manager.ManagerDashboardController;
@@ -28,6 +31,7 @@ public final class ApplicationRouter extends BorderPane {
     private final AuthenticationService auth;
     private final RequesterRequestService requester;
     private final ManagerRequestService manager;
+    private final ManagerAccountService managerAccounts;
     private final TechnicianRequestService technician;
     private final List<String> categories;
     private final UiTasks tasks;
@@ -37,11 +41,13 @@ public final class ApplicationRouter extends BorderPane {
     private long requesterOwner;
 
     public ApplicationRouter(AuthenticationService auth, RequesterRequestService requester,
-                             ManagerRequestService manager, TechnicianRequestService technician,
+                             ManagerRequestService manager, ManagerAccountService managerAccounts,
+                             TechnicianRequestService technician,
                              List<String> categories, UiTasks tasks) {
         this.auth = auth;
         this.requester = requester;
         this.manager = manager;
+        this.managerAccounts = managerAccounts;
         this.technician = technician;
         this.categories = categories;
         this.tasks = tasks;
@@ -101,13 +107,23 @@ public final class ApplicationRouter extends BorderPane {
         var password = new Button("Change password");
         password.setId("changePassword");
         password.setOnAction(event -> showPasswordChange());
+        var about = new Button("About");
+        about.setId("about");
+        about.setOnAction(event -> {
+            var dialog = new Alert(Alert.AlertType.INFORMATION);
+            dialog.setTitle("About FacilityFlow");
+            dialog.setHeaderText("FacilityFlow " + AppVersion.CURRENT);
+            dialog.setContentText("Auditable facilities maintenance coordination for "
+                    + "Requesters, Technicians, and Facilities Managers.");
+            dialog.showAndWait();
+        });
         var brand = new Label("FacilityFlow");
         brand.getStyleClass().add("product-name");
         var identity = new Label(account.displayName() + " — " + account.role());
         identity.setWrapText(true);
         identity.setMaxWidth(320);
         identity.getStyleClass().add("identity-label");
-        var header = new FlowPane(12, 10, brand, identity, refresh, password, logout);
+        var header = new FlowPane(12, 10, brand, identity, refresh, password, about, logout);
         header.getStyleClass().add("app-header");
         header.setPadding(new Insets(16));
         header.disableProperty().bind(tasks.busy());
@@ -126,7 +142,8 @@ public final class ApplicationRouter extends BorderPane {
                 setCenter(requesterView);
             }
             case FACILITIES_MANAGER -> setCenter(new ManagerDashboardView(
-                    new ManagerDashboardController(manager, session), tasks, this::handleFailure).root());
+                    new ManagerDashboardController(manager, managerAccounts, auth, session),
+                    categories, tasks, this::handleFailure).root());
             case TECHNICIAN -> setCenter(new TechnicianDashboardView(
                     new TechnicianDashboardController(technician, session), categories,
                     tasks, this::handleFailure));

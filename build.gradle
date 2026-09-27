@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'sg.edu.nus.facilityflow'
-version = '0.1.0-SNAPSHOT'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
@@ -26,6 +26,34 @@ javafx {
 application {
     mainClass = providers.gradleProperty('mainClass').orElse('sg.edu.nus.facilityflow.FacilityFlowLauncher')
     applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+}
+
+tasks.named('jar') {
+    manifest {
+        attributes(
+            'Main-Class': 'sg.edu.nus.facilityflow.FacilityFlowLauncher',
+            'Implementation-Title': 'FacilityFlow',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+def releasePlatform = providers.systemProperty('os.name').map { name ->
+    def normalized = name.toLowerCase()
+    if (normalized.contains('win')) return 'windows'
+    if (normalized.contains('mac')) return 'macos'
+    return 'linux'
+}
+
+tasks.register('releaseZip', Zip) {
+    dependsOn tasks.named('installDist')
+    archiveFileName = releasePlatform.map { platform ->
+        "FacilityFlow-${project.version}-${platform}.zip"
+    }
+    destinationDirectory = layout.buildDirectory.dir('release')
+    into("FacilityFlow-${project.version}") {
+        from layout.buildDirectory.dir('install/facilityflow')
+    }
 }
 
 dependencies {

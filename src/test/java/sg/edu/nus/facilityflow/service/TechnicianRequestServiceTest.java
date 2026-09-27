@@ -28,6 +28,7 @@ import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
 import sg.edu.nus.facilityflow.model.RequestDraft;
+import sg.edu.nus.facilityflow.model.RequesterUpdate;
 import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.Role;
 import sg.edu.nus.facilityflow.model.TechnicianDashboardCounts;
@@ -441,6 +442,37 @@ class TechnicianRequestServiceTest {
     }
 
     @Test
+    @DisplayName("LIF-009/010 assigned Technician history combines Requester updates and internal work logs")
+    void listsRequesterUpdatesAndWorkLogsInChronologicalOrder() {
+        store.requesterUpdates.add(new RequesterUpdate(
+                1, 11, 4, "Please call before entering.", NOW.minusSeconds(120)));
+        store.workLogs.add(new WorkLog(
+                1, 11, 2, "Inspected the affected pipe.", 20, NOW.minusSeconds(60)));
+
+        var history = service.listHistory(technicianSession, 11);
+
+        assertEquals(List.of("Requester update", "Work log"),
+                history.stream().map(entry -> entry.type()).toList());
+        assertEquals("Please call before entering.", history.get(0).text());
+        assertNull(history.get(0).minutesSpent());
+        assertEquals("Inspected the affected pipe.", history.get(1).text());
+        assertEquals(20, history.get(1).minutesSpent());
+    }
+
+    @Test
+    @DisplayName("AUT-019/021 Technician history rejects another Technician's assignment without disclosure")
+    void deniesHistoryForAnotherTechnicianRequest() {
+        AuthorizationException forbidden = assertThrows(
+                AuthorizationException.class,
+                () -> service.listHistory(technicianSession, 13));
+        AuthorizationException missing = assertThrows(
+                AuthorizationException.class,
+                () -> service.listHistory(technicianSession, 999));
+
+        assertEquals(missing.getMessage(), forbidden.getMessage());
+    }
+
+    @Test
     @DisplayName("LIF-012 DAT-007 rolls back request and work log when audit storage fails")
     void rollsBackWorkLogWhenAuditFails() {
         MaintenanceRequest before = store.requests.get(11L);
@@ -527,6 +559,7 @@ class TechnicianRequestServiceTest {
         private final Map<Long, UserAccount> accounts = new HashMap<>();
         private final Map<Long, MaintenanceRequest> requests = new HashMap<>();
         private final List<WorkLog> workLogs = new ArrayList<>();
+        private final List<RequesterUpdate> requesterUpdates = new ArrayList<>();
         private final List<AuditEvent> auditEvents = new ArrayList<>();
         private long nextWorkLogId = 1;
         private boolean rejectTechnicianUpdate;
@@ -536,6 +569,7 @@ class TechnicianRequestServiceTest {
         public <T> T inTransaction(TransactionWork<T> work) {
             Map<Long, MaintenanceRequest> requestsBefore = new HashMap<>(requests);
             List<WorkLog> workLogsBefore = new ArrayList<>(workLogs);
+            List<RequesterUpdate> requesterUpdatesBefore = new ArrayList<>(requesterUpdates);
             List<AuditEvent> auditsBefore = new ArrayList<>(auditEvents);
             long nextWorkLogIdBefore = nextWorkLogId;
             try {
@@ -545,6 +579,8 @@ class TechnicianRequestServiceTest {
                 requests.putAll(requestsBefore);
                 workLogs.clear();
                 workLogs.addAll(workLogsBefore);
+                requesterUpdates.clear();
+                requesterUpdates.addAll(requesterUpdatesBefore);
                 auditEvents.clear();
                 auditEvents.addAll(auditsBefore);
                 nextWorkLogId = nextWorkLogIdBefore;
@@ -644,6 +680,15 @@ class TechnicianRequestServiceTest {
                             int byTime = left.createdAt().compareTo(right.createdAt());
                             return byTime == 0 ? Long.compare(left.id(), right.id()) : byTime;
                         })
+                        .toList();
+            }
+
+            @Override
+            public List<RequesterUpdate> listRequesterUpdates(long requestId) {
+                return requesterUpdates.stream()
+                        .filter(update -> update.requestId() == requestId)
+                        .sorted(java.util.Comparator.comparing(RequesterUpdate::createdAt)
+                                .thenComparingLong(RequesterUpdate::id))
                         .toList();
             }
 
