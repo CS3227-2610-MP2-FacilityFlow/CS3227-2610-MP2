@@ -1149,6 +1149,84 @@ class AuthenticatedWorkflowTest {
         });
     }
 
+    @Test
+    @DisplayName("UIX-008/009/012 history failure cannot re-enable Manager UI during a foreground account mutation")
+    void managerHistoryFailureDoesNotEndForegroundBusyState() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.auth.logout(owner);
+        login("manager");
+        fixture.execute("DROP TABLE requester_updates");
+
+        fx(() -> {
+            ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
+            ((TextField) router.lookup("#newAccountUsername")).setText("new-requester");
+            ((TextField) router.lookup("#newAccountDisplayName")).setText("New Requester");
+            ((ComboBox<Role>) router.lookup("#newAccountRole")).setValue(Role.REQUESTER);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+            assertTrue(router.lookup("#managerDashboard").isDisabled());
+            assertEquals("Working…", ((Label) router.lookup("#managerFeedback")).getText());
+            assertEquals(2, work.size());
+        });
+
+        drainOne();
+        fx(() -> {
+            assertTrue(router.lookup("#managerDashboard").isDisabled(),
+                    "background history failure must not end the foreground busy state");
+            assertEquals("Working…", ((Label) router.lookup("#managerFeedback")).getText());
+        });
+        assertEquals(0, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='new-requester'"));
+
+        drainOne();
+        fx(() -> {
+            assertTrue(router.lookup("#managerDashboard").isDisabled(),
+                    "the dependent refresh remains a foreground operation");
+            assertEquals(1, work.size());
+        });
+
+        drainOne();
+        fx(() -> {
+            assertFalse(router.lookup("#managerDashboard").isDisabled());
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("new-requester was created"));
+        });
+        assertEquals(1, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='new-requester'"));
+    }
+
+    @Test
+    @DisplayName("UIX-009/012 stale history failure does not overwrite feedback for the current selection")
+    void staleManagerHistoryFailureDoesNotOverwriteCurrentFeedback() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.requester.createRequest(owner, requesterDraft("Broken light", "Room 13"));
+        fixture.auth.logout(owner);
+        login("manager");
+        fx(() -> button("applyManagerFilters").fire());
+        drain();
+        fixture.execute("DROP TABLE requester_updates");
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#managerRequests");
+            table.getSelectionModel().select(0);
+            table.getSelectionModel().select(1);
+            assertEquals(2, work.size());
+            assertEquals("Filters applied.", ((Label) router.lookup("#managerFeedback")).getText());
+        });
+
+        drainOne();
+        fx(() -> assertEquals(
+                "Filters applied.", ((Label) router.lookup("#managerFeedback")).getText(),
+                "failure for a no-longer-selected request must remain silent"));
+
+        drainOne();
+        fx(() -> assertEquals(
+                "The operation could not be completed. Your input has been kept. Please try again.",
+                ((Label) router.lookup("#managerFeedback")).getText()));
+    }
+
     // Optional review artifacts use fixture data only; normal test runs write no screenshots.
     private void snapshot(String name) throws Exception {
         String output = System.getenv("FACILITYFLOW_UI_SNAPSHOTS");
@@ -1342,6 +1420,14 @@ class AuthenticatedWorkflowTest {
             task.run();
             fx(() -> { });
         }
+    }
+
+    private void drainOne() throws Exception {
+        Runnable task = work.poll();
+        assertNotNull(task, "Expected one queued background operation");
+        assertFalse(Platform.isFxApplicationThread());
+        task.run();
+        fx(() -> { });
     }
 
     private void fx(Runnable action) throws Exception {

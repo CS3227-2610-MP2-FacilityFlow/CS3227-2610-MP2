@@ -72,15 +72,21 @@ weakening the requirements:
    role changes deliberately retain the session, while every protected operation
    rereads the persisted active flag and current role. Existing authentication and
    routing tests verify that permissions from the old role cannot be exercised.
+9. The follow-up review found that a failed background history read used the same
+   error handler as a foreground mutation and could therefore clear the mutation's
+   busy state. History failures now report through a dedicated handler that never
+   changes foreground busy state and ignores stale visual feedback after selection
+   changes.
 
 ## Verification actually performed
 
 - Repository unit-test agent: `./gradlew clean check` — successful, 241 tests,
   0 failures, 0 errors, 0 skipped; Checkstyle and JaCoCo successful.
 - Final implementation pass: `./gradlew clean check releaseZip` — successful.
-- PR #18 follow-up: four focused account-refresh JavaFX regressions passed, then
-  `./gradlew clean check` passed with 245 tests, 0 failures, 0 errors, and 0
-  skipped; Checkstyle and JaCoCo succeeded. `./gradlew releaseZip` also passed.
+- PR #18 follow-ups: four account-refresh and two busy-state/history JavaFX
+  regressions passed, then `./gradlew clean check` passed with 247 tests, 0
+  failures, 0 errors, and 0 skipped; Checkstyle and JaCoCo succeeded.
+  `./gradlew releaseZip` also passed.
 - JaCoCo model/service/auth/storage line result: 1,493 covered and 217 missed,
   or 87.3%.
 - `git diff --check` — successful.
@@ -88,7 +94,7 @@ weakening the requirements:
   scripts, SQLite JDBC, and Apple-silicon JavaFX libraries present. Unix launcher
   syntax passed `sh -n`; manifest contains the main class and version 1.0.0.
 - Local ZIP SHA-256:
-  `ea1bf404f96397d45dfefe2669ff67ecf2cc98aeacbcb9af411b6fb2d3b18a4b`.
+  `a8c432182b147cc7d72b412d3458746b17ab5946a1d39d066364c409103cc96d`.
 - Public GitHub check: repository is public with default branch `master`; the
   previous `master` commit passed Windows/macOS/Ubuntu CI. No formal release or
   Pages deployment exists yet. The local GitHub CLI credential is expired.

@@ -558,7 +558,7 @@ public final class ManagerDashboardView {
                     history.setItems(FXCollections.observableArrayList(
                             entries.stream().map(ManagerDashboardView::historyText).toList()));
                 }
-            }, this::handleError);
+            }, error -> handleHistoryError(selected.id(), error));
         }
         updateActions();
     }
@@ -722,6 +722,14 @@ public final class ManagerDashboardView {
     private void handleError(Throwable error) {
         setBusy(false);
         showError(UiTasks.safeMessage(error));
+        failure.accept(error);
+    }
+
+    private void handleHistoryError(long requestId, Throwable error) {
+        MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        if (!busy && selected != null && selected.id() == requestId) {
+            showError(UiTasks.safeMessage(error));
+        }
         failure.accept(error);
     }
 
