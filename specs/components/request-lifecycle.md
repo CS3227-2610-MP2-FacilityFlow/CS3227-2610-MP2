@@ -54,6 +54,7 @@ decision. The UI MUST label them distinctly.
   requester updates, and work logs according to role visibility.
   User-facing history MUST describe actions and relevant reasons in concise,
   plain language; structured audit details MUST NOT be displayed directly.
+  Where an author is shown, display their username rather than an account ID.
 
 ## States
 

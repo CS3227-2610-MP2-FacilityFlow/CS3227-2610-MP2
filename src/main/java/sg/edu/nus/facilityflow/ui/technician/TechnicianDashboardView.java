@@ -562,7 +562,7 @@ public final class TechnicianDashboardView extends BorderPane {
                 ? "" : " · " + entry.minutesSpent() + " minutes";
         return DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm z")
                 .withZone(ZoneId.systemDefault()).format(entry.occurredAt())
-                + " · " + entry.type() + " · Account #" + entry.authorId()
+                + " · " + entry.type() + " · " + entry.authorUsername()
                 + effort + "\n" + entry.text();
     }
 
