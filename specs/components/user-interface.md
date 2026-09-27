@@ -8,8 +8,9 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   associated with the account's role.
 - **UIX-002:** Role dashboards MUST use separate view/controller classes. Shared
   visual components MAY be reused without merging role-specific navigation.
-- **UIX-003:** Every authenticated screen MUST show the display name, role, and a
-  logout action.
+- **UIX-003:** Every authenticated screen MUST show the role and username in
+  “Role - Username” format, and a logout action. Display the Facilities Manager
+  role as “Manager” in the header.
 - **UIX-004:** Protected screens and actions outside the active role MUST not appear
   in navigation and MUST still be blocked by service authorization.
 - **UIX-005:** Users MUST be able to return from a detail/form view to their role's

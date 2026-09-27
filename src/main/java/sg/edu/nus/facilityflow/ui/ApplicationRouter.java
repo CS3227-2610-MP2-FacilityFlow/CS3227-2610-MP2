@@ -123,7 +123,12 @@ public final class ApplicationRouter extends BorderPane {
         });
         var brand = new Label("FacilityFlow");
         brand.getStyleClass().add("product-name");
-        var identity = new Label(account.displayName() + " — " + account.role());
+        String roleName = switch (account.role()) {
+            case REQUESTER -> "Requester";
+            case TECHNICIAN -> "Technician";
+            case FACILITIES_MANAGER -> "Manager";
+        };
+        var identity = new Label(roleName + " - " + account.username());
         identity.setWrapText(true);
         identity.setMaxWidth(320);
         identity.getStyleClass().add("identity-label");
