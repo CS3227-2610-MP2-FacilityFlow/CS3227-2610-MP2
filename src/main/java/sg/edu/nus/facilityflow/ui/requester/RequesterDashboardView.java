@@ -232,7 +232,7 @@ public final class RequesterDashboardView extends BorderPane {
         var heading = new Label(request.title());
         heading.setWrapText(true);
         heading.getStyleClass().add("page-title");
-        var description = new Label(request.description());
+        var description = new Label("Description:\n" + request.description());
         description.setWrapText(true);
         var detail = new Label(request.displayId()
                 + "\nStatus: " + request.status() + "\nReported urgency: " + request.reportedUrgency()
