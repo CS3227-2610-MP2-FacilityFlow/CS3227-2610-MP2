@@ -84,6 +84,8 @@ public final class TechnicianRequestService {
                     new TechnicianHistoryEntry(
                             "Work log",
                             log.authorId(),
+                            transaction.findAccount(log.authorId())
+                                    .map(UserAccount::username).orElse("Unknown account"),
                             log.note(),
                             log.minutesSpent(),
                             log.createdAt())));
@@ -91,6 +93,8 @@ public final class TechnicianRequestService {
                     new TechnicianHistoryEntry(
                             "Requester update",
                             update.authorId(),
+                            transaction.findAccount(update.authorId())
+                                    .map(UserAccount::username).orElse("Unknown account"),
                             update.text(),
                             null,
                             update.createdAt())));

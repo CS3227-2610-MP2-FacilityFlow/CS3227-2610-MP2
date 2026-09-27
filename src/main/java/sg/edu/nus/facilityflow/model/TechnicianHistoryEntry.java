@@ -6,6 +6,7 @@ import java.time.Instant;
 public record TechnicianHistoryEntry(
         String type,
         long authorId,
+        String authorUsername,
         String text,
         Integer minutesSpent,
         Instant occurredAt) {

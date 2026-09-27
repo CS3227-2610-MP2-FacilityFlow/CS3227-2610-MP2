@@ -84,11 +84,33 @@ class AuthenticatedWorkflowTest {
 
     @ParameterizedTest
     @CsvSource({"owner, requesterDashboard", "manager, managerDashboard", "tech, technicianDashboard"})
-    @DisplayName("AUT-014/015 UIX-001–004 each login reaches exactly its role view and logout removes it")
+    @DisplayName("AUT-014/015 UIX-001/003/005 each role shows its workspace and identity")
     void routesEachRole(String username, String expected) throws Exception {
         login(username);
         fx(() -> {
             assertNotNull(router.lookup("#" + expected));
+            assertEquals("Main workspace", button("refreshAccount").getText());
+            String roleLabel = switch (username) {
+                case "owner" -> "Requester";
+                case "manager" -> "Manager";
+                case "tech" -> "Technician";
+                default -> throw new AssertionError("Unexpected role fixture");
+            };
+            assertEquals(roleLabel + " - " + username,
+                    ((Label) router.lookup(".identity-label")).getText());
+            List<String> filterIds = switch (username) {
+                case "owner" -> List.of("requesterStatusFilter", "requesterCategoryFilter");
+                case "manager" -> List.of("managerStatusFilter", "managerCategoryFilter",
+                        "managerPriorityFilter", "managerTechnicianFilter");
+                case "tech" -> List.of("technicianStatusFilter", "technicianCategoryFilter",
+                        "technicianPriorityFilter");
+                default -> throw new AssertionError("Unexpected role fixture");
+            };
+            for (String filterId : filterIds) {
+                ComboBox<?> filter = (ComboBox<?>) router.lookup("#" + filterId);
+                assertEquals("-", filter.getPromptText());
+                assertEquals("-", filter.getConverter().toString(null));
+            }
             for (String role : List.of("requesterDashboard", "managerDashboard", "technicianDashboard")) {
                 if (!role.equals(expected)) {
                     assertNull(router.lookup("#" + role));
@@ -230,7 +252,7 @@ class AuthenticatedWorkflowTest {
     }
 
     @Test
-    @DisplayName("REQ-008/012 UIX-011/012 cancellation dialog retains an invalid reason and retries")
+    @DisplayName("REQ-008/012/017 LIF-010 UIX-011/012 cancellation history shows a readable reason")
     void requesterCancellationDialogCanRetryInvalidReason() throws Exception {
         login("owner");
         fillForm();
@@ -248,6 +270,9 @@ class AuthenticatedWorkflowTest {
             assertTrue(((Label) router.lookup("#requestDetail")).getText().contains("Status: CANCELLED"),
                     ((Label) router.lookup("#requestDetail")).getText());
             assertTrue(((Label) router.lookup("#requesterFeedback")).getText().contains("Request cancelled"));
+            assertTrue(router.lookupAll(".label").stream().map(Label.class::cast)
+                    .map(Label::getText).filter(java.util.Objects::nonNull)
+                    .anyMatch(text -> text.contains("Request cancelled. Reason: No longer needed")));
         });
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM audit_events WHERE action='REQUEST_CANCELLED' AND detail='No longer needed'"));
     }
@@ -268,8 +293,8 @@ class AuthenticatedWorkflowTest {
         drain();
         fx(() -> {
             assertEquals("Please call before entering the room.", requesterFollowUpField().getText());
-            assertTrue(((Label) router.lookup("#requesterFeedback")).getText().contains("input has been kept"));
-            assertFalse(((Label) router.lookup("#requesterFeedback")).getText().contains("injected error"));
+            assertTrue(((Label) router.lookup("#requesterFollowUpError")).getText().contains("input has been kept"));
+            assertFalse(((Label) router.lookup("#requesterFollowUpError")).getText().contains("injected error"));
         });
         fixture.execute("DROP TRIGGER reject_requester_update");
         fx(() -> buttonWithText("Add follow-up").fire());
@@ -606,7 +631,7 @@ class AuthenticatedWorkflowTest {
             assertEquals("  Keep this invalid entry visible  ", note.getText());
             assertEquals("not-a-number", minutes.getText());
             assertEquals("Minutes spent must be a whole number from 1 to 1,440.",
-                    ((Label) router.lookup("#technicianFeedback")).getText());
+                    ((Label) router.lookup("#technicianWorkLogMinutesError")).getText());
         });
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
 
@@ -620,7 +645,7 @@ class AuthenticatedWorkflowTest {
                     ((TextArea) router.lookup("#technicianWorkLogNote")).getText());
             assertEquals("1441", ((TextField) router.lookup("#technicianWorkLogMinutes")).getText());
             assertEquals("Minutes spent must be from 1 to 1,440.",
-                    ((Label) router.lookup("#technicianFeedback")).getText());
+                    ((Label) router.lookup("#technicianWorkLogMinutesError")).getText());
             assertEquals(1, ((ListView<?>) router.lookup("#technicianWorkLogs")).getItems().size());
         });
         assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM work_logs WHERE request_id = 1"));
@@ -714,7 +739,7 @@ class AuthenticatedWorkflowTest {
             assertEquals("Too short", ((TextArea) router.lookup("#technicianResolutionSummary"))
                     .getText());
             assertEquals("Resolution summary must contain 10 to 2,000 characters.",
-                    ((Label) router.lookup("#technicianFeedback")).getText());
+                    ((Label) router.lookup("#technicianResolutionError")).getText());
             assertEquals(RequestStatus.IN_PROGRESS, ((MaintenanceRequest) ((TableView<?>)
                     router.lookup("#technicianRequests")).getItems().getFirst()).status());
         });
@@ -1036,7 +1061,7 @@ class AuthenticatedWorkflowTest {
             assertTrue(accountTable().getItems().stream()
                     .anyMatch(account -> account.username().equals("tech-new")));
             assertTrue(workloadTable().getItems().stream()
-                    .anyMatch(workload -> workload.displayName().equals("Technician New")));
+                    .anyMatch(workload -> workload.displayName().equals("tech-new")));
             assertTrue(auditTable().getItems().stream()
                     .anyMatch(record -> record.action().equals("ACCOUNT_CREATED")));
             assertTrue(((Label) router.lookup("#managerFeedback")).getText()

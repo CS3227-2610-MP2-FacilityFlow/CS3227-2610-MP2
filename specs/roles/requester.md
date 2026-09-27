@@ -69,6 +69,8 @@ gaining access to other requesters' data or internal maintenance notes.
   cancellation/reopening reasons, and the owner's follow-up updates. Internal
   Technician work logs and private Manager notes MUST remain excluded from
   service results, not merely hidden by the UI.
+  Displayed activity MUST use concise, plain-language descriptions and MUST NOT
+  show structured audit details.
 
 ## Acceptance scenarios
 

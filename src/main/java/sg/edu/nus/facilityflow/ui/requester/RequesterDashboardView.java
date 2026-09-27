@@ -22,6 +22,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import sg.edu.nus.facilityflow.auth.AuthenticatedSession;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
 import sg.edu.nus.facilityflow.model.RequestStatus;
@@ -29,6 +30,7 @@ import sg.edu.nus.facilityflow.model.RequesterFilter;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.service.RequesterRequestService;
 import sg.edu.nus.facilityflow.ui.UiTasks;
+import sg.edu.nus.facilityflow.ui.AuditDescriptions;
 
 /** Owner-only navigation; all persistence happens in background service calls. */
 public final class RequesterDashboardView extends BorderPane {
@@ -100,12 +102,40 @@ public final class RequesterDashboardView extends BorderPane {
         search.setPromptText("Search ID, title, location");
         search.setId("requesterSearch");
         search.setAccessibleText("Search requests by ID, title, or location");
-        statusFilter.setPromptText("Any status");
+        statusFilter.setPromptText("-");
         statusFilter.setId("requesterStatusFilter");
-        statusFilter.getItems().setAll(RequestStatus.values());
-        categoryFilter.setPromptText("Any category");
+        statusFilter.getItems().add(null);
+        statusFilter.getItems().addAll(RequestStatus.values());
+        statusFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(RequestStatus value) {
+                if (value == null) {
+                    return "-";
+                }
+                String text = value.name().replace('_', ' ').toLowerCase();
+                return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+            }
+
+            @Override
+            public RequestStatus fromString(String value) {
+                throw new UnsupportedOperationException("Choose a status from the list");
+            }
+        });
+        categoryFilter.setPromptText("-");
         categoryFilter.setId("requesterCategoryFilter");
-        categoryFilter.getItems().setAll(categories);
+        categoryFilter.getItems().add(null);
+        categoryFilter.getItems().addAll(categories);
+        categoryFilter.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                return value == null ? "-" : value;
+            }
+
+            @Override
+            public String fromString(String value) {
+                throw new UnsupportedOperationException("Choose a category from the list");
+            }
+        });
         fromDate.setPromptText("From date");
         fromDate.setId("requesterFromDate");
         throughDate.setPromptText("Through date");
@@ -231,7 +261,7 @@ public final class RequesterDashboardView extends BorderPane {
         var heading = new Label(request.title());
         heading.setWrapText(true);
         heading.getStyleClass().add("page-title");
-        var description = new Label(request.description());
+        var description = new Label("Description:\n" + request.description());
         description.setWrapText(true);
         var detail = new Label(request.displayId()
                 + "\nStatus: " + request.status() + "\nReported urgency: " + request.reportedUrgency()
@@ -259,18 +289,29 @@ public final class RequesterDashboardView extends BorderPane {
             var update = new TextArea();
             update.setPromptText("Add a follow-up update");
             update.setPrefRowCount(2);
+            var updateError = new Label();
+            updateError.setId("requesterFollowUpError");
+            updateError.setWrapText(true);
+            updateError.getStyleClass().add("feedback-error");
+            updateError.managedProperty().bind(updateError.visibleProperty());
+            updateError.visibleProperty().bind(updateError.textProperty().isNotEmpty());
+            update.textProperty().addListener((observable, oldValue, value) ->
+                    updateError.setText(""));
             var add = new Button("Add follow-up");
-            add.setOnAction(event -> tasks.run(() -> {
-                service.addFollowUp(session, request.id(), update.getText());
-                return service.getOwnRequest(session, request.id());
-            }, updated -> {
-                update.clear();
-                showDetail(updated, "Follow-up saved successfully.");
-            }, error -> {
-                feedback.setText(UiTasks.safeMessage(error));
-                failure.accept(error);
-            }));
-            pane.getChildren().add(new VBox(8, update, add));
+            add.setOnAction(event -> {
+                updateError.setText("");
+                tasks.run(() -> {
+                    service.addFollowUp(session, request.id(), update.getText());
+                    return service.getOwnRequest(session, request.id());
+                }, updated -> {
+                    update.clear();
+                    showDetail(updated, "Follow-up saved successfully.");
+                }, error -> {
+                    updateError.setText(UiTasks.safeMessage(error));
+                    failure.accept(error);
+                });
+            });
+            pane.getChildren().add(new VBox(8, update, updateError, add));
         }
         var history = new VBox(6);
         history.getChildren().add(new Label("Activity history"));
@@ -278,7 +319,20 @@ public final class RequesterDashboardView extends BorderPane {
             if (entries.isEmpty()) {
                 history.getChildren().add(new Label("No activity yet."));
             }
-            entries.forEach(entry -> history.getChildren().add(new Label(dates.format(entry.occurredAt()) + " · " + entry.kind() + ": " + entry.text())));
+            entries.forEach(entry -> {
+                String text = entry.text();
+                if (entry.kind().equals("Status")) {
+                    int separator = text.indexOf(": ");
+                    String action = separator < 0 ? text : text.substring(0, separator);
+                    String eventDetail = separator < 0 ? "" : text.substring(separator + 2);
+                    text = AuditDescriptions.describe("REQUEST_" + action.replace(' ', '_'), eventDetail);
+                } else {
+                    text = "Follow-up added: " + text;
+                }
+                Label item = new Label(dates.format(entry.occurredAt()) + " · " + text);
+                item.setWrapText(true);
+                history.getChildren().add(item);
+            });
         }, error -> {
             feedback.setText(UiTasks.safeMessage(error));
             failure.accept(error);

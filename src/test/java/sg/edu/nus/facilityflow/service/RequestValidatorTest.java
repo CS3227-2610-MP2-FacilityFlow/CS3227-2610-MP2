@@ -101,4 +101,16 @@ class RequestValidatorTest {
                 "Other", ReportedUrgency.NORMAL);
         assertEquals(Set.of("title"), validator.validate(draft).keySet());
     }
+
+    @Test
+    @DisplayName("UIX-007 LIF-005 length guidance names fields and omits implementation terms")
+    void givesConciseFieldLengthGuidance() {
+        var draft = new RequestDraft("four", "short", "x", "Other", ReportedUrgency.NORMAL);
+
+        var errors = validator.validate(draft);
+
+        assertEquals("Title must contain 5–100 characters.", errors.get("title"));
+        assertEquals("Description must contain 10–2000 characters.", errors.get("description"));
+        assertEquals("Location must contain 2–120 characters.", errors.get("location"));
+    }
 }

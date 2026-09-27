@@ -101,7 +101,7 @@ public final class ApplicationRouter extends BorderPane {
             requesterView = null;
             showLogin("");
         });
-        var refresh = new Button("Refresh account");
+        var refresh = new Button("Main workspace");
         refresh.setId("refreshAccount");
         refresh.setOnAction(event -> refreshIdentity());
         var password = new Button("Change password");
@@ -113,13 +113,22 @@ public final class ApplicationRouter extends BorderPane {
             var dialog = new Alert(Alert.AlertType.INFORMATION);
             dialog.setTitle("About FacilityFlow");
             dialog.setHeaderText("FacilityFlow " + AppVersion.CURRENT);
-            dialog.setContentText("Auditable facilities maintenance coordination for "
+            var description = new Label("Auditable facilities maintenance coordination for "
                     + "Requesters, Technicians, and Facilities Managers.");
+            description.setWrapText(true);
+            description.setPrefWidth(460);
+            dialog.getDialogPane().setContent(description);
+            dialog.getDialogPane().setPrefWidth(520);
             dialog.showAndWait();
         });
         var brand = new Label("FacilityFlow");
         brand.getStyleClass().add("product-name");
-        var identity = new Label(account.displayName() + " — " + account.role());
+        String roleName = switch (account.role()) {
+            case REQUESTER -> "Requester";
+            case TECHNICIAN -> "Technician";
+            case FACILITIES_MANAGER -> "Manager";
+        };
+        var identity = new Label(roleName + " - " + account.username());
         identity.setWrapText(true);
         identity.setMaxWidth(320);
         identity.getStyleClass().add("identity-label");

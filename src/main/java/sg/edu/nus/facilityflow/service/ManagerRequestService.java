@@ -123,7 +123,7 @@ public final class ManagerRequestService {
             List<TechnicianWorkload> workloads = transaction.listActiveTechnicians().stream()
                     .map(technician -> new TechnicianWorkload(
                             technician.id(),
-                            technician.displayName(),
+                            technician.username(),
                             (int) requests.stream()
                                     .filter(request -> Objects.equals(
                                             request.assigneeId(), technician.id()))

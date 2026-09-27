@@ -8,18 +8,22 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   associated with the account's role.
 - **UIX-002:** Role dashboards MUST use separate view/controller classes. Shared
   visual components MAY be reused without merging role-specific navigation.
-- **UIX-003:** Every authenticated screen MUST show the display name, role, and a
-  logout action.
+- **UIX-003:** Every authenticated screen MUST show the role and username in
+  “Role - Username” format, and a logout action. Display the Facilities Manager
+  role as “Manager” in the header.
 - **UIX-004:** Protected screens and actions outside the active role MUST not appear
   in navigation and MUST still be blocked by service authorization.
 - **UIX-005:** Users MUST be able to return from a detail/form view to their role's
   list or dashboard without losing committed work.
+  The shared header MUST label the role dashboard route **Main workspace**.
 
 ## Forms and feedback
 
 - **UIX-006:** Required fields MUST be visibly identified before submission.
 - **UIX-007:** Validation MUST identify the affected field and a concrete correction;
   a generic “invalid input” message alone is insufficient.
+  User-facing messages MUST avoid implementation terms such as “after trimming”.
+  Form and lifecycle errors MUST appear beside the affected input or action.
 - **UIX-008:** Validation errors MUST preserve other entered values.
 - **UIX-009:** Saving MUST prevent accidental duplicate submissions while the
   operation is pending.
@@ -36,6 +40,7 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   ordering, and show progress for operations that can visibly take time.
 - **UIX-014:** Empty collections and zero-result filters MUST show distinct messages.
 - **UIX-015:** Search/filter state MUST be visible, and a one-action reset MUST exist.
+  Selectable filters MUST show “-” as the no-filter choice across role views.
 - **UIX-016:** Status, priority, category, and timestamps MUST use consistent wording
   and formatting across all three role interfaces.
 
