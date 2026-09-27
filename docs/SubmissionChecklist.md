@@ -32,10 +32,10 @@ branch checks. Do not replace local results with assumptions about CI.
 
 | Check | State | Evidence |
 |---|---|---|
-| Compilation and Checkstyle | Passed locally | `./gradlew clean check releaseZip`, 27 September 2026 |
-| Full unit/integration/JavaFX suite | Passed locally | 241 tests; 0 failures, errors, or skips |
+| Compilation and Checkstyle | Passed locally | `./gradlew clean check`, then `./gradlew releaseZip`, 27 September 2026 |
+| Full unit/integration/JavaFX suite | Passed locally | 245 tests; 0 failures, errors, or skips |
 | Coverage report | Passed project target locally | Model/service/auth/storage: 1,493 of 1,710 lines, 87.3%; JaCoCo report in `build/reports/jacoco/test/html/index.html` |
-| Release ZIP build/content inspection | Passed locally on Apple silicon macOS | 21 MB `FacilityFlow-1.0.0-macos.zip`; JAR manifest version/main class, scripts, SQLite, and macOS JavaFX libraries present; shell launcher syntax valid; final local SHA-256 `428970edf312af6dd9146569b4ed78aadde7f19a4f6c234a363faac47ddd1d87` |
+| Release ZIP build/content inspection | Passed locally on Apple silicon macOS | 22 MB `FacilityFlow-1.0.0-macos.zip`; archive integrity verified; JAR manifest version/main class, scripts, SQLite, and macOS JavaFX libraries present; shell launcher syntax valid; final local SHA-256 `ea1bf404f96397d45dfefe2669ff67ecf2cc98aeacbcb9af411b6fb2d3b18a4b` |
 | Development launch/UI smoke test | Pending human | Run the app and complete one primary workflow per role |
 
 ## GitHub and clean-machine release actions

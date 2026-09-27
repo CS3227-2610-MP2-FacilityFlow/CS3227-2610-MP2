@@ -63,12 +63,24 @@ weakening the requirements:
 6. Operational logging initially omitted migration/category outcomes and useful
    unexpected-error context. It now records bounded, sanitized diagnostic frames,
    storage outcomes, and rotating log files.
+7. PR #18's automated reviewer correctly identified that account mutations only
+   refreshed the account table. The Manager workspace now reloads dependent
+   requester/Technician choices, workload, requests, audits, and accounts; valid
+   Technician selections are rebound by account ID and ineligible ones are cleared.
+8. The same automated review suggested invalidating sessions after role changes.
+   This was not applied because it conflicts with the reviewed AUT-032 contract:
+   role changes deliberately retain the session, while every protected operation
+   rereads the persisted active flag and current role. Existing authentication and
+   routing tests verify that permissions from the old role cannot be exercised.
 
 ## Verification actually performed
 
 - Repository unit-test agent: `./gradlew clean check` — successful, 241 tests,
   0 failures, 0 errors, 0 skipped; Checkstyle and JaCoCo successful.
 - Final implementation pass: `./gradlew clean check releaseZip` — successful.
+- PR #18 follow-up: four focused account-refresh JavaFX regressions passed, then
+  `./gradlew clean check` passed with 245 tests, 0 failures, 0 errors, and 0
+  skipped; Checkstyle and JaCoCo succeeded. `./gradlew releaseZip` also passed.
 - JaCoCo model/service/auth/storage line result: 1,493 covered and 217 missed,
   or 87.3%.
 - `git diff --check` — successful.
@@ -76,10 +88,13 @@ weakening the requirements:
   scripts, SQLite JDBC, and Apple-silicon JavaFX libraries present. Unix launcher
   syntax passed `sh -n`; manifest contains the main class and version 1.0.0.
 - Local ZIP SHA-256:
-  `428970edf312af6dd9146569b4ed78aadde7f19a4f6c234a363faac47ddd1d87`.
+  `ea1bf404f96397d45dfefe2669ff67ecf2cc98aeacbcb9af411b6fb2d3b18a4b`.
 - Public GitHub check: repository is public with default branch `master`; the
   previous `master` commit passed Windows/macOS/Ubuntu CI. No formal release or
   Pages deployment exists yet. The local GitHub CLI credential is expired.
+- PR #18 was open and mergeable at commit `3eb50ed`; its PR-agent and Windows,
+  macOS, and Ubuntu checks all passed. No formal teammate review had been submitted
+  when inspected, and the PR description was still empty before this follow-up.
 
 ## Outcome and remaining human/external decisions
 

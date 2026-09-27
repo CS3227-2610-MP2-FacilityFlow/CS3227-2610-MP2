@@ -40,11 +40,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import sg.edu.nus.facilityflow.auth.AuthFixture;
+import sg.edu.nus.facilityflow.model.AuditRecord;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
 import sg.edu.nus.facilityflow.model.MaintenanceRequest;
-import sg.edu.nus.facilityflow.model.RequestStatus;
 import sg.edu.nus.facilityflow.model.RequestDraft;
 import sg.edu.nus.facilityflow.model.ReportedUrgency;
+import sg.edu.nus.facilityflow.model.RequestStatus;
+import sg.edu.nus.facilityflow.model.Role;
+import sg.edu.nus.facilityflow.model.TechnicianWorkload;
+import sg.edu.nus.facilityflow.model.UserAccount;
 
 class AuthenticatedWorkflowTest {
     @TempDir
@@ -998,6 +1002,153 @@ class AuthenticatedWorkflowTest {
         snapshot("manager-" + width);
     }
 
+    @Test
+    @DisplayName("MGR-012 AUT-023 UIX-008 account creation refreshes dependent Manager data and retains eligible selections")
+    void managerAccountCreationRefreshesDependentDataAndRetainsTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            ComboBox<UserAccount> assignee = comboBox("assignee");
+            ComboBox<UserAccount> filter = comboBox("managerTechnicianFilter");
+            UserAccount existing = assignee.getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            assignee.setValue(existing);
+            filter.setValue(existing);
+            ((TextField) router.lookup("#newAccountUsername")).setText("tech-new");
+            ((TextField) router.lookup("#newAccountDisplayName")).setText("Technician New");
+            ((ComboBox<Role>) router.lookup("#newAccountRole")).setValue(Role.TECHNICIAN);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+        });
+        drain();
+
+        fx(() -> {
+            ComboBox<UserAccount> assignee = comboBox("assignee");
+            ComboBox<UserAccount> filter = comboBox("managerTechnicianFilter");
+            assertEquals(4L, assignee.getValue().id());
+            assertEquals(4L, filter.getValue().id());
+            assertTrue(assignee.getItems().stream()
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(filter.getItems().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(accountTable().getItems().stream()
+                    .anyMatch(account -> account.username().equals("tech-new")));
+            assertTrue(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.displayName().equals("Technician New")));
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("ACCOUNT_CREATED")));
+            assertTrue(((Label) router.lookup("#managerFeedback")).getText()
+                    .contains("tech-new was created"));
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-028/032 UIX-008 role change removes an ineligible Technician from all dependent choices")
+    void managerRoleChangeClearsIneligibleTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            ((ComboBox<Role>) router.lookup("#accountRoleChange")).setValue(Role.REQUESTER);
+            buttonWithText("Change _role").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertNull(comboBox("assignee").getValue());
+            assertNull(comboBox("managerTechnicianFilter").getValue());
+            assertFalse(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            assertFalse(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.technicianId() == 4));
+            assertEquals(Role.REQUESTER, accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow()
+                    .role());
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("ACCOUNT_ROLE_CHANGED")));
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-024/027 UIX-012 deactivation clears Technician choices and reactivation refreshes them")
+    void managerActivationChangesRefreshTechnicianEligibility() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            confirmNextDialog();
+            button("toggleAccountActive").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertNull(comboBox("assignee").getValue());
+            assertNull(comboBox("managerTechnicianFilter").getValue());
+            assertFalse(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            UserAccount inactive = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            assertFalse(inactive.active());
+            accountTable().getSelectionModel().select(inactive);
+            confirmNextDialog();
+            button("toggleAccountActive").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertTrue(comboBox("assignee").getItems().stream()
+                    .anyMatch(account -> account.id() == 4));
+            assertTrue(workloadTable().getItems().stream()
+                    .anyMatch(workload -> workload.technicianId() == 4));
+            assertEquals(2, auditTable().getItems().stream()
+                    .filter(record -> record.action().equals("ACCOUNT_DEACTIVATED")
+                            || record.action().equals("ACCOUNT_REACTIVATED"))
+                    .count());
+        });
+    }
+
+    @Test
+    @DisplayName("MGR-012 AUT-030 UIX-008 password reset refreshes audit data without losing eligible choices")
+    void managerPasswordResetRefreshesAuditAndRetainsTechnicianSelections() throws Exception {
+        login("manager");
+        fx(() -> {
+            UserAccount technician = accountTable().getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            comboBox("managerTechnicianFilter").setValue(technician);
+            accountTable().getSelectionModel().select(technician);
+            ((PasswordField) router.lookup("#resetAccountPassword")).setText("new-pass-1");
+            buttonWithText("Reset _password").fire();
+        });
+        drain();
+
+        fx(() -> {
+            assertEquals(4L, comboBox("assignee").getValue().id());
+            assertEquals(4L, comboBox("managerTechnicianFilter").getValue().id());
+            assertTrue(auditTable().getItems().stream()
+                    .anyMatch(record -> record.action().equals("PASSWORD_RESET")));
+            assertEquals("", ((PasswordField) router.lookup("#resetAccountPassword")).getText());
+        });
+    }
+
     // Optional review artifacts use fixture data only; normal test runs write no screenshots.
     private void snapshot(String name) throws Exception {
         String output = System.getenv("FACILITYFLOW_UI_SNAPSHOTS");
@@ -1053,6 +1204,30 @@ class AuthenticatedWorkflowTest {
 
     private Button button(String id) {
         return (Button) router.lookup("#" + id);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ComboBox<UserAccount> comboBox(String id) {
+        return (ComboBox<UserAccount>) router.lookup("#" + id);
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<UserAccount> accountTable() {
+        return (TableView<UserAccount>) router.lookup("#managerAccounts");
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<AuditRecord> auditTable() {
+        return (TableView<AuditRecord>) router.lookup("#managerAudit");
+    }
+
+    @SuppressWarnings("unchecked")
+    private TableView<TechnicianWorkload> workloadTable() {
+        return (TableView<TechnicianWorkload>) router.lookupAll(".table-view").stream()
+                .map(TableView.class::cast)
+                .filter(table -> "Active assignments per Technician".equals(table.getAccessibleText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing Manager Technician workload table"));
     }
 
     private Button buttonWithText(String text) {

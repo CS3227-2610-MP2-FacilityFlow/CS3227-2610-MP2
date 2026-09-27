@@ -339,7 +339,7 @@ public final class ManagerDashboardView {
                         username.clear();
                         displayName.clear();
                         role.setValue(null);
-                        refreshAccounts("Account " + account.username() + " was created.");
+                        refreshAll("Account " + account.username() + " was created.");
                     });
         });
         GridPane createForm = new GridPane();
@@ -357,7 +357,7 @@ public final class ManagerDashboardView {
         changeRole.setMnemonicParsing(true);
         changeRole.setOnAction(event -> selectedAccount().ifPresent(account -> runChange(
                 () -> controller.changeRole(account, newRole.getValue()),
-                changed -> refreshAccounts("Role changed for " + changed.username() + "."))));
+                changed -> refreshAll("Role changed for " + changed.username() + "."))));
         Button toggleActive = new Button("Deactivate / reactivate");
         toggleActive.setId("toggleAccountActive");
         toggleActive.setOnAction(event -> selectedAccount().ifPresent(account -> {
@@ -365,7 +365,7 @@ public final class ManagerDashboardView {
             if (confirm("Confirm account change", "Do you want to " + verb
                     + " " + account.username() + "?")) {
                 runChange(() -> controller.setActive(account, !account.active()),
-                        changed -> refreshAccounts("Account " + changed.username()
+                        changed -> refreshAll("Account " + changed.username()
                                 + " is now " + (changed.active() ? "active." : "inactive.")));
             }
         }));
@@ -379,7 +379,7 @@ public final class ManagerDashboardView {
             runChange(() -> {
                 controller.resetPassword(account, secret);
                 return account;
-            }, changed -> refreshAccounts("Password reset for " + changed.username() + "."));
+            }, changed -> refreshAll("Password reset for " + changed.username() + "."));
         }));
         FlowPane actions = new FlowPane(8, 8, newRole, changeRole, toggleActive, reset, resetPassword);
         VBox content = new VBox(
@@ -486,15 +486,6 @@ public final class ManagerDashboardView {
         }, this::handleError);
     }
 
-    private void refreshAccounts(String confirmation) {
-        setBusy(true);
-        tasks.run(controller::loadAccounts, accounts -> {
-            accountTable.setItems(FXCollections.observableArrayList(accounts));
-            setBusy(false);
-            showSuccess(confirmation);
-        }, this::handleError);
-    }
-
     private void refreshAudit(String confirmation) {
         setBusy(true);
         tasks.run(() -> controller.loadAudit(currentAuditFilter()), records -> {
@@ -509,12 +500,30 @@ public final class ManagerDashboardView {
             List<UserAccount> technicians,
             List<UserAccount> activeRequesters) {
         MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
+        Long selectedTechnicianId = accountId(technicianBox.getValue());
+        Long filteredTechnicianId = accountId(technicianFilter.getValue());
         requestTable.setItems(FXCollections.observableArrayList(requests));
         technicianBox.setItems(FXCollections.observableArrayList(technicians));
+        technicianBox.setValue(findAccount(technicians, selectedTechnicianId));
         technicianFilter.setItems(withNull(technicians));
         technicianFilter.setConverter(new UserAccountStringConverter());
+        technicianFilter.setValue(findAccount(technicians, filteredTechnicianId));
         requesters = List.copyOf(activeRequesters);
         restoreSelection(selected);
+    }
+
+    private static Long accountId(UserAccount account) {
+        return account == null ? null : account.id();
+    }
+
+    private static UserAccount findAccount(List<UserAccount> accounts, Long accountId) {
+        if (accountId == null) {
+            return null;
+        }
+        return accounts.stream()
+                .filter(account -> account.id() == accountId)
+                .findFirst()
+                .orElse(null);
     }
 
     private void updateSummary(ManagerDashboardSummary summary) {

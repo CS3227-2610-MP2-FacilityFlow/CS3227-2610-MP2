@@ -414,6 +414,12 @@ To update an existing account:
    next use a protected action; the Manager performing the reset stays signed
    in.
 
+After a successful account change, the Manager workspace reloads automatically.
+Newly eligible Requesters and Technicians become available immediately in
+request and assignment controls, while accounts that are no longer eligible are
+removed from those choices. A Technician selection is kept only when that
+account remains eligible.
+
 The app prevents a Manager from deactivating or changing their own account,
 prevents removal of the last active Manager, and prevents a Technician's role
 from changing while they still have assigned or in-progress work. Reassign or
