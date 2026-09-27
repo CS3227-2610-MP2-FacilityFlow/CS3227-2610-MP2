@@ -326,6 +326,12 @@ public final class ManagerDashboardView {
         configureAccountTable();
         TextField username = new TextField();
         username.setId("newAccountUsername");
+        Label usernameFeedback = new Label();
+        usernameFeedback.setId("newAccountUsernameError");
+        usernameFeedback.setWrapText(true);
+        usernameFeedback.getStyleClass().addAll("feedback-label", "feedback-error");
+        username.textProperty().addListener((observable, oldValue, value) ->
+                usernameFeedback.setText(""));
         TextField displayName = new TextField();
         displayName.setId("newAccountDisplayName");
         ComboBox<Role> role = new ComboBox<>(FXCollections.observableArrayList(Role.values()));
@@ -337,28 +343,41 @@ public final class ManagerDashboardView {
         create.setId("createAccount");
         create.getStyleClass().add("primary-button");
         create.setOnAction(event -> {
+            usernameFeedback.setText("");
             String accountUsername = username.getText();
             String accountDisplayName = displayName.getText();
             Role accountRole = role.getValue();
             char[] secret = password.getText().toCharArray();
             password.clear();
-            runChange(() -> controller.createAccount(
-                    accountUsername, accountDisplayName, accountRole, secret),
-                    account -> {
-                        username.clear();
-                        displayName.clear();
-                        role.setValue(null);
-                        refreshAll("Account " + account.username() + " was created.");
-                    });
+            setBusy(true);
+            tasks.run(() -> controller.createAccount(
+                    accountUsername, accountDisplayName, accountRole, secret), account -> {
+                setBusy(false);
+                username.clear();
+                displayName.clear();
+                role.setValue(null);
+                refreshAll("Account " + account.username() + " was created.");
+            }, error -> {
+                setBusy(false);
+                String message = UiTasks.safeMessage(error);
+                if (message.startsWith("Username ")) {
+                    usernameFeedback.setText(message);
+                    feedback.setText("");
+                } else {
+                    showError(message);
+                }
+                failure.accept(error);
+            });
         });
         GridPane createForm = new GridPane();
         createForm.setHgap(8);
         createForm.setVgap(8);
         addLabeled(createForm, 0, "_Username", username);
+        createForm.add(usernameFeedback, 0, 2);
         addLabeled(createForm, 1, "Display _name", displayName);
         addLabeled(createForm, 2, "_Role", role);
         addLabeled(createForm, 3, "Initial _password", password);
-        createForm.add(create, 0, 2, 4, 1);
+        createForm.add(create, 0, 3, 4, 1);
 
         ComboBox<Role> newRole = new ComboBox<>(FXCollections.observableArrayList(Role.values()));
         newRole.setId("accountRoleChange");
