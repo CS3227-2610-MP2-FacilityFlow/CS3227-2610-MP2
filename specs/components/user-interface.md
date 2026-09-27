@@ -22,6 +22,7 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 - **UIX-007:** Validation MUST identify the affected field and a concrete correction;
   a generic “invalid input” message alone is insufficient.
   User-facing messages MUST avoid implementation terms such as “after trimming”.
+  Form and lifecycle errors MUST appear beside the affected input or action.
 - **UIX-008:** Validation errors MUST preserve other entered values.
 - **UIX-009:** Saving MUST prevent accidental duplicate submissions while the
   operation is pending.

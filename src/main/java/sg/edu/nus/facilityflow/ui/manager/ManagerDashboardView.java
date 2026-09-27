@@ -66,6 +66,7 @@ public final class ManagerDashboardView {
     private final Consumer<Throwable> failure;
     private final BorderPane root = new BorderPane();
     private final Label feedback = new Label();
+    private final Label lifecycleFeedback = new Label();
     private final TableView<MaintenanceRequest> requestTable = new TableView<>();
     private final TableView<UserAccount> accountTable = new TableView<>();
     private final TableView<AuditRecord> auditTable = new TableView<>();
@@ -302,6 +303,9 @@ public final class ManagerDashboardView {
         reason.textProperty().addListener((observable, oldValue, value) -> updateActions());
         FlowPane actions = new FlowPane(8, 8,
                 assignButton, reassignButton, closeButton, returnButton, reopenButton, cancelButton);
+        lifecycleFeedback.setId("managerLifecycleFeedback");
+        lifecycleFeedback.setWrapText(true);
+        lifecycleFeedback.getStyleClass().add("feedback-label");
         return new VBox(
                 10,
                 section("Request detail"),
@@ -314,7 +318,8 @@ public final class ManagerDashboardView {
                 labeled("_Technician", technicianBox),
                 labeled("Manager _priority", priorityBox),
                 labeled("_Reason", reason),
-                actions);
+                actions,
+                lifecycleFeedback);
     }
 
     private Parent buildAccounts() {
@@ -544,6 +549,7 @@ public final class ManagerDashboardView {
     }
 
     private void showSelection(MaintenanceRequest selected) {
+        lifecycleFeedback.setText("");
         if (selected == null) {
             selectedDetails.setText("Select a request to inspect its details and history.");
             history.getItems().clear();
@@ -645,10 +651,21 @@ public final class ManagerDashboardView {
     private void runRequestChange(
             java.util.concurrent.Callable<MaintenanceRequest> action, String confirmation) {
         setBusy(true);
+        lifecycleFeedback.setText("Working…");
         tasks.run(action, changed -> {
+            lifecycleFeedback.setText("");
             reason.clear();
             refreshAll(changed.displayId() + ": " + confirmation);
-        }, this::handleError);
+        }, this::handleLifecycleError);
+    }
+
+    private void handleLifecycleError(Throwable error) {
+        setBusy(false);
+        lifecycleFeedback.getStyleClass().removeAll("feedback-success", "feedback-error");
+        lifecycleFeedback.getStyleClass().add("feedback-error");
+        lifecycleFeedback.setText(UiTasks.safeMessage(error));
+        feedback.setText("");
+        failure.accept(error);
     }
 
     private <T> void runChange(java.util.concurrent.Callable<T> action, Consumer<T> success) {
