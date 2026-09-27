@@ -281,6 +281,36 @@ class ManagerRequestCompletionTest {
     }
 
     @Test
+    @DisplayName("MGR-020 LIF-016 fixed-clock stale corrections cannot both commit or duplicate audits")
+    void rejectsSecondCorrectionFromSameObservedVersionWithFixedClock() {
+        MaintenanceRequest observed = request(10, RequestStatus.CLOSED, 2L,
+                ManagerPriority.HIGH, ReportedUrgency.LOW, CREATED, NOW,
+                "Repair completed safely.", CREATED.plusSeconds(100));
+        store.requests.put(10L, observed);
+        store.forcedRequestRead = observed;
+        RequestDraft firstDraft = new RequestDraft(
+                "First corrected title", "First corrected description.", "Room 31",
+                "Electrical", ReportedUrgency.NORMAL);
+        RequestDraft staleDraft = new RequestDraft(
+                "Stale corrected title", "Stale corrected description.", "Room 32",
+                "Safety", ReportedUrgency.HIGH);
+
+        MaintenanceRequest first = service.correctRequest(
+                TestSessions.issue(1), 10, firstDraft, ManagerPriority.CRITICAL);
+        ValidationException stale = assertThrows(ValidationException.class,
+                () -> service.correctRequest(
+                        TestSessions.issue(1), 10, staleDraft, ManagerPriority.MEDIUM));
+
+        assertEquals(NOW.plusNanos(1), first.updatedAt(),
+                "a fixed clock must still advance the stored version timestamp");
+        assertEquals("Request changed. Refresh and try again.", stale.getMessage());
+        assertEquals(first, store.requests.get(10L));
+        assertEquals("First corrected title", store.requests.get(10L).title());
+        assertEquals(1, store.auditEvents.size());
+        assertEquals("REQUEST_CORRECTED", store.auditEvents.getFirst().action());
+    }
+
+    @Test
     @DisplayName("MGR-002/003 LIF-017–019 combines case-insensitive search and stable filters")
     void searchesAndFiltersManagerQueue() {
         store.requests.put(10L, request(10, RequestStatus.OPEN, null, null,
@@ -452,6 +482,7 @@ class ManagerRequestCompletionTest {
         private final List<ManagerHistoryEntry> history = new ArrayList<>();
         private final List<AuditRecord> auditRecords = new ArrayList<>();
         private boolean acceptUpdates = true;
+        private MaintenanceRequest forcedRequestRead;
         private long nextRequestId = 100;
 
         @Override
@@ -484,7 +515,8 @@ class ManagerRequestCompletionTest {
 
                 @Override
                 public Optional<MaintenanceRequest> findRequest(long requestId) {
-                    return Optional.ofNullable(requests.get(requestId));
+                    return Optional.ofNullable(
+                            forcedRequestRead == null ? requests.get(requestId) : forcedRequestRead);
                 }
 
                 @Override
@@ -572,8 +604,18 @@ class ManagerRequestCompletionTest {
 
                 @Override
                 public boolean updateManagerCorrection(
-                        MaintenanceRequest request, RequestStatus expectedStatus) {
-                    return updateManagerRequest(request, expectedStatus);
+                        MaintenanceRequest request,
+                        RequestStatus expectedStatus,
+                        Instant expectedUpdatedAt) {
+                    MaintenanceRequest current = requests.get(request.id());
+                    if (!acceptUpdates
+                            || current == null
+                            || current.status() != expectedStatus
+                            || !current.updatedAt().equals(expectedUpdatedAt)) {
+                        return false;
+                    }
+                    requests.put(request.id(), request);
+                    return true;
                 }
 
                 @Override

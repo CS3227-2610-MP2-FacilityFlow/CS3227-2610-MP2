@@ -335,6 +335,9 @@ separate from the lifecycle actions below and is available in every status.
 3. Choose **Save correction**. The request stays in the same status, and the
    correction is added to its history.
 
+If the app reports that the request changed, choose **Refresh requests**,
+reselect it, review the latest details, and enter the correction again.
+
 #### Assign or reassign work
 
 To assign a new request:

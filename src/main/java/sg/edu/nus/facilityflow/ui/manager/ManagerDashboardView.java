@@ -331,10 +331,13 @@ public final class ManagerDashboardView {
         create.setId("createAccount");
         create.getStyleClass().add("primary-button");
         create.setOnAction(event -> {
+            String accountUsername = username.getText();
+            String accountDisplayName = displayName.getText();
+            Role accountRole = role.getValue();
             char[] secret = password.getText().toCharArray();
             password.clear();
             runChange(() -> controller.createAccount(
-                    username.getText(), displayName.getText(), role.getValue(), secret),
+                    accountUsername, accountDisplayName, accountRole, secret),
                     account -> {
                         username.clear();
                         displayName.clear();
@@ -355,9 +358,11 @@ public final class ManagerDashboardView {
         newRole.setId("accountRoleChange");
         Button changeRole = new Button("Change _role");
         changeRole.setMnemonicParsing(true);
-        changeRole.setOnAction(event -> selectedAccount().ifPresent(account -> runChange(
-                () -> controller.changeRole(account, newRole.getValue()),
-                changed -> refreshAll("Role changed for " + changed.username() + "."))));
+        changeRole.setOnAction(event -> selectedAccount().ifPresent(account -> {
+            Role selectedRole = newRole.getValue();
+            runChange(() -> controller.changeRole(account, selectedRole),
+                    changed -> refreshAll("Role changed for " + changed.username() + "."));
+        }));
         Button toggleActive = new Button("Deactivate / reactivate");
         toggleActive.setId("toggleAccountActive");
         toggleActive.setOnAction(event -> selectedAccount().ifPresent(account -> {
@@ -458,13 +463,15 @@ public final class ManagerDashboardView {
 
     private void refreshAll(String confirmation) {
         setBusy(true);
+        ManagerRequestFilter requestFilter = currentRequestFilter();
+        AuditFilter selectedAuditFilter = currentAuditFilter();
         tasks.run(() -> new ManagerData(
-                        controller.loadRequests(currentRequestFilter()),
+                        controller.loadRequests(requestFilter),
                         controller.loadActiveTechnicians(),
                         controller.loadRequesters(),
                         controller.loadSummary(),
                         controller.loadAccounts(),
-                        controller.loadAudit(currentAuditFilter())),
+                        controller.loadAudit(selectedAuditFilter)),
                 data -> {
                     setRequestData(data.requests(), data.technicians(), data.requesters());
                     updateSummary(data.summary());
@@ -478,7 +485,8 @@ public final class ManagerDashboardView {
     private void refreshRequests(String confirmation) {
         setBusy(true);
         MaintenanceRequest selected = requestTable.getSelectionModel().getSelectedItem();
-        tasks.run(() -> controller.loadRequests(currentRequestFilter()), requests -> {
+        ManagerRequestFilter filter = currentRequestFilter();
+        tasks.run(() -> controller.loadRequests(filter), requests -> {
             requestTable.setItems(FXCollections.observableArrayList(requests));
             restoreSelection(selected);
             setBusy(false);
@@ -488,7 +496,8 @@ public final class ManagerDashboardView {
 
     private void refreshAudit(String confirmation) {
         setBusy(true);
-        tasks.run(() -> controller.loadAudit(currentAuditFilter()), records -> {
+        AuditFilter filter = currentAuditFilter();
+        tasks.run(() -> controller.loadAudit(filter), records -> {
             auditTable.setItems(FXCollections.observableArrayList(records));
             setBusy(false);
             showSuccess(confirmation);
@@ -587,14 +596,16 @@ public final class ManagerDashboardView {
 
     private void assign() {
         MaintenanceRequest selected = selectedRequest();
-        runRequestChange(() -> controller.assign(
-                selected, technicianBox.getValue(), priorityBox.getValue()), "Request assigned.");
+        UserAccount technician = technicianBox.getValue();
+        ManagerPriority priority = priorityBox.getValue();
+        runRequestChange(() -> controller.assign(selected, technician, priority), "Request assigned.");
     }
 
     private void reassign() {
         MaintenanceRequest selected = selectedRequest();
-        runRequestChange(() -> controller.reassign(
-                selected, technicianBox.getValue(), reason.getText()), "Request reassigned.");
+        UserAccount technician = technicianBox.getValue();
+        String explanation = reason.getText();
+        runRequestChange(() -> controller.reassign(selected, technician, explanation), "Request reassigned.");
     }
 
     private void close() {
@@ -607,21 +618,25 @@ public final class ManagerDashboardView {
 
     private void returnForRework() {
         MaintenanceRequest selected = selectedRequest();
-        runRequestChange(() -> controller.returnForRework(
-                selected, technicianBox.getValue(), reason.getText()), "Work returned for rework.");
+        UserAccount technician = technicianBox.getValue();
+        String explanation = reason.getText();
+        runRequestChange(() -> controller.returnForRework(selected, technician, explanation),
+                "Work returned for rework.");
     }
 
     private void reopen() {
         MaintenanceRequest selected = selectedRequest();
-        runRequestChange(() -> controller.reopen(
-                selected, technicianBox.getValue(), reason.getText()), "Request reopened.");
+        UserAccount technician = technicianBox.getValue();
+        String explanation = reason.getText();
+        runRequestChange(() -> controller.reopen(selected, technician, explanation), "Request reopened.");
     }
 
     private void cancel() {
         MaintenanceRequest selected = selectedRequest();
+        String explanation = reason.getText();
         if (confirm("Cancel request", "Cancel " + selected.displayId()
                 + "? Its status will become CANCELLED.")) {
-            runRequestChange(() -> controller.cancel(selected, reason.getText()), "Request cancelled.");
+            runRequestChange(() -> controller.cancel(selected, explanation), "Request cancelled.");
         }
     }
 
@@ -684,14 +699,16 @@ public final class ManagerDashboardView {
             RequestDraft draft = new RequestDraft(
                     title.getText(), description.getText(), location.getText(),
                     category.getValue(), urgency.getValue());
+            ManagerPriority selectedPriority = priority.getValue();
+            UserAccount selectedRequester = requester.getValue();
             if (correction) {
-                runRequestChange(() -> controller.correct(existing, draft, priority.getValue()),
+                runRequestChange(() -> controller.correct(existing, draft, selectedPriority),
                         "Request details corrected without changing lifecycle status.");
-            } else if (requester.getValue() == null) {
+            } else if (selectedRequester == null) {
                 showError("Select an existing Requester account.");
             } else {
-                runRequestChange(() -> controller.recordOnBehalf(requester.getValue(), draft),
-                        "Request recorded on behalf of " + requester.getValue().displayName() + ".");
+                runRequestChange(() -> controller.recordOnBehalf(selectedRequester, draft),
+                        "Request recorded on behalf of " + selectedRequester.displayName() + ".");
             }
         }
     }

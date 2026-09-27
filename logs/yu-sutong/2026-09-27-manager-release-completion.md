@@ -77,24 +77,32 @@ weakening the requirements:
    busy state. History failures now report through a dedicated handler that never
    changes foreground busy state and ignores stale visual feedback after selection
    changes.
+10. Manager filter and form controls were being read inside background callables.
+    Their values are now snapshotted on the JavaFX Application Thread before work
+    is scheduled; a queued-worker regression changes the controls after scheduling
+    and proves the original filter, assignment, and account values are used.
+11. Manager factual corrections checked only ID and status, so two corrections to
+    the same unchanged status could overwrite one another. The update now compares
+    the observed `updated_at`, advances it monotonically even under a fixed clock,
+    and rejects a stale second correction without writing a duplicate audit.
 
 ## Verification actually performed
 
 - Repository unit-test agent: `./gradlew clean check` — successful, 241 tests,
   0 failures, 0 errors, 0 skipped; Checkstyle and JaCoCo successful.
 - Final implementation pass: `./gradlew clean check releaseZip` — successful.
-- PR #18 follow-ups: four account-refresh and two busy-state/history JavaFX
-  regressions passed, then `./gradlew clean check` passed with 247 tests, 0
-  failures, 0 errors, and 0 skipped; Checkstyle and JaCoCo succeeded.
+- PR #18 follow-ups: nine focused account-refresh, busy-state/history, FX-snapshot,
+  and stale-correction regressions passed, then `./gradlew clean check` passed
+  with 250 tests, 0 failures, 0 errors, and 0 skipped; Checkstyle and JaCoCo succeeded.
   `./gradlew releaseZip` also passed.
-- JaCoCo model/service/auth/storage line result: 1,493 covered and 217 missed,
-  or 87.3%.
+- JaCoCo model/service/auth/storage line result: 1,525 covered and 189 missed,
+  or 89.0%.
 - `git diff --check` — successful.
 - macOS release ZIP inspected: versioned application JAR, Unix/Windows launch
   scripts, SQLite JDBC, and Apple-silicon JavaFX libraries present. Unix launcher
   syntax passed `sh -n`; manifest contains the main class and version 1.0.0.
 - Local ZIP SHA-256:
-  `a8c432182b147cc7d72b412d3458746b17ab5946a1d39d066364c409103cc96d`.
+  `21db20e9074f637b435df03a13afa780f21a337dfb2adfeb4f6dd0d11556acf9`.
 - Public GitHub check: repository is public with default branch `master`; the
   previous `master` commit passed Windows/macOS/Ubuntu CI. No formal release or
   Pages deployment exists yet. The local GitHub CLI credential is expired.

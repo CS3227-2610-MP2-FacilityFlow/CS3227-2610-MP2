@@ -704,12 +704,14 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
 
         @Override
         public boolean updateManagerCorrection(
-                MaintenanceRequest request, RequestStatus expectedStatus) {
+                MaintenanceRequest request,
+                RequestStatus expectedStatus,
+                Instant expectedUpdatedAt) {
             String sql = """
                     UPDATE maintenance_requests
                     SET title = ?, description = ?, location = ?, category = ?,
                         reported_urgency = ?, manager_priority = ?, updated_at = ?
-                    WHERE id = ? AND status = ?
+                    WHERE id = ? AND status = ? AND updated_at = ?
                     """;
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, request.title());
@@ -722,6 +724,7 @@ public final class SQLiteManagerAssignmentStore implements ManagerAssignmentStor
                 statement.setString(7, request.updatedAt().toString());
                 statement.setLong(8, request.id());
                 statement.setString(9, expectedStatus.name());
+                statement.setString(10, expectedUpdatedAt.toString());
                 return statement.executeUpdate() == 1;
             } catch (SQLException exception) {
                 throw storageFailure(exception);

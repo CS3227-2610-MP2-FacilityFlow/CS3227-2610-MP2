@@ -35,13 +35,14 @@ class SQLiteManagerCompletionIntegrationTest {
     Path directory;
 
     private String url;
+    private SQLiteManagerAssignmentStore store;
     private ManagerRequestService requests;
     private ManagerAccountService accounts;
 
     @BeforeEach
     void setUp() throws Exception {
         url = "jdbc:sqlite:" + directory.resolve("manager-completion.db");
-        var store = new SQLiteManagerAssignmentStore(url);
+        store = new SQLiteManagerAssignmentStore(url);
         store.initializeSchema();
         insertAccount(1, "manager-a", "FACILITIES_MANAGER", true);
         insertAccount(2, "technician-a", "TECHNICIAN", true);
@@ -124,6 +125,37 @@ class SQLiteManagerCompletionIntegrationTest {
         assertTrue(detail.contains("title"), detail);
         assertFalse(detail.contains(correction.title()), detail);
         assertFalse(detail.contains(correction.description()), detail);
+    }
+
+    @Test
+    @DisplayName("MGR-020 LIF-016 SQLite rejects a second correction using the same observed updated_at")
+    void sqliteRejectsSecondCorrectionFromSameObservedVersion() throws Exception {
+        insertRequest(10, RequestStatus.CLOSED, 2L, "Repair completed safely.", NOW.minusSeconds(60));
+        var observed = store.inTransaction(transaction -> transaction.findRequest(10).orElseThrow());
+        RequestDraft firstDraft = new RequestDraft(
+                "First corrected title", "First corrected description.", "Room 31",
+                "Electrical", ReportedUrgency.NORMAL);
+        RequestDraft staleDraft = new RequestDraft(
+                "Stale corrected title", "Stale corrected description.", "Room 32",
+                "Safety", ReportedUrgency.HIGH);
+        var first = observed.correct(
+                firstDraft, ManagerPriority.CRITICAL, observed.updatedAt().plusNanos(1));
+        var stale = observed.correct(
+                staleDraft, ManagerPriority.MEDIUM, observed.updatedAt().plusNanos(1));
+
+        boolean firstUpdated = store.inTransaction(transaction -> transaction.updateManagerCorrection(
+                first, observed.status(), observed.updatedAt()));
+        boolean staleUpdated = store.inTransaction(transaction -> transaction.updateManagerCorrection(
+                stale, observed.status(), observed.updatedAt()));
+
+        assertTrue(firstUpdated);
+        assertFalse(staleUpdated);
+
+        assertEquals("First corrected title",
+                text("SELECT title FROM maintenance_requests WHERE id=10"));
+        assertEquals(first.updatedAt().toString(),
+                text("SELECT updated_at FROM maintenance_requests WHERE id=10"));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM audit_events"));
     }
 
     @Test

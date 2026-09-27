@@ -104,7 +104,9 @@ public interface ManagerAssignmentStore {
         }
 
         default boolean updateManagerCorrection(
-                MaintenanceRequest request, RequestStatus expectedStatus) {
+                MaintenanceRequest request,
+                RequestStatus expectedStatus,
+                Instant expectedUpdatedAt) {
             throw new UnsupportedOperationException("Manager corrections are unavailable");
         }
 

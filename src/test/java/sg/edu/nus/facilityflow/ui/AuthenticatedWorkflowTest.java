@@ -1227,6 +1227,64 @@ class AuthenticatedWorkflowTest {
                 ((Label) router.lookup("#managerFeedback")).getText()));
     }
 
+    @Test
+    @DisplayName("UIX-008/009/021 Manager workers use FX-thread snapshots rather than later control values")
+    void managerWorkersUseFxThreadControlSnapshots() throws Exception {
+        var owner = fixture.auth.login("owner", "password".toCharArray());
+        fixture.requester.createRequest(owner, requesterDraft("Leaking pipe", "Room 12"));
+        fixture.auth.logout(owner);
+        login("manager");
+
+        fx(() -> {
+            TextField search = (TextField) router.lookup("#managerSearch");
+            search.setText("Leaking pipe");
+            button("applyManagerFilters").fire();
+            search.setText("changed after scheduling");
+        });
+        drain();
+        fx(() -> assertEquals(1,
+                ((TableView<?>) router.lookup("#managerRequests")).getItems().size(),
+                "the queued filter must use the value captured by its FX event handler"));
+
+        fx(() -> {
+            var table = (TableView<?>) router.lookup("#managerRequests");
+            table.getSelectionModel().selectFirst();
+            UserAccount technician = comboBox("assignee").getItems().stream()
+                    .filter(account -> account.id() == 4)
+                    .findFirst()
+                    .orElseThrow();
+            comboBox("assignee").setValue(technician);
+            ((ComboBox<ManagerPriority>) router.lookup("#managerPriority"))
+                    .setValue(ManagerPriority.HIGH);
+            button("assignRequest").fire();
+            comboBox("assignee").setValue(null);
+            ((ComboBox<ManagerPriority>) router.lookup("#managerPriority")).setValue(null);
+        });
+        drain();
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM maintenance_requests "
+                + "WHERE status='ASSIGNED' AND assignee_id=4 AND manager_priority='HIGH'"));
+
+        fx(() -> {
+            TextField username = (TextField) router.lookup("#newAccountUsername");
+            TextField displayName = (TextField) router.lookup("#newAccountDisplayName");
+            ComboBox<Role> role = (ComboBox<Role>) router.lookup("#newAccountRole");
+            username.setText("snapshot-user");
+            displayName.setText("Snapshot User");
+            role.setValue(Role.REQUESTER);
+            ((PasswordField) router.lookup("#newAccountPassword")).setText("abcdefgh");
+            button("createAccount").fire();
+            username.setText("later-user");
+            displayName.setText("Later User");
+            role.setValue(Role.TECHNICIAN);
+        });
+        drain();
+
+        assertEquals(1, fixture.scalar("SELECT COUNT(*) FROM user_accounts "
+                + "WHERE username='snapshot-user' AND display_name='Snapshot User' AND role='REQUESTER'"));
+        assertEquals(0, fixture.scalar(
+                "SELECT COUNT(*) FROM user_accounts WHERE username='later-user'"));
+    }
+
     // Optional review artifacts use fixture data only; normal test runs write no screenshots.
     private void snapshot(String name) throws Exception {
         String output = System.getenv("FACILITYFLOW_UI_SNAPSHOTS");

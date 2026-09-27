@@ -361,8 +361,12 @@ public final class ManagerRequestService {
                         "Manager priority is required for assigned or historical work.");
             }
             Instant at = clock.instant();
+            if (!at.isAfter(request.updatedAt())) {
+                at = request.updatedAt().plusNanos(1);
+            }
             MaintenanceRequest corrected = request.correct(draft, priority, at);
-            if (!transaction.updateManagerCorrection(corrected, request.status())) {
+            if (!transaction.updateManagerCorrection(
+                    corrected, request.status(), request.updatedAt())) {
                 throw new ValidationException("Request changed. Refresh and try again.");
             }
             transaction.appendAuditEvent(new AuditEvent(

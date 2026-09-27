@@ -304,8 +304,8 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
 distributions. `releaseZip` produces the current operating system's release
-archive. The 27 September 2026 local release-candidate run executed 247 tests
-with no failures or skips and measured 87.3% line coverage across model, service,
+archive. The 27 September 2026 local release-candidate run executed 250 tests
+with no failures or skips and measured 89.0% line coverage across model, service,
 auth, and storage packages. Reports are written to:
 
 - `build/reports/tests/test/index.html`
