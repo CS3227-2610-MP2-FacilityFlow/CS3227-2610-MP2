@@ -590,7 +590,7 @@ public final class ManagerDashboardView {
                     + " | Technician account: " + (selected.assigneeId() == null
                             ? "Unassigned" : username(selected.assigneeId()))
                     + "\nCreated: " + TIME.format(selected.createdAt())
-                    + " | Updated: " + TIME.format(selected.updatedAt())
+                    + "\nUpdated: " + TIME.format(selected.updatedAt())
                     + "\n\n" + selected.description()
                     + (selected.resolutionSummary() == null ? ""
                             : "\n\nResolution: " + selected.resolutionSummary()));
