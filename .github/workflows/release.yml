@@ -88,7 +88,13 @@ jobs:
         with:
           name: facilityflow-universal-x86_64
           path: dist
-      - name: Smoke test the same JAR
+      - name: Smoke test the same JAR on Windows
+        if: runner.os == 'Windows'
+        run: python scripts/smoke_test_jar.py dist/facilityflow-1.0.1.jar
+      - name: Smoke test the same JAR on Intel macOS with software rendering
+        if: runner.os == 'macOS'
+        env:
+          JAVA_TOOL_OPTIONS: -Dprism.order=sw
         run: python scripts/smoke_test_jar.py dist/facilityflow-1.0.1.jar
       - name: Show recent macOS Java crash report
         if: failure() && runner.os == 'macOS'

@@ -351,7 +351,10 @@ The current classpath-based JavaFX test emits an upstream warning that JavaFX
 classes are loaded from an unnamed module; the control test passes. Both release
 JARs include SQLite JDBC and their matching JavaFX native libraries. The release
 workflow checks the x86-64 JAR on Windows, Linux, and Intel macOS, and the ARM JAR
-on Apple silicon. It verifies database seeding and integrity before publishing
+on Apple silicon. The headless Intel macOS runner uses JavaFX software rendering
+because its virtualized Metal renderer aborted during shader creation; this does
+not replace a physical Intel Mac test with the normal launch command. The workflow
+verifies database seeding and integrity before publishing
 checksums. Java itself is not bundled. Workflow configuration is not evidence of
 a passed tagged run or hands-on UI test.
 

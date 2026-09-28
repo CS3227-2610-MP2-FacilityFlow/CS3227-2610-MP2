@@ -61,9 +61,12 @@ and push. They clarified that two JARs are preferable: retain the existing
   its JavaFX UI tests failed on x86-64 macOS natives, as expected for a
   cross-architecture test; this is not counted as an application test pass.
 - The Intel macOS smoke job exited with SIGABRT (-6) before the GUI remained
-  open. The archive's macOS native libraries were checked as x86-64; the cause
-  is not yet established. The smoke script and workflow now capture additional
-  JVM/native crash diagnostics on rerun. The PR is not ready to merge.
+  open. The archive's macOS native libraries were checked as x86-64. Verbose
+  logging showed JavaFX loading them and then aborting during Metal shader
+  creation on GitHub's virtualized runner. The Intel CI smoke launch now uses
+  JavaFX software rendering, without changing the distributed JAR. A physical
+  Intel Mac must still be tested with the normal launch command. The PR is not
+  ready to merge until CI and that follow-up are reviewed.
 
 ## Human decisions and pending work
 
