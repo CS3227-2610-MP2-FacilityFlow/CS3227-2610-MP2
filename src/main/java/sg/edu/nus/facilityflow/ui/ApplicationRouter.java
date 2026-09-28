@@ -5,6 +5,9 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -39,6 +42,7 @@ public final class ApplicationRouter extends BorderPane {
     private int navigation;
     private RequesterDashboardView requesterView;
     private long requesterOwner;
+    private Button workspaceTab;
 
     public ApplicationRouter(AuthenticationService auth, RequesterRequestService requester,
                              ManagerRequestService manager, ManagerAccountService managerAccounts,
@@ -93,7 +97,7 @@ public final class ApplicationRouter extends BorderPane {
     private void route(UserAccount account) {
         navigation++;
         setBottom(null);
-        var logout = new Button("Log out");
+        var logout = new MenuItem("Log out");
         logout.setId("logout");
         logout.setOnAction(event -> {
             auth.logout(session);
@@ -104,10 +108,11 @@ public final class ApplicationRouter extends BorderPane {
         var refresh = new Button("Main workspace");
         refresh.setId("refreshAccount");
         refresh.setOnAction(event -> refreshIdentity());
-        var password = new Button("Change password");
+        var password = new MenuItem("Change password");
+        workspaceTab = refresh;
         password.setId("changePassword");
         password.setOnAction(event -> showPasswordChange());
-        var about = new Button("About");
+        var about = new MenuItem("About FacilityFlow");
         about.setId("about");
         about.setOnAction(event -> {
             var dialog = new Alert(Alert.AlertType.INFORMATION);
@@ -128,11 +133,21 @@ public final class ApplicationRouter extends BorderPane {
             case TECHNICIAN -> "Technician";
             case FACILITIES_MANAGER -> "Manager";
         };
-        var identity = new Label(roleName + " - " + account.username());
-        identity.setWrapText(true);
-        identity.setMaxWidth(320);
-        identity.getStyleClass().add("identity-label");
-        var header = new FlowPane(12, 10, brand, identity, refresh, password, about, logout);
+        var accountMenu = new MenuButton(roleName + " - " + account.username(), null,
+                password, about, new SeparatorMenuItem(), logout);
+        accountMenu.setId("accountMenu");
+        accountMenu.setAccessibleText("Account menu: " + roleName + " - " + account.username());
+        accountMenu.setMaxWidth(280);
+        accountMenu.setMinWidth(0);
+        accountMenu.getStyleClass().add("account-menu");
+        var navigationBar = new FlowPane(12, 10, brand, refresh);
+        refresh.getStyleClass().add("navigation-tab");
+        var header = new BorderPane();
+        header.setCenter(navigationBar);
+        header.setRight(accountMenu);
+        BorderPane.setMargin(accountMenu, new Insets(0, 0, 0, 12));
+        BorderPane.setAlignment(accountMenu, javafx.geometry.Pos.TOP_RIGHT);
+        selectPage(false);
         header.getStyleClass().add("app-header");
         header.setPadding(new Insets(16));
         header.disableProperty().bind(tasks.busy());
@@ -188,6 +203,7 @@ public final class ApplicationRouter extends BorderPane {
     }
 
     private void showPasswordChange() {
+        selectPage(true);
         var oldPassword = new PasswordField();
         oldPassword.setAccessibleText("Current password");
         var replacement = new PasswordField();
@@ -197,7 +213,11 @@ public final class ApplicationRouter extends BorderPane {
         back.setOnAction(event -> refreshIdentity());
         var feedback = new Label();
         feedback.setWrapText(true);
-        var form = new VBox(10, new Label("Current password"), oldPassword,
+        var heading = new Label("Change password");
+        heading.setId("passwordPageTitle");
+        heading.getStyleClass().add("page-title");
+        heading.setWrapText(true);
+        var form = new VBox(10, heading, new Label("Current password"), oldPassword,
                 new Label("New password (8–24 characters)"), replacement, save, back, feedback);
         form.setPadding(new Insets(24));
         form.getStyleClass().add("card");
@@ -228,5 +248,11 @@ public final class ApplicationRouter extends BorderPane {
         var scroll = new ScrollPane(container);
         scroll.setFitToWidth(true);
         setCenter(scroll);
+    }
+
+    private void selectPage(boolean passwordSelected) {
+        var selected = javafx.css.PseudoClass.getPseudoClass("current-page");
+        workspaceTab.pseudoClassStateChanged(selected, !passwordSelected);
+        workspaceTab.setAccessibleText("Main workspace" + (!passwordSelected ? ", current page" : ""));
     }
 }
