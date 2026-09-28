@@ -1,6 +1,6 @@
 """Regression checks for the packaged-app startup and database smoke gate."""
 
-from contextlib import nullcontext, redirect_stderr, redirect_stdout
+from contextlib import closing, nullcontext, redirect_stderr, redirect_stdout
 from importlib.util import module_from_spec, spec_from_file_location
 from io import StringIO
 from pathlib import Path
@@ -35,7 +35,8 @@ class RunningApplication:
 
 
 class SmokeTestJarTest(TestCase):
-    def run_smoke(self, workspace, message="", exit_code=None, crash_log=None):
+    def run_smoke(self, workspace, message="", exit_code=None, crash_log=None,
+                  times=None, workspace_states=None):
         jar = workspace / "application.jar"
         jar.touch()
         isolated_home = workspace / "isolated-home"
@@ -52,12 +53,15 @@ class SmokeTestJarTest(TestCase):
 
         output = StringIO()
         errors = StringIO()
+        state_context = patch.object(
+            smoke, "workspace_state", side_effect=workspace_states
+        ) if workspace_states is not None else nullcontext()
         with patch.object(smoke.sys, "argv", ["smoke_test_jar.py", str(jar)]), \
                 patch.object(smoke.tempfile, "TemporaryDirectory",
                              return_value=nullcontext(str(isolated_home))), \
                 patch.object(smoke.subprocess, "Popen", side_effect=launch), \
-                patch.object(smoke.time, "monotonic", side_effect=[0, 16]), \
-                redirect_stdout(output), redirect_stderr(errors):
+                patch.object(smoke.time, "monotonic", side_effect=times or [0, 31]), \
+                state_context, redirect_stdout(output), redirect_stderr(errors):
             result = smoke.main()
         return result, output.getvalue(), errors.getvalue(), process
 
@@ -90,8 +94,21 @@ class SmokeTestJarTest(TestCase):
             result, output, errors, process = self.run_smoke(Path(temporary))
 
         self.assertEqual(1, result)
-        self.assertIn("did not create its database", errors)
+        self.assertIn("database did not finish initializing", errors)
         self.assertEqual("", output)
+        self.assertTrue(process.terminated)
+
+    def test_transient_workspace_initialization_is_retried(self):
+        with TemporaryDirectory() as temporary:
+            result, output, errors, process = self.run_smoke(
+                Path(temporary),
+                times=[0, 16, 17],
+                workspace_states=[None, smoke.EXPECTED_WORKSPACE_STATE],
+            )
+
+        self.assertEqual(0, result)
+        self.assertIn("passed SQLite integrity check", output)
+        self.assertEqual("", errors)
         self.assertTrue(process.terminated)
 
     def test_seeded_valid_workspace_passes_smoke_gate(self):
@@ -99,13 +116,14 @@ class SmokeTestJarTest(TestCase):
             workspace = Path(temporary)
             database = smoke.database_path(str(workspace / "isolated-home"))
             database.parent.mkdir(parents=True)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 connection.execute("CREATE TABLE user_accounts (id INTEGER)")
                 connection.execute("CREATE TABLE maintenance_requests (id INTEGER)")
                 connection.executemany("INSERT INTO user_accounts VALUES (?)",
                                        [(number,) for number in range(6)])
                 connection.executemany("INSERT INTO maintenance_requests VALUES (?)",
                                        [(number,) for number in range(6)])
+                connection.commit()
             result, output, errors, process = self.run_smoke(workspace)
 
         self.assertEqual(0, result)
@@ -118,9 +136,10 @@ class SmokeTestJarTest(TestCase):
             workspace = Path(temporary)
             database = smoke.database_path(str(workspace / "isolated-home"))
             database.parent.mkdir(parents=True)
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 connection.execute("CREATE TABLE user_accounts (id INTEGER)")
                 connection.execute("CREATE TABLE maintenance_requests (id INTEGER)")
+                connection.commit()
             result, output, errors, process = self.run_smoke(workspace)
 
         self.assertEqual(1, result)

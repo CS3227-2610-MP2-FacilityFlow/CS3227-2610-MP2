@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 import subprocess
 import sys
 import tempfile
@@ -12,12 +13,31 @@ import sqlite3
 import stat
 
 
+EXPECTED_WORKSPACE_STATE = ("ok", 6, 6)
+
+
 def database_path(workspace: str) -> Path:
     if os.name == "nt":
         return Path(workspace, "local-app-data", "FacilityFlow", "facilityflow.db")
     if sys.platform == "darwin":
         return Path(workspace, "Library", "Application Support", "FacilityFlow", "facilityflow.db")
     return Path(workspace, "xdg-data", "FacilityFlow", "facilityflow.db")
+
+
+def workspace_state(database: Path):
+    """Return the seeded workspace state, or None while initialization is incomplete."""
+    if not database.is_file():
+        return None
+    try:
+        with closing(sqlite3.connect(database, timeout=1)) as connection:
+            integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+            accounts = connection.execute("SELECT COUNT(*) FROM user_accounts").fetchone()[0]
+            requests = connection.execute(
+                "SELECT COUNT(*) FROM maintenance_requests"
+            ).fetchone()[0]
+        return integrity, accounts, requests
+    except sqlite3.Error:
+        return None
 
 
 def main() -> int:
@@ -47,8 +67,18 @@ def main() -> int:
                 stderr=subprocess.STDOUT,
             )
             try:
-                deadline = time.monotonic() + 15
-                while time.monotonic() < deadline and process.poll() is None:
+                started = time.monotonic()
+                minimum_alive = started + 15
+                deadline = started + 30
+                database = database_path(workspace)
+                state = None
+                while process.poll() is None:
+                    now = time.monotonic()
+                    state = workspace_state(database)
+                    if now >= minimum_alive and state == EXPECTED_WORKSPACE_STATE:
+                        break
+                    if now >= deadline:
+                        break
                     time.sleep(0.25)
 
                 output.seek(0)
@@ -75,18 +105,19 @@ def main() -> int:
                     print("Application reported a JavaFX or dependency startup error.", file=sys.stderr)
                     return 1
 
-                database = database_path(workspace)
-                if not database.is_file():
+                if state is None:
                     print(messages, file=sys.stderr)
-                    print(f"Application did not create its database: {database}", file=sys.stderr)
+                    print(
+                        f"Application database did not finish initializing: {database}",
+                        file=sys.stderr,
+                    )
                     return 1
-                with sqlite3.connect(database) as connection:
-                    integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
-                    accounts = connection.execute("SELECT COUNT(*) FROM user_accounts").fetchone()[0]
-                    requests = connection.execute("SELECT COUNT(*) FROM maintenance_requests").fetchone()[0]
-                if (integrity, accounts, requests) != ("ok", 6, 6):
-                    print(f"Unexpected workspace state: {integrity=}, {accounts=}, {requests=}",
-                          file=sys.stderr)
+                if state != EXPECTED_WORKSPACE_STATE:
+                    print(
+                        "Unexpected workspace state: "
+                        f"integrity={state[0]!r}, accounts={state[1]}, requests={state[2]}",
+                        file=sys.stderr,
+                    )
                     return 1
 
                 print("Application stayed open, seeded six accounts and requests, and passed SQLite integrity check.")
