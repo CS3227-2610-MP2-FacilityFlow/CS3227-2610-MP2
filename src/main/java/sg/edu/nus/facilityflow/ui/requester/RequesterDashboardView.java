@@ -277,13 +277,15 @@ public final class RequesterDashboardView extends BorderPane {
         if (feedback.getParent() instanceof VBox parent) {
             parent.getChildren().remove(feedback);
         }
-        var pane = new VBox(15, new FlowPane(10, 10, back, refresh), heading, detail, description, feedback);
+        var actions = new FlowPane(10, 10, back, refresh);
+        actions.setId("requestDetailActions");
+        var pane = new VBox(15, actions, heading, detail, description, feedback);
         if (request.status() == RequestStatus.OPEN) {
             var edit = new Button("Edit request");
             edit.setOnAction(event -> showEdit(request));
             var cancel = new Button("Cancel request");
             cancel.setOnAction(event -> cancel(request));
-            pane.getChildren().add(1, new FlowPane(10, 10, edit, cancel));
+            actions.getChildren().addAll(edit, cancel);
         }
         if (request.status() != RequestStatus.CLOSED && request.status() != RequestStatus.CANCELLED) {
             var update = new TextArea();

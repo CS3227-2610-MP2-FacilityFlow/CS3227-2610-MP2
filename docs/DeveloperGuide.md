@@ -424,6 +424,13 @@ input. `AuthenticatedWorkflowTest` loads the production stylesheet and exercises
 These tests explicitly size an unmanaged application root inside a scene, avoiding
 native window-size limits and asynchronous resize events on CI runners. They
 verify JavaFX content layout; native window resizing still needs platform checks.
+The shared header uses a `current-page` pseudo-class on Main workspace while
+the workspace is active, independently of focus (UIX-005). A native `MenuButton`
+at the right groups Change password, About FacilityFlow, and Log out under the
+role and username, with a separator before Log out. The password page has its
+own heading and Back action. About preserves the page; Log out ends the session.
+Requester detail actions share one `FlowPane`, allowing all eligible
+actions to occupy a single row when space permits and wrap when it does not.
 Set `FACILITYFLOW_UI_SNAPSHOTS` to a temporary output directory when running
 these UI tests to export PNGs containing only test-fixture data for visual review.
 
