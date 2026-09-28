@@ -18,52 +18,23 @@ folder. A newly created workspace includes demo accounts and six sample
 requests, one in each request status, so every role can explore its main
 workflow immediately. Existing workspaces are kept and are not reseeded.
 
-FacilityFlow has no native installer. It can be started from the project folder
-or from the cross-platform release JAR. Both methods require Java 25.
+FacilityFlow has no native installer. Download the release JAR and run it with
+Java 25.
 
 ## Setup and launch
 
-1. To run the release JAR, install Java 25. To run FacilityFlow from the source
-   project, install Java Development Kit (JDK) 25. If the source launch cannot
-   find Java, set `JAVA_HOME` to your JDK 25 installation folder.
-2. Use one of the following launch methods.
-
-   To run from the project folder, open PowerShell on Windows, or Terminal on
-   macOS or Linux, in that folder and run:
-
-   **Windows (PowerShell)**
-
-   ```powershell
-   .\gradlew.bat run
-   ```
-
-   **macOS or Linux**
-
+1. Install Java 25. The JAR does not include Java itself.
+2. Open the
+   [release page](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases/tag/v1.0.0)
+   and download `facilityflow-1.0.0.jar` from **Assets**. 
+3. Navigate into the folder where the jar file is installed and execute the command.
    ```sh
-   sh ./gradlew run
-   ```
-
-   The first source launch may need an internet connection to download the
-   build tools and libraries.
-
-   If you downloaded the release JAR, put it in a folder where you can keep it.
-   Open PowerShell or Terminal in that folder and run:
-
-   **Windows (PowerShell)**
-
-   ```powershell
-   java -jar .\facilityflow-1.0.0.jar
-   ```
-
-   **macOS or Linux**
-
-   ```sh
-   java -jar ./facilityflow-1.0.0.jar
+   java -jar facilityflow-1.0.0.jar
    ```
 
    The JAR includes the application, JavaFX, and native libraries for 64-bit
-   Windows and Linux, and Intel-based Macs. It does not include Java itself.
-3. Sign in with a demo account. The starting password for every account is
+   Windows and Linux, and Intel-based Macs.
+4. Sign in with a demo account. The starting password for every account is
    `Welcome123`.
 
    | Role | Usernames |
@@ -72,7 +43,7 @@ or from the cross-platform release JAR. Both methods require Java 25.
    | Technician | `technician1`, `technician2` |
    | Facilities Manager | `manager1`, `manager2` |
 
-4. Choose **About** after signing in to see the application version and a short
+5. Choose **About** after signing in to see the application version and a short
    description of FacilityFlow. Choose **Log out** when finished.
 
 If the app cannot open its workspace, read the message on the opening screen.

@@ -1,6 +1,6 @@
 # FacilityFlow Developer Guide
 
-Status: complete three-role release candidate, updated 27 September 2026.
+Status: complete three-role release candidate, updated 28 September 2026.
 Local verification is recorded separately from GitHub release and clean-machine
 evidence.
 
@@ -16,17 +16,28 @@ $env:JAVA_HOME = 'C:\path\to\jdk-25'
 & "$env:JAVA_HOME/bin/java.exe" -version
 ./gradlew.bat test
 ./gradlew.bat check
+./gradlew.bat shadowJar
 ./gradlew.bat run
 ```
 
+`shadowJar` creates the runnable JAR at `build/libs/facilityflow-1.0.0.jar`.
+To launch the packaged application with JDK 25:
+
+```powershell
+& "$env:JAVA_HOME/bin/java.exe" -jar build/libs/facilityflow-1.0.0.jar
+```
+
 On macOS/Linux, set `JAVA_HOME` for your installed JDK and use `sh ./gradlew`
-with the same task names. A desktop display is required for the UI test. On
-headless Linux use `xvfb-run -a sh ./gradlew check` with Xvfb installed.
+with the same task names; launch the JAR with
+`java -jar build/libs/facilityflow-1.0.0.jar`. A desktop display is required
+for the UI test. On headless Linux use `xvfb-run -a sh ./gradlew check` with
+Xvfb installed.
 Gradle and JavaFX download automatically on first use, which requires network
 access. Do not add local JDK paths or IDE state to the repository.
 
 The build pins Gradle 9.1.0, JavaFX 25.0.2, the OpenJFX plugin 0.1.0,
-JUnit 5.13.4, SQLite JDBC 3.50.3.0, Checkstyle 10.26.1, and JaCoCo 0.8.14. The wrapper verifies the
+the Shadow plugin 9.4.3, JUnit 5.13.4, SQLite JDBC 3.50.3.0,
+Checkstyle 10.26.1, and JaCoCo 0.8.14. The wrapper verifies the
 Gradle distribution SHA-256. Gradle's
 [compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html)
 lists Java 25 support from Gradle 9.1.0.
@@ -303,9 +314,10 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
-distributions. `shadowJar` produces the runnable release JAR, bundling runtime
-dependencies and JavaFX native libraries for 64-bit Windows and Linux, and
-Intel macOS. The 27 September 2026 local release-candidate run executed 250 tests
+distributions. The plain `jar` task is disabled; `shadowJar` produces the
+runnable release JAR with runtime dependencies and JavaFX native libraries
+for 64-bit Windows and Linux, and Intel macOS. The 27 September 2026 local
+release-candidate run executed 250 tests
 with no failures or skips and measured 89.0% line coverage across model, service,
 auth, and storage packages. Reports are written to:
 
@@ -359,7 +371,8 @@ integrated in the release candidate.
 
 ## Release, website, and monitoring
 
-`shadowJar` builds `facilityflow-1.0.0.jar` using the Gradle Shadow plugin.
+`shadowJar` builds `build/libs/facilityflow-1.0.0.jar` using the Gradle Shadow
+plugin.
 The tag-triggered [release workflow](../.github/workflows/release.yml) runs
 `clean check shadowJar`, then launches that same JAR on Windows, Intel macOS,
 and Linux before creating `SHA256SUMS.txt` and publishing both files to a formal
