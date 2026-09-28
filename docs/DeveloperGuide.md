@@ -321,7 +321,7 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and the runnable Shadow
-JAR; unused ZIP/TAR distribution tasks are disabled. The plain `jar` task is
+JAR; unused launcher-script and ZIP/TAR distribution tasks are disabled. The plain `jar` task is
 disabled; `shadowJar` produces the
 runnable x86-64 JAR with runtime dependencies and JavaFX native libraries
 for 64-bit Windows and Linux, and Intel macOS. With

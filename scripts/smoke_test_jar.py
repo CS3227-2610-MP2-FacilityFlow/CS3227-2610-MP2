@@ -39,7 +39,9 @@ def main() -> int:
 
         with tempfile.TemporaryFile(mode="w+b") as output:
             process = subprocess.Popen(
-                ["java", f"-Duser.home={workspace}", "-jar", str(jar_path.resolve())],
+                ["java", f"-Duser.home={workspace}",
+                 f"-XX:ErrorFile={workspace}/hs_err_pid%p.log", "-Dprism.verbose=true",
+                 "-jar", str(jar_path.resolve())],
                 env=environment,
                 stdout=output,
                 stderr=subprocess.STDOUT,
@@ -53,6 +55,8 @@ def main() -> int:
                 messages = output.read().decode("utf-8", errors="replace")
                 if process.poll() is not None:
                     print(messages, file=sys.stderr)
+                    for error_log in Path(workspace).glob("hs_err_pid*.log"):
+                        print(error_log.read_text(errors="replace")[:12000], file=sys.stderr)
                     print(
                         f"Application exited during startup with code {process.returncode}.",
                         file=sys.stderr,

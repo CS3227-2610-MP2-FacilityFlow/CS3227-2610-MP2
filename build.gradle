@@ -54,9 +54,10 @@ tasks.named('shadowJar') {
     }
 }
 
-// The release artifact is the Shadow JAR, not the Application plugin's ZIP/TAR distributions.
-// Keeping those distributions in `build` causes Gradle 9 to detect an implicit Shadow JAR dependency.
-['distZip', 'distTar', 'shadowDistZip', 'shadowDistTar'].each { distributionTask ->
+// The release artifact is the Shadow JAR, not the Application plugin's launchers or archives.
+// Running those alongside the classifier-free JAR makes Gradle 9 detect an implicit dependency.
+['startScripts', 'startShadowScripts', 'distZip', 'distTar', 'shadowDistZip', 'shadowDistTar']
+        .each { distributionTask ->
     tasks.named(distributionTask) {
         enabled = false
     }

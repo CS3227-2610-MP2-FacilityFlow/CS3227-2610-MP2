@@ -54,9 +54,16 @@ and push. They clarified that two JARs are preferable: retain the existing
 - The first pull-request CI run passed the release universal JAR job but failed
   the existing Ubuntu and Windows `build` jobs because Gradle 9 found an implicit
   dependency between unused ZIP/TAR distribution tasks and `shadowJar`. The
-  project now skips those distributions and makes `build` depend on the actual
-  release JAR. A serial local `clean build -PreleaseTarget=macos-aarch64` passed;
-  the updated GitHub CI run must still pass before merge.
+  project now skips unused launcher-script and archive distribution tasks and
+  makes `build` depend on the actual release JAR. A serial local
+  `clean build -PreleaseTarget=macos-aarch64` passed; Linux/Windows CI must
+  still pass before merge. The x86-64 artifact assembled on this ARM Mac, but
+  its JavaFX UI tests failed on x86-64 macOS natives, as expected for a
+  cross-architecture test; this is not counted as an application test pass.
+- The Intel macOS smoke job exited with SIGABRT (-6) before the GUI remained
+  open. The archive's macOS native libraries were checked as x86-64; the cause
+  is not yet established. The smoke script and workflow now capture additional
+  JVM/native crash diagnostics on rerun. The PR is not ready to merge.
 
 ## Human decisions and pending work
 

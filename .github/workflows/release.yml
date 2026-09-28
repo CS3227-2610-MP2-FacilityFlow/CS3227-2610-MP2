@@ -90,6 +90,14 @@ jobs:
           path: dist
       - name: Smoke test the same JAR
         run: python scripts/smoke_test_jar.py dist/facilityflow-1.0.1.jar
+      - name: Show recent macOS Java crash report
+        if: failure() && runner.os == 'macOS'
+        run: |
+          reports="$HOME/Library/Logs/DiagnosticReports"
+          if [ -d "$reports" ]; then
+            find "$reports" -maxdepth 1 -type f -name 'java*.ips' -mmin -10 \
+              -print -exec sed -n '1,100p' {} \;
+          fi
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')

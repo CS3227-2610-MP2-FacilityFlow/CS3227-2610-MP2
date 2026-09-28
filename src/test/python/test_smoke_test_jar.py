@@ -17,7 +17,8 @@ SPEC.loader.exec_module(smoke)
 
 
 class RunningApplication:
-    def __init__(self, output, message=""):
+    def __init__(self, command, output, message=""):
+        self.command = command
         output.write(message.encode())
         self.returncode = None
         self.terminated = False
@@ -34,16 +35,19 @@ class RunningApplication:
 
 
 class SmokeTestJarTest(TestCase):
-    def run_smoke(self, workspace, message=""):
+    def run_smoke(self, workspace, message="", exit_code=None, crash_log=None):
         jar = workspace / "application.jar"
         jar.touch()
         isolated_home = workspace / "isolated-home"
         isolated_home.mkdir(exist_ok=True)
         process = None
 
-        def launch(_command, *, env, stdout, stderr):
+        def launch(command, *, env, stdout, stderr):
             nonlocal process
-            process = RunningApplication(stdout, message)
+            process = RunningApplication(command, stdout, message)
+            process.returncode = exit_code
+            if crash_log is not None:
+                (isolated_home / "hs_err_pid123.log").write_text(crash_log)
             return process
 
         output = StringIO()
@@ -66,6 +70,20 @@ class SmokeTestJarTest(TestCase):
         self.assertIn("JavaFX or dependency startup error", errors)
         self.assertEqual("", output)
         self.assertTrue(process.terminated)
+
+    def test_early_jvm_exit_surfaces_crash_log(self):
+        with TemporaryDirectory() as temporary:
+            result, output, errors, process = self.run_smoke(
+                Path(temporary), "JVM exited unexpectedly", exit_code=134,
+                crash_log="A fatal error occurred in the Java Runtime Environment")
+
+        self.assertEqual(1, result)
+        self.assertIn("JVM exited unexpectedly", errors)
+        self.assertIn("A fatal error occurred in the Java Runtime Environment", errors)
+        self.assertIn("Application exited during startup with code 134", errors)
+        self.assertEqual("", output)
+        self.assertIn("-Dprism.verbose=true", process.command)
+        self.assertTrue(any(arg.startswith("-XX:ErrorFile=") for arg in process.command))
 
     def test_missing_workspace_database_fails_smoke_gate(self):
         with TemporaryDirectory() as temporary:
