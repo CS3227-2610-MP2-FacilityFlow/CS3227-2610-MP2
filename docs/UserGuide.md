@@ -18,22 +18,49 @@ folder. A newly created workspace includes demo accounts and six sample
 requests, one in each request status, so every role can explore its main
 workflow immediately. Existing workspaces are kept and are not reseeded.
 
-FacilityFlow has no native installer. Download the release JAR and run it with
-Java 25.
+FacilityFlow has no native installer. It requires Java 25. Choose the release
+JAR for your computer before launching it.
 
 ## Setup and launch
 
-1. Install Java 25. The JAR does not include Java itself.
-2. Open the
-   [release page](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases/tag/v1.0.0)
-   and download `facilityflow-1.0.0.jar` from **Assets**. 
-3. Navigate into the folder where the jar file is installed and execute the command.
+1. Install Java 25. The download includes FacilityFlow and its required
+   libraries, but it does not include Java. Open Terminal on macOS or Linux,
+   or PowerShell on Windows, and check your Java version:
+
    ```sh
-   java -jar facilityflow-1.0.0.jar
+   java -version
    ```
 
-   The JAR includes the application, JavaFX, and native libraries for 64-bit
-   Windows and Linux, and Intel-based Macs.
+   The first line must show version 25. If it shows an older version, select
+   your Java 25 installation before launching FacilityFlow. An error saying
+   `class file version 69.0` and `up to 61.0` means the command used Java 17.
+2. Open the [GitHub releases page](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases),
+   choose version **v1.0.1**, and download the file for your computer from
+   **Assets**:
+
+   | Computer | File to download |
+   |---|---|
+   | 64-bit Windows, 64-bit Linux, or Intel Mac | `facilityflow-1.0.1.jar` |
+   | Apple silicon Mac (M-series chip) | `facilityflow-1.0.1-macos-aarch64.jar` |
+
+   These files become available when v1.0.1 is published. If v1.0.1 is not
+   listed yet, do not use the older v1.0.0 JAR on an Apple silicon Mac.
+3. Open Terminal or PowerShell in the folder where you downloaded the JAR.
+   On 64-bit Windows, 64-bit Linux, or an Intel Mac, run:
+
+   ```sh
+   java -jar facilityflow-1.0.1.jar
+   ```
+
+   On an Apple silicon Mac, run:
+
+   ```sh
+   java -jar facilityflow-1.0.1-macos-aarch64.jar
+   ```
+
+   If `java -version` showed an older version even after installing Java 25,
+   replace `java` in the launch command with the full path to your Java 25
+   `java` program.
 4. Sign in with a demo account. The starting password for every account is
    `Welcome123`.
 
@@ -468,8 +495,8 @@ Safety, and Other. To change the list:
 - FacilityFlow has no native installer and does not include Java. Install Java
   25 before launching the release JAR, or install JDK 25 to run from the source
   project.
-- This JAR contains Intel macOS JavaFX libraries. Native Apple Silicon JavaFX
-  support has not been verified.
+- The v1.0.1 JAR for 64-bit Windows, 64-bit Linux, and Intel Macs does not run
+  natively on Apple silicon Macs. Use the separate Apple silicon JAR there.
 - Categories cannot be changed while the app is open or through a Manager
   screen. Close FacilityFlow and use `categories.properties` as described above.
 
@@ -480,4 +507,5 @@ Safety, and Other. To change the list:
   retained demo account and change its password, or have a Manager deactivate
   accounts that are not needed.
 - Do not edit, replace, or delete `facilityflow.db` while FacilityFlow is open.
-- Editing `facilityflow.db` or and relevant data files may result in unexpected behaviors or errors in the application, modify with caution.
+- Editing `facilityflow.db` or other workspace files incorrectly may cause
+  errors or change saved information. Keep a backup before editing them.

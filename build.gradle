@@ -7,8 +7,15 @@ plugins {
 }
 
 group = 'sg.edu.nus.facilityflow'
-version = '1.0.0'
+version = '1.0.1'
 def javafxVersion = '25.0.2'
+def appleSiliconHost = System.getProperty('os.name').toLowerCase().contains('mac')
+        && System.getProperty('os.arch').toLowerCase() in ['aarch64', 'arm64']
+def releaseTarget = providers.gradleProperty('releaseTarget')
+        .orElse(appleSiliconHost ? 'macos-aarch64' : 'universal-x86_64').get()
+if (!(releaseTarget in ['universal-x86_64', 'macos-aarch64'])) {
+    throw new GradleException("Unsupported releaseTarget: ${releaseTarget}")
+}
 
 repositories {
     mavenCentral()
@@ -35,7 +42,7 @@ tasks.named('jar') {
 }
 
 tasks.named('shadowJar') {
-    archiveClassifier = ''
+    archiveClassifier = releaseTarget == 'macos-aarch64' ? 'macos-aarch64' : ''
     mergeServiceFiles()
     manifest {
         attributes(
@@ -50,10 +57,12 @@ tasks.named('shadowJar') {
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.50.3.0'
 
-    // Include JavaFX native libraries for each desktop OS in the runnable fat JAR.
-    runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:win"
-    runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:linux"
-    runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:mac"
+    // Native library resource names collide across Mac architectures, so ship a separate ARM JAR.
+    if (releaseTarget == 'universal-x86_64') {
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:win"
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:linux"
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:mac"
+    }
 
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -17,7 +17,7 @@ and all roles use one versioned SQLite workspace.
 
 Sessions are revoked on logout, shutdown, observed deactivation, and Manager
 password reset. Role changes retain sessions and reroute on the next protected
-action or **Refresh account**. **Change password** retains the session.
+action or **Main workspace**. **Change password** retains the session.
 
 New workspaces create two accounts per role. All six demo accounts use
 `Welcome123`: `requester1`, `requester2`, `technician1`, `technician2`, `manager1`,
@@ -25,10 +25,11 @@ New workspaces create two accounts per role. All six demo accounts use
 lifecycle states. Existing workspaces are never reseeded. See the
 [User Guide](docs/UserGuide.md).
 
-Local automated checks and packaging can be run from this repository. A formal
-tagged GitHub release, GitHub Pages deployment, teammate review, and recorded
-clean-machine smoke tests on Windows, macOS, and Linux remain release actions;
-see the [submission checklist](docs/SubmissionChecklist.md).
+Local automated checks and packaging can be run from this repository. Release
+1.0.1 will package two JARs from one tag: one for 64-bit Windows, Linux, and
+Intel Macs, and one for Apple silicon Macs. Teammate review and recorded manual
+smoke tests remain release actions; see the
+[submission checklist](docs/SubmissionChecklist.md).
 
 ## Run the development application
 
@@ -42,8 +43,10 @@ the repository root in PowerShell:
 ./gradlew.bat run
 ```
 
-The runnable cross-platform JAR is written to
-`build/libs/facilityflow-1.0.0.jar`.
+The default x86-64 release JAR is written to
+`build/libs/facilityflow-1.0.1.jar`. On an Apple silicon Mac, build its
+separate JAR with `sh ./gradlew shadowJar -PreleaseTarget=macos-aarch64`; it is
+written to `build/libs/facilityflow-1.0.1-macos-aarch64.jar`.
 
 The wrapper downloads Gradle and dependencies on first use; no separate Gradle
 or JavaFX SDK installation is needed. On macOS/Linux use `sh ./gradlew` in place

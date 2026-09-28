@@ -20,16 +20,23 @@ $env:JAVA_HOME = 'C:\path\to\jdk-25'
 ./gradlew.bat run
 ```
 
-`shadowJar` creates the runnable JAR at `build/libs/facilityflow-1.0.0.jar`.
+`shadowJar` creates the x86-64 runnable JAR at
+`build/libs/facilityflow-1.0.1.jar`.
 To launch the packaged application with JDK 25:
 
 ```powershell
-& "$env:JAVA_HOME/bin/java.exe" -jar build/libs/facilityflow-1.0.0.jar
+& "$env:JAVA_HOME/bin/java.exe" -jar build/libs/facilityflow-1.0.1.jar
 ```
 
 On macOS/Linux, set `JAVA_HOME` for your installed JDK and use `sh ./gradlew`
-with the same task names; launch the JAR with
-`java -jar build/libs/facilityflow-1.0.0.jar`. A desktop display is required
+with the same task names. On Apple silicon, build and run the separate ARM JAR:
+
+```sh
+sh ./gradlew clean check shadowJar -PreleaseTarget=macos-aarch64
+"$JAVA_HOME/bin/java" -jar build/libs/facilityflow-1.0.1-macos-aarch64.jar
+```
+
+A desktop display is required
 for the UI test. On headless Linux use `xvfb-run -a sh ./gradlew check` with
 Xvfb installed.
 Gradle and JavaFX download automatically on first use, which requires network
@@ -315,9 +322,10 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
 distributions. The plain `jar` task is disabled; `shadowJar` produces the
-runnable release JAR with runtime dependencies and JavaFX native libraries
-for 64-bit Windows and Linux, and Intel macOS. The 27 September 2026 local
-release-candidate run executed 250 tests
+runnable x86-64 JAR with runtime dependencies and JavaFX native libraries
+for 64-bit Windows and Linux, and Intel macOS. With
+`-PreleaseTarget=macos-aarch64`, it produces a separate JAR with Apple silicon
+JavaFX native libraries. The older 27 September 2026 release-candidate run executed 250 tests
 with no failures or skips and measured 89.0% line coverage across model, service,
 auth, and storage packages. Reports are written to:
 
@@ -339,11 +347,12 @@ content layout. Native accessibility and visual layout still need the recorded
 clean-machine acceptance pass on each target operating system.
 
 The current classpath-based JavaFX test emits an upstream warning that JavaFX
-classes are loaded from an unnamed module; the control test passes. The release
-JAR includes JavaFX native libraries for 64-bit Windows and Linux, and Intel
-macOS, plus the SQLite JDBC dependency. The release workflow smoke-tests the same
-JAR on each target OS before publishing it with a SHA-256 checksum. Java itself
-is not bundled; native Apple Silicon JavaFX support remains unverified.
+classes are loaded from an unnamed module; the control test passes. Both release
+JARs include SQLite JDBC and their matching JavaFX native libraries. The release
+workflow checks the x86-64 JAR on Windows, Linux, and Intel macOS, and the ARM JAR
+on Apple silicon. It verifies database seeding and integrity before publishing
+checksums. Java itself is not bundled. Workflow configuration is not evidence of
+a passed tagged run or hands-on UI test.
 
 ## Confirmed integration responsibilities and behavior
 
@@ -371,13 +380,14 @@ integrated in the release candidate.
 
 ## Release, website, and monitoring
 
-`shadowJar` builds `build/libs/facilityflow-1.0.0.jar` using the Gradle Shadow
-plugin.
-The tag-triggered [release workflow](../.github/workflows/release.yml) runs
-`clean check shadowJar`, then launches that same JAR on Windows, Intel macOS,
-and Linux before creating `SHA256SUMS.txt` and publishing both files to a formal
-GitHub release. Workflow configuration alone is not proof that a tag run or
-clean-machine smoke test passed; record actual results in
+`shadowJar` builds `build/libs/facilityflow-1.0.1.jar` on Linux with JavaFX
+natives for x86-64 Windows, Linux, and Intel macOS. An Apple silicon runner builds
+`build/libs/facilityflow-1.0.1-macos-aarch64.jar` from the same commit. The
+[release workflow](../.github/workflows/release.yml) also runs on pull requests
+for packaging changes. On version tags it publishes both JARs with
+`SHA256SUMS.txt`. The workflow checks that the tag is `v1.0.1` and can upload to
+an already created release if rerun. Workflow configuration alone is not proof
+that a tag run or clean-machine smoke test passed; record actual results in
 [SubmissionChecklist.md](SubmissionChecklist.md).
 
 The [Pages workflow](../.github/workflows/pages.yml) builds the `docs/` Jekyll site

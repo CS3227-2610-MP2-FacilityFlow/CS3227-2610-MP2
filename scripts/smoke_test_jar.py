@@ -8,7 +8,16 @@ import tempfile
 import time
 from pathlib import Path
 import os
+import sqlite3
 import stat
+
+
+def database_path(workspace: str) -> Path:
+    if os.name == "nt":
+        return Path(workspace, "local-app-data", "FacilityFlow", "facilityflow.db")
+    if sys.platform == "darwin":
+        return Path(workspace, "Library", "Application Support", "FacilityFlow", "facilityflow.db")
+    return Path(workspace, "xdg-data", "FacilityFlow", "facilityflow.db")
 
 
 def main() -> int:
@@ -40,16 +49,43 @@ def main() -> int:
                 while time.monotonic() < deadline and process.poll() is None:
                     time.sleep(0.25)
 
+                output.seek(0)
+                messages = output.read().decode("utf-8", errors="replace")
                 if process.poll() is not None:
-                    output.seek(0)
-                    print(output.read().decode("utf-8", errors="replace"), file=sys.stderr)
+                    print(messages, file=sys.stderr)
                     print(
                         f"Application exited during startup with code {process.returncode}.",
                         file=sys.stderr,
                     )
                     return 1
 
-                print("Application stayed open for 15 seconds after launch.")
+                startup_errors = (
+                    "Error initializing QuantumRenderer",
+                    "No toolkit found",
+                    "UnsatisfiedLinkError",
+                    "UnsupportedClassVersionError",
+                    "NoClassDefFoundError",
+                )
+                if any(error in messages for error in startup_errors):
+                    print(messages, file=sys.stderr)
+                    print("Application reported a JavaFX or dependency startup error.", file=sys.stderr)
+                    return 1
+
+                database = database_path(workspace)
+                if not database.is_file():
+                    print(messages, file=sys.stderr)
+                    print(f"Application did not create its database: {database}", file=sys.stderr)
+                    return 1
+                with sqlite3.connect(database) as connection:
+                    integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+                    accounts = connection.execute("SELECT COUNT(*) FROM user_accounts").fetchone()[0]
+                    requests = connection.execute("SELECT COUNT(*) FROM maintenance_requests").fetchone()[0]
+                if (integrity, accounts, requests) != ("ok", 6, 6):
+                    print(f"Unexpected workspace state: {integrity=}, {accounts=}, {requests=}",
+                          file=sys.stderr)
+                    return 1
+
+                print("Application stayed open, seeded six accounts and requests, and passed SQLite integrity check.")
                 return 0
             finally:
                 if process.poll() is None:

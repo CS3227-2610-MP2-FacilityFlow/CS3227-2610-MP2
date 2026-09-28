@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.util.Duration;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import sg.edu.nus.facilityflow.AppVersion;
 import sg.edu.nus.facilityflow.auth.AuthFixture;
 import sg.edu.nus.facilityflow.model.AuditRecord;
 import sg.edu.nus.facilityflow.model.ManagerPriority;
@@ -120,6 +122,32 @@ class AuthenticatedWorkflowTest {
             assertNotNull(router.lookup("#loginView"));
             assertNull(router.lookup("#" + expected));
         });
+    }
+
+    @Test
+    @DisplayName("REL-008 About shows the release version and the complete app description")
+    void aboutShowsVersionAndReadableDescription() throws Exception {
+        login("owner");
+        var heading = new AtomicReference<String>();
+        var description = new AtomicReference<String>();
+        var wraps = new AtomicReference<Boolean>();
+        fx(() -> {
+            Platform.runLater(() -> {
+                Window dialog = Window.getWindows().stream().filter(Window::isShowing)
+                        .filter(window -> window != stage).findFirst().orElseThrow();
+                DialogPane pane = (DialogPane) dialog.getScene().getRoot();
+                heading.set(pane.getHeaderText());
+                Label content = (Label) pane.getContent();
+                description.set(content.getText());
+                wraps.set(content.isWrapText());
+                ((Button) pane.lookupButton(ButtonType.OK)).fire();
+            });
+            button("about").fire();
+        });
+        assertEquals("FacilityFlow " + AppVersion.CURRENT, heading.get());
+        assertEquals("Auditable facilities maintenance coordination for Requesters, Technicians, "
+                + "and Facilities Managers.", description.get());
+        assertTrue(wraps.get());
     }
 
     @Test
