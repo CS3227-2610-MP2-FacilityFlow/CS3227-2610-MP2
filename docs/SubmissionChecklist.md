@@ -33,6 +33,7 @@ branch checks. Do not replace local results with assumptions about CI.
 | Check | State | Evidence |
 |---|---|---|
 | Compilation, tests, Checkstyle, and Apple silicon JAR packaging | Passed locally on Apple silicon macOS | `sh ./gradlew clean check shadowJar -PreleaseTarget=macos-aarch64`, 28 September 2026; final branch verification passed |
+| Standard CI `build` task | Passed locally after ZIP/TAR task correction | `sh ./gradlew clean build -PreleaseTarget=macos-aarch64`; JAR included, unused distributions skipped. GitHub rerun pending. |
 | Full unit/integration/JavaFX suite | Passed locally | 257 tests; 0 failures, errors, or skips on the ARM target |
 | Release smoke-gate regression tests | Passed locally | Four Python tests; 0 failures |
 | Coverage report | Passed project target locally | Model/service/auth/storage: 1,525 of 1,714 lines, 89.0%; JaCoCo report in `build/reports/jacoco/test/html/index.html` |

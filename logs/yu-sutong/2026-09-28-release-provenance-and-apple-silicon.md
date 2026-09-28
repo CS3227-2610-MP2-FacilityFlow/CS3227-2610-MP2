@@ -51,6 +51,12 @@ and push. They clarified that two JARs are preferable: retain the existing
   smoke test with macOS GUI access. A sandboxed attempt could not access the
   display. No human visual inspection is claimed. Pull-request CI and human
   clean-machine smoke tests remain required.
+- The first pull-request CI run passed the release universal JAR job but failed
+  the existing Ubuntu and Windows `build` jobs because Gradle 9 found an implicit
+  dependency between unused ZIP/TAR distribution tasks and `shadowJar`. The
+  project now skips those distributions and makes `build` depend on the actual
+  release JAR. A serial local `clean build -PreleaseTarget=macos-aarch64` passed;
+  the updated GitHub CI run must still pass before merge.
 
 ## Human decisions and pending work
 

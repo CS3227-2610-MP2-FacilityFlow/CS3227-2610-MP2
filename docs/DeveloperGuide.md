@@ -320,8 +320,9 @@ JUnit. Do not call `Platform.exit()` in individual tests; the Gradle test-worker
 JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 
 `test` runs domain/service and focused JavaFX tests and generates coverage.
-`check` also runs Checkstyle. `build` adds compilation and development
-distributions. The plain `jar` task is disabled; `shadowJar` produces the
+`check` also runs Checkstyle. `build` adds compilation and the runnable Shadow
+JAR; unused ZIP/TAR distribution tasks are disabled. The plain `jar` task is
+disabled; `shadowJar` produces the
 runnable x86-64 JAR with runtime dependencies and JavaFX native libraries
 for 64-bit Windows and Linux, and Intel macOS. With
 `-PreleaseTarget=macos-aarch64`, it produces a separate JAR with Apple silicon

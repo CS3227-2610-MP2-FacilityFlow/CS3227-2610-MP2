@@ -54,6 +54,18 @@ tasks.named('shadowJar') {
     }
 }
 
+// The release artifact is the Shadow JAR, not the Application plugin's ZIP/TAR distributions.
+// Keeping those distributions in `build` causes Gradle 9 to detect an implicit Shadow JAR dependency.
+['distZip', 'distTar', 'shadowDistZip', 'shadowDistTar'].each { distributionTask ->
+    tasks.named(distributionTask) {
+        enabled = false
+    }
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('shadowJar')
+}
+
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.50.3.0'
 
