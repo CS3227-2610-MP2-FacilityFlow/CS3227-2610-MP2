@@ -67,14 +67,16 @@ Minor wording fixes that do not alter behavior do not require a separate proposa
 The [Requester integration decision](../docs/decisions/yooplo/0001-requester-integration.md)
 records the team agreement. Shared ownership, password/session rules,
 data/configuration location, IDs/audit, Requester ordering/filtering/history,
-platform-specific release ZIPs, and rotating local operational logs are resolved
-in the relevant specifications and release-candidate implementation. Historical
-session logs retain their original observations rather than being rewritten as
-later approvals.
+and rotating local operational logs are resolved in the relevant specifications
+and release-candidate implementation. The release candidate now builds one
+JavaFX fat JAR for 64-bit Windows and Linux, and Intel macOS; teaching-team
+confirmation of the acceptable artifact format remains a submission follow-up.
+Historical session logs retain their original observations rather than being
+rewritten as later approvals.
 
 - Run and record the tagged release workflow and clean-machine smoke tests.
-- Retain any teaching-team clarification about acceptable desktop monitoring with
-  the submission evidence.
+- Retain any teaching-team clarification about acceptable JavaFX artifact format
+  with the submission evidence.
 
 These decisions do not prevent repository setup, architecture scaffolding, or
 test-harness work. Role feature implementation must wait when a listed decision

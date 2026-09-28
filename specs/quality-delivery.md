@@ -43,6 +43,9 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   a version tag and attach them to a formal GitHub release.
 - **REL-006:** Release artifacts MUST include required JavaFX runtime/native libraries
   or provide supported platform-specific artifacts if one universal JAR is not viable.
+  For the replacement release, the x86-64 JAR must launch on 64-bit Windows,
+  Linux, and Intel macOS, and a separate ARM64 JAR must launch on Apple silicon
+  macOS. Both must be built and checked from the same version tag.
 - **REL-007:** The team MUST perform clean-machine smoke tests on Windows, macOS, and
   Linux before the final release and record tester, artifact, OS, and result.
 - **REL-008:** The application MUST expose its version in an About screen or equivalent.
