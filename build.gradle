@@ -3,10 +3,19 @@ plugins {
     id 'checkstyle'
     id 'jacoco'
     id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'com.gradleup.shadow' version '9.4.3'
 }
 
 group = 'sg.edu.nus.facilityflow'
-version = '1.0.0'
+version = '1.0.1'
+def javafxVersion = '25.0.2'
+def appleSiliconHost = System.getProperty('os.name').toLowerCase().contains('mac')
+        && System.getProperty('os.arch').toLowerCase() in ['aarch64', 'arm64']
+def releaseTarget = providers.gradleProperty('releaseTarget')
+        .orElse(appleSiliconHost ? 'macos-aarch64' : 'universal-x86_64').get()
+if (!(releaseTarget in ['universal-x86_64', 'macos-aarch64'])) {
+    throw new GradleException("Unsupported releaseTarget: ${releaseTarget}")
+}
 
 repositories {
     mavenCentral()
@@ -19,7 +28,7 @@ java {
 }
 
 javafx {
-    version = '25.0.2'
+    version = javafxVersion
     modules = ['javafx.controls']
 }
 
@@ -29,35 +38,44 @@ application {
 }
 
 tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('shadowJar') {
+    archiveClassifier = releaseTarget == 'macos-aarch64' ? 'macos-aarch64' : ''
+    mergeServiceFiles()
     manifest {
         attributes(
             'Main-Class': 'sg.edu.nus.facilityflow.FacilityFlowLauncher',
+            'Enable-Native-Access': 'ALL-UNNAMED',
             'Implementation-Title': 'FacilityFlow',
             'Implementation-Version': project.version
         )
     }
 }
 
-def releasePlatform = providers.systemProperty('os.name').map { name ->
-    def normalized = name.toLowerCase()
-    if (normalized.contains('win')) return 'windows'
-    if (normalized.contains('mac')) return 'macos'
-    return 'linux'
+// The release artifact is the Shadow JAR, not the Application plugin's launchers or archives.
+// Running those alongside the classifier-free JAR makes Gradle 9 detect an implicit dependency.
+['startScripts', 'startShadowScripts', 'distZip', 'distTar', 'shadowDistZip', 'shadowDistTar']
+        .each { distributionTask ->
+    tasks.named(distributionTask) {
+        enabled = false
+    }
 }
 
-tasks.register('releaseZip', Zip) {
-    dependsOn tasks.named('installDist')
-    archiveFileName = releasePlatform.map { platform ->
-        "FacilityFlow-${project.version}-${platform}.zip"
-    }
-    destinationDirectory = layout.buildDirectory.dir('release')
-    into("FacilityFlow-${project.version}") {
-        from layout.buildDirectory.dir('install/facilityflow')
-    }
+tasks.named('build') {
+    dependsOn tasks.named('shadowJar')
 }
 
 dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.50.3.0'
+
+    // Native library resource names collide across Mac architectures, so ship a separate ARM JAR.
+    if (releaseTarget == 'universal-x86_64') {
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:win"
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:linux"
+        runtimeOnly "org.openjfx:javafx-graphics:${javafxVersion}:mac"
+    }
 
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

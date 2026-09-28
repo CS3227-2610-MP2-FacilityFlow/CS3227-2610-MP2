@@ -56,7 +56,7 @@ Read [Requester requirements](../specs/roles/requester.md), then the shared
 - [x] Confirm team role ownership: yooplo (Requester), ngkhengyang (Technician),
   and yu-sutong (Facilities Manager).
 - [x] Confirm integration decisions and shared owners, as reported by yooplo.
-- [ ] Human-review the resulting documentation and implementation changes.
+- [x] Human-review the resulting documentation and implementation changes.
 - [x] Add Java 25, JavaFX, Gradle wrapper, JUnit 5, Checkstyle, JaCoCo, and a
   three-OS build/test workflow. See the starter session log for executed checks.
 - [x] Obtain passing CI results on Windows, Linux, and macOS after pushing a PR

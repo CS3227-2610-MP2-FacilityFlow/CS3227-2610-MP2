@@ -1,6 +1,6 @@
 # FacilityFlow submission checklist
 
-Updated: 27 September 2026
+Updated: 28 September 2026
 
 Deadline: 29 September 2026, 2:00 PM SGT
 
@@ -23,7 +23,7 @@ as a passed run, and generated documentation is not marked as human-approved.
 | AI-session summaries under `logs/` | Present | New completion log and older summaries with “Pending” labels require human verification |
 | Product website source | Present | `docs/index.md` and Pages workflow; deployment still needs GitHub evidence |
 | Operational monitoring | Implemented | Rotating structured logs plus global unexpected-error boundary |
-| Platform-specific release packaging | Implemented locally | `releaseZip` and tag workflow; tagged GitHub release still required |
+| Two release JARs for x86-64 platforms and Apple silicon | Implemented on the release-fix branch; CI pending | `shadowJar` selects matching JavaFX natives; both assets must come from the reviewed `v1.0.1` tag |
 
 ## Final automated verification
 
@@ -32,10 +32,12 @@ branch checks. Do not replace local results with assumptions about CI.
 
 | Check | State | Evidence |
 |---|---|---|
-| Compilation and Checkstyle | Passed locally | `./gradlew clean check`, then `./gradlew releaseZip`, 27 September 2026 |
-| Full unit/integration/JavaFX suite | Passed locally | 250 tests; 0 failures, errors, or skips |
+| Compilation, tests, Checkstyle, and Apple silicon JAR packaging | Passed locally on Apple silicon macOS | `sh ./gradlew clean check shadowJar -PreleaseTarget=macos-aarch64`, 28 September 2026; final branch verification passed |
+| Standard CI `build` task | Passed locally on Apple silicon target | `sh ./gradlew clean build -PreleaseTarget=macos-aarch64`; JAR included, unused launcher scripts and distributions skipped. The x86-64 artifact assembled locally, but its JavaFX UI tests cannot run on this ARM Mac; Linux/Windows CI rerun pending. |
+| Full unit/integration/JavaFX suite | Passed locally | 257 tests; 0 failures, errors, or skips on the ARM target |
+| Release smoke-gate regression tests | Passed locally | Four Python tests; 0 failures |
 | Coverage report | Passed project target locally | Model/service/auth/storage: 1,525 of 1,714 lines, 89.0%; JaCoCo report in `build/reports/jacoco/test/html/index.html` |
-| Release ZIP build/content inspection | Passed locally on Apple silicon macOS | 21 MB `FacilityFlow-1.0.0-macos.zip`; archive integrity verified; JAR manifest version/main class, scripts, SQLite, and macOS JavaFX libraries present; shell launcher syntax valid; final local SHA-256 `21db20e9074f637b435df03a13afa780f21a337dfb2adfeb4f6dd0d11556acf9` |
+| Apple silicon JAR content and startup | Passed locally | JAR contains JavaFX, SQLite JDBC, and ARM64 `libprism_es2.dylib`; isolated 15-second process/database smoke test passed with macOS GUI access. This is not a human visual test or downloaded-release test. |
 | Development launch/UI smoke test | Pending human | Run the app and complete one primary workflow per role |
 
 ## GitHub and clean-machine release actions
@@ -43,27 +45,28 @@ branch checks. Do not replace local results with assumptions about CI.
 These actions must be completed after this branch is reviewed and merged. They
 cannot be truthfully completed only by editing repository files.
 
-Public read-only check on 27 September 2026:
+Public read-only check on 28 September 2026:
 
 - The organization/repository is public and correctly named, and `master` is the
   default branch.
-- The latest `master` build before this completion branch, commit `c622aba`, passed
-  its Windows, macOS, and Ubuntu jobs in
-  [Actions run 36234055977](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/actions/runs/36234055977).
-- GitHub reports that Pages is not enabled (`has_pages: false`).
-- The latest-release endpoint returns 404, so no formal GitHub release exists yet.
-- The saved local GitHub CLI login is expired; authenticated settings such as
-  branch protection could not be inspected or changed during this pass.
+- `master` commit `6637171` passed its Windows, macOS, and Ubuntu build jobs in
+  [Actions run 36323533357](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/actions/runs/36323533357).
+- The `v1.0.0` tag points to `6637171`, whose build does not contain the later
+  runnable-JAR packaging changes. Its formal release instead contains a JAR
+  built from the unmerged `release-prep` work.
+- The [v1.0.0 release run](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/actions/runs/36412463839)
+  packaged all three ZIPs but failed publishing because the release already
+  existed. The published JAR's macOS native libraries are x86-64, so it cannot
+  launch on Apple silicon.
 
-- [ ] Obtain teammate review and merge the completion pull request into `master`.
-- [ ] Confirm `master` CI passes on Windows, macOS, and Linux for the merge commit.
-- [ ] Confirm GitHub Pages is configured to deploy through GitHub Actions and opens
-      the FacilityFlow product site.
-- [ ] Create and push annotated tag `v1.0.0` from the reviewed `master` commit.
-- [ ] Confirm the Release workflow publishes Windows, macOS, and Linux ZIPs plus
-      `SHA256SUMS.txt` in a formal GitHub release.
-- [ ] Smoke-test the matching release ZIP on clean Windows, macOS, and Linux systems.
-      Record tester, OS/version, artifact name/checksum, workflow performed, and result.
+- [ ] Obtain teammate review and merge the release-fix pull request into `master`.
+- [ ] Confirm the release workflow's pull-request and `master` checks pass on
+      Windows, Linux, Intel macOS, and Apple silicon macOS.
+- [ ] Create and push annotated tag `v1.0.1` from the reviewed `master` commit.
+- [ ] Confirm the workflow publishes both JARs and `SHA256SUMS.txt` from that tag.
+- [ ] Smoke-test the exact downloaded JAR on clean Windows, Intel macOS, Apple
+      silicon macOS, and Linux systems. Record tester, OS/version, artifact,
+      checksum, workflow performed, and result.
 - [ ] Confirm the organization/repository and release are publicly accessible to a
       signed-out browser.
 - [ ] Confirm required checks/branch protection prevent an unverified merge, or
@@ -78,5 +81,6 @@ Public read-only check on 27 September 2026:
 | Tester | OS/version | Artifact/checksum | Workflow exercised | Result/date | Issue link |
 |---|---|---|---|---|---|
 | Pending | Windows | Pending | Login and one Requester → Manager → Technician → Manager cycle | Pending | — |
-| Pending | macOS | Pending | Login and one Requester → Manager → Technician → Manager cycle | Pending | — |
+| Pending | Intel macOS | Pending | Login and one Requester → Manager → Technician → Manager cycle | Pending | — |
+| Pending | Apple silicon macOS | Pending | Login and one Requester → Manager → Technician → Manager cycle | Pending | — |
 | Pending | Linux | Pending | Login and one Requester → Manager → Technician → Manager cycle | Pending | — |

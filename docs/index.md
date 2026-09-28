@@ -26,14 +26,16 @@ auditable local workspace.
 - Role and object-level authorization enforced outside the interface
 - SQLite persistence with versioned migrations and atomic audit events
 - Searchable queues, accessible role-specific JavaFX screens, and demo data
-- Automated Java 25 tests and a three-platform release workflow
+- Automated Java 25 tests and release checks for Windows, Linux, Intel Mac,
+  and Apple silicon Mac
 
 ## Install and try it
 
-Download the package for your operating system from the
-[latest GitHub release](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases/latest).
-The package contains the application JAR, JavaFX libraries, and launch scripts.
-A Java 25 runtime is required.
+Check the assets on the
+[GitHub releases page](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases)
+and choose a JAR matching your processor. Version 1.0.1 introduces a separate
+Apple silicon Mac JAR; the older v1.0.0 JAR supports only x86-64 systems. A
+Java 25 runtime is required for every release artifact.
 
 Follow the [User Guide](UserGuide.html) for installation, demo credentials, and
 step-by-step role workflows.
