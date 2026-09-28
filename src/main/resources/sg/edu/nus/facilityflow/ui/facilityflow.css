@@ -107,3 +107,36 @@
 .danger-button:hover { -fx-background-color: #fef2f2; }
 .tab-pane .tab-header-area .tab { -fx-padding: 8px 16px; }
 .tab-pane .tab:selected { -fx-background-color: #d0ebe5; }
+
+.button.navigation-tab {
+    -fx-background-radius: 6px 6px 0 0;
+    -fx-border-radius: 6px 6px 0 0;
+    -fx-border-color: transparent transparent #c6d2de transparent;
+    -fx-border-width: 1px 1px 3px 1px;
+}
+.button.navigation-tab:current-page {
+    -fx-background-color: #d0ebe5;
+    -fx-text-fill: #134e4a;
+    -fx-border-color: transparent transparent #0f766e transparent;
+}
+.button.navigation-tab:focused {
+    -fx-border-color: #2563eb #2563eb #c6d2de #2563eb;
+}
+.button.navigation-tab:current-page:focused {
+    -fx-border-color: #2563eb #2563eb #0f766e #2563eb;
+}
+.account-menu {
+    -fx-background-color: white;
+    -fx-background-radius: 8px;
+    -fx-border-color: #c6d2de;
+    -fx-border-radius: 8px;
+    -fx-padding: 5px 8px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+.account-menu > .label { -fx-text-fill: #263f50; }
+.account-menu:hover, .account-menu:showing { -fx-background-color: #eaf0f5; }
+.account-menu:focused {
+    -fx-border-color: #2563eb;
+    -fx-effect: dropshadow(gaussian, #b9d0f5, 3, 0.5, 0, 0);
+}

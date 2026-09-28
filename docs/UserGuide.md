@@ -74,8 +74,15 @@ or from a platform-specific release archive. Both methods require Java 25.
    | Technician | `technician1`, `technician2` |
    | Facilities Manager | `manager1`, `manager2` |
 
-4. Choose **About** after signing in to see the application version and a short
-   description of FacilityFlow. Choose **Log out** when finished.
+4. After signing in, open the menu showing your role and username at the top
+   right. Choose **About FacilityFlow** to see the application version and a
+   short description in a separate window.
+5. When finished, open the same menu and choose **Log out**.
+
+**Main workspace** has a shaded background and an underline while you are in
+your workspace, including request lists, details, and forms. Opening **Change
+password** removes that highlight and shows a page headed **Change password**.
+**About FacilityFlow** leaves your current page open behind its window.
 
 If the app cannot open its workspace, read the message on the opening screen.
 Correct an invalid `categories.properties` file, check that the workspace folder
@@ -87,17 +94,23 @@ is writable, and then restart the app.
 
 #### Sign in and manage your account
 
-Sign in with a Requester account. The header shows your role and username, such
-as **Requester - requester1**. Choose **Main workspace** to return to your
-role's main screen and load any account changes. Choose **Log out** when you
-are finished.
+Sign in with a Requester account. The menu at the top right shows your role and
+username, such as **Requester - requester1**. Choose **Main workspace** to return
+to your role's main screen and load any account changes.
 
 To change your password:
 
-1. Choose **Change password**.
-2. Enter your current password and a new one of 8 to 24 characters.
-3. Choose **Change password** again. The new password is saved without signing
-   you out. Choose **Back** to leave the password screen.
+1. Open the menu showing your role and username.
+2. Choose **Change password**.
+3. Enter your current password and a new one of 8 to 24 characters.
+4. Choose **Change password** on the page. The new password is saved without
+   signing you out.
+5. Choose **Back** to return to your workspace.
+
+To sign out:
+
+1. Open the menu showing your role and username.
+2. Choose **Log out**.
 
 #### Report a problem
 
@@ -147,6 +160,10 @@ in progress, awaiting Manager review, closed, or cancelled.
    choose **View selected request**.
 6. On the detail screen, choose **Refresh detail** to reload its current
    information, or **Back to my requests** to return to the list.
+
+These actions appear together with **Edit request** and **Cancel request** when
+the request is open. They share one row when there is enough room and move onto
+additional rows when the window is narrower.
 
 The detail screen labels your **Description** and shows the current status,
 reported urgency, Manager priority when one has been set, and the created and

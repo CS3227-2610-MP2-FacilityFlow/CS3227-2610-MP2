@@ -16,6 +16,14 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
 - **UIX-005:** Users MUST be able to return from a detail/form view to their role's
   list or dashboard without losing committed work.
   The shared header MUST label the role dashboard route **Main workspace**.
+  Main workspace MUST remain visible with a persistent background and underline
+  when the workspace is active, independently of keyboard focus. Requester lists,
+  details, and forms belong to Main workspace. A top-right account menu labelled
+  with the role and username MUST group Change password, About FacilityFlow, and
+  Log out, with a separator before Log out. Change password MUST show a page
+  heading and Back action, with Main workspace no longer marked current.
+  About remains a dialog and MUST preserve the current page. The account menu
+  MUST remain reachable by keyboard and at all supported content sizes.
 
 ## Forms and feedback
 
@@ -58,6 +66,9 @@ Status: **Draft v0.2 — requirements confirmed 12 September 2026**
   the Manager queue and assignment panel stack below 1,100 pixels of available
   width. At 1,440 × 900 they appear side by side. Resizing preserves selections
   and unsaved input. Shared styling distinguishes primary actions and field errors.
+  Requester detail actions (Back to my requests, Refresh detail, and, when
+  eligible, Edit request and Cancel request) MUST share one wrapping action bar:
+  one row whenever they fit, additional rows only when available width requires it.
 - **UIX-022:** Dialogs MUST identify a default safe action; destructive actions MUST
   never be the implicit default.
 - **UIX-023:** Dates MUST display local date, time, and time-zone abbreviation where

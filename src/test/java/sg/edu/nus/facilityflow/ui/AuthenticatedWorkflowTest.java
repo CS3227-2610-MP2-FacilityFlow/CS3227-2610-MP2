@@ -97,7 +97,7 @@ class AuthenticatedWorkflowTest {
                 default -> throw new AssertionError("Unexpected role fixture");
             };
             assertEquals(roleLabel + " - " + username,
-                    ((Label) router.lookup(".identity-label")).getText());
+                    accountMenu().getText());
             List<String> filterIds = switch (username) {
                 case "owner" -> List.of("requesterStatusFilter", "requesterCategoryFilter");
                 case "manager" -> List.of("managerStatusFilter", "managerCategoryFilter",
@@ -116,10 +116,126 @@ class AuthenticatedWorkflowTest {
                     assertNull(router.lookup("#" + role));
                 }
             }
-            button("logout").fire();
+            accountAction("logout").fire();
             assertNotNull(router.lookup("#loginView"));
             assertNull(router.lookup("#" + expected));
         });
+    }
+
+    @ParameterizedTest
+    @CsvSource({"owner", "manager", "tech"})
+    @DisplayName("UIX-005/017/019 current page survives focus and About, and follows password navigation")
+    void headerIdentifiesCurrentPage(String username) throws Exception {
+        login(username);
+        for (int[] size : List.of(new int[] {760, 600}, new int[] {1024, 700}, new int[] {1440, 900})) {
+            resize(size[0], size[1]);
+            fx(() -> {
+                assertInsideScene(accountMenu());
+                assertInsideScene(button("refreshAccount"));
+                accountMenu().fireEvent(new javafx.scene.input.KeyEvent(
+                        javafx.scene.input.KeyEvent.KEY_PRESSED, "", "",
+                        javafx.scene.input.KeyCode.DOWN, false, false, false, false));
+                assertTrue(accountMenu().isShowing(), "Down opens the account menu by keyboard");
+                accountMenu().hide();
+            });
+        }
+        fx(() -> {
+            assertWorkspaceCurrent(true);
+            assertEquals(List.of("changePassword", "about", "separator", "logout"),
+                    accountMenu().getItems().stream().map(item ->
+                            item instanceof javafx.scene.control.SeparatorMenuItem
+                                    ? "separator" : item.getId()).toList());
+            assertEquals("About FacilityFlow", accountAction("about").getText());
+            accountMenu().requestFocus();
+        });
+        fx(() -> {
+            assertSame(accountMenu(), stage.getScene().getFocusOwner());
+            assertWorkspaceCurrent(true);
+            accountAction("changePassword").fire();
+        });
+        fx(() -> {
+            assertWorkspaceCurrent(false);
+            assertEquals("Change password", ((Label) router.lookup("#passwordPageTitle")).getText());
+            Node passwordPage = router.getCenter();
+            confirmNextDialog();
+            accountAction("about").fire();
+            assertSame(passwordPage, router.getCenter());
+            assertWorkspaceCurrent(false);
+            buttonWithText("Back").fire();
+        });
+        drain();
+        fx(() -> assertWorkspaceCurrent(true));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"760, 600", "1024, 700", "1440, 900"})
+    @DisplayName("UIX-005/021 eligible detail actions share a row and resizing preserves follow-up input")
+    void requesterDetailActionsFitAndPreserveInput(int width, int height) throws Exception {
+        login("owner");
+        fillForm();
+        fx(() -> {
+            assertWorkspaceCurrent(true);
+            button("validate").fire();
+        });
+        drain();
+        resize(width, height);
+        fx(() -> {
+            assertWorkspaceCurrent(true);
+            var actions = (javafx.scene.layout.FlowPane) router.lookup("#requestDetailActions");
+            assertEquals(List.of("Back to my requests", "Refresh detail", "Edit request", "Cancel request"),
+                    actions.getChildren().stream().map(Button.class::cast).map(Button::getText).toList());
+            double row = actions.getChildren().getFirst().getLayoutY();
+            for (Node action : actions.getChildren()) {
+                assertEquals(row, action.getLayoutY(), 0.5);
+                assertInsideScene(action);
+            }
+            requesterFollowUpField().setText("Please call before entering.");
+        });
+        resize(width == 760 ? 1440 : 760, height);
+        fx(() -> assertEquals("Please call before entering.", requesterFollowUpField().getText()));
+    }
+
+    @Test
+    @DisplayName("UIX-021 detail action bar wraps instead of clipping when its available width is constrained")
+    void requesterDetailActionsWrap() throws Exception {
+        login("owner");
+        fillForm();
+        fx(() -> button("validate").fire());
+        drain();
+        fx(() -> {
+            var actions = (javafx.scene.layout.FlowPane) router.lookup("#requestDetailActions");
+            actions.setMaxWidth(350);
+        });
+        fx(() -> {
+            var actions = (javafx.scene.layout.FlowPane) router.lookup("#requestDetailActions");
+            assertTrue(actions.getChildren().getLast().getLayoutY()
+                    > actions.getChildren().getFirst().getLayoutY());
+            for (Node action : actions.getChildren()) {
+                assertTrue(action.getBoundsInParent().getMaxX() <= actions.getWidth() + 1);
+                assertTrue(action.getBoundsInParent().getMaxY() <= actions.getHeight() + 1);
+            }
+        });
+    }
+
+    private void assertWorkspaceCurrent(boolean expected) {
+        router.applyCss();
+        var workspace = button("refreshAccount");
+        var current = javafx.css.PseudoClass.getPseudoClass("current-page");
+        assertEquals(expected, workspace.getPseudoClassStates().contains(current));
+        assertEquals(expected, workspace.getAccessibleText().contains("current page"));
+        var underline = workspace.getBorder().getStrokes().getFirst();
+        assertTrue(underline.getWidths().getBottom() > underline.getWidths().getTop());
+        assertTrue(workspace.isFocusTraversable());
+        assertTrue(accountMenu().isFocusTraversable());
+    }
+
+    private javafx.scene.control.MenuButton accountMenu() {
+        return (javafx.scene.control.MenuButton) router.lookup("#accountMenu");
+    }
+
+    private javafx.scene.control.MenuItem accountAction(String id) {
+        return accountMenu().getItems().stream().filter(item -> id.equals(item.getId()))
+                .findFirst().orElseThrow();
     }
 
     @Test
@@ -147,7 +263,7 @@ class AuthenticatedWorkflowTest {
             button("validate").fire();
             button("validate").fire();
             assertTrue(button("validate").isDisabled());
-            assertTrue(button("logout").isDisabled());
+            assertTrue(accountMenu().isDisabled());
             assertEquals(1, work.size());
         });
         drain();
@@ -314,7 +430,7 @@ class AuthenticatedWorkflowTest {
         fillForm();
         fx(() -> button("validate").fire());
         drain();
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("manager");
         fx(() -> {
             ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
@@ -323,11 +439,11 @@ class AuthenticatedWorkflowTest {
             button("assignRequest").fire();
         });
         drain();
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("other");
         fx(() -> {
             assertTrue(((ListView<?>) router.lookup("#ownRequests")).getItems().isEmpty());
-            button("logout").fire();
+            accountAction("logout").fire();
         });
         login("owner");
         fx(() -> {
@@ -384,7 +500,7 @@ class AuthenticatedWorkflowTest {
         fx(() -> button("validate").fire());
         drain();
 
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("manager");
         fx(() -> {
             ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
@@ -394,7 +510,7 @@ class AuthenticatedWorkflowTest {
         });
         drain();
 
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("tech");
         fx(() -> {
             var table = (TableView<?>) router.lookup("#technicianRequests");
@@ -943,7 +1059,7 @@ class AuthenticatedWorkflowTest {
         fx(() -> button("validate").fire());
         drain();
 
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("manager");
         fx(() -> {
             ((TableView<?>) router.lookup("#managerRequests")).getSelectionModel().selectFirst();
@@ -953,7 +1069,7 @@ class AuthenticatedWorkflowTest {
         });
         drain();
 
-        fx(() -> button("logout").fire());
+        fx(() -> accountAction("logout").fire());
         login("tech");
     }
 
@@ -984,7 +1100,7 @@ class AuthenticatedWorkflowTest {
         snapshot("login-" + width);
         login("owner");
         fx(() -> {
-            assertInsideScene(button("logout"));
+            assertInsideScene(accountMenu());
             assertInsideScene(button("newRequest"));
         });
         fillForm();
@@ -1014,7 +1130,7 @@ class AuthenticatedWorkflowTest {
         fx(() -> ((ComboBox<?>) router.lookup("#assignee")).getSelectionModel().selectFirst());
         resize(width, height);
         fx(() -> {
-            assertInsideScene(button("logout"));
+            assertInsideScene(accountMenu());
             var layout = (javafx.scene.control.SplitPane) router.lookup("#managerLayout");
             assertEquals(width < 1100 ? javafx.geometry.Orientation.VERTICAL : javafx.geometry.Orientation.HORIZONTAL,
                     layout.getOrientation());
