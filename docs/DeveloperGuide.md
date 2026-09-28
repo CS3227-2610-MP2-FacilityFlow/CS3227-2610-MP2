@@ -303,8 +303,9 @@ JVM owns shutdown. Tests should close their own windows without ending JavaFX.
 
 `test` runs domain/service and focused JavaFX tests and generates coverage.
 `check` also runs Checkstyle. `build` adds compilation and development
-distributions. `releaseZip` produces the current operating system's release
-archive. The 27 September 2026 local release-candidate run executed 250 tests
+distributions. `shadowJar` produces the runnable release JAR, bundling runtime
+dependencies and JavaFX native libraries for 64-bit Windows and Linux, and
+Intel macOS. The 27 September 2026 local release-candidate run executed 250 tests
 with no failures or skips and measured 89.0% line coverage across model, service,
 auth, and storage packages. Reports are written to:
 
@@ -327,8 +328,10 @@ clean-machine acceptance pass on each target operating system.
 
 The current classpath-based JavaFX test emits an upstream warning that JavaFX
 classes are loaded from an unnamed module; the control test passes. The release
-uses platform-specific Gradle application distributions, each containing the
-application JAR, dependency JARs, JavaFX native libraries, and launch scripts.
+JAR includes JavaFX native libraries for 64-bit Windows and Linux, and Intel
+macOS, plus the SQLite JDBC dependency. The release workflow smoke-tests the same
+JAR on each target OS before publishing it with a SHA-256 checksum. Java itself
+is not bundled; native Apple Silicon JavaFX support remains unverified.
 
 ## Confirmed integration responsibilities and behavior
 
@@ -356,12 +359,13 @@ integrated in the release candidate.
 
 ## Release, website, and monitoring
 
-`releaseZip` builds `FacilityFlow-1.0.0-<platform>.zip` from Gradle's installed
-application distribution. The tag-triggered [release workflow](../.github/workflows/release.yml)
-runs `clean check releaseZip` on Windows, macOS, and Linux, uploads each package,
-creates `SHA256SUMS.txt`, and publishes the artifacts to a formal GitHub release.
-This configuration is not proof that a tag run or clean-machine smoke test passed;
-record those external results in [SubmissionChecklist.md](SubmissionChecklist.md).
+`shadowJar` builds `facilityflow-1.0.0.jar` using the Gradle Shadow plugin.
+The tag-triggered [release workflow](../.github/workflows/release.yml) runs
+`clean check shadowJar`, then launches that same JAR on Windows, Intel macOS,
+and Linux before creating `SHA256SUMS.txt` and publishing both files to a formal
+GitHub release. Workflow configuration alone is not proof that a tag run or
+clean-machine smoke test passed; record actual results in
+[SubmissionChecklist.md](SubmissionChecklist.md).
 
 The [Pages workflow](../.github/workflows/pages.yml) builds the `docs/` Jekyll site
 after documentation changes reach `master`. Repository Pages settings must use

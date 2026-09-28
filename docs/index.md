@@ -30,9 +30,9 @@ auditable local workspace.
 
 ## Install and try it
 
-Download the package for your operating system from the
+Download the cross-platform JAR from the
 [latest GitHub release](https://github.com/CS3227-2610-MP2-FacilityFlow/CS3227-2610-MP2/releases/latest).
-The package contains the application JAR, JavaFX libraries, and launch scripts.
+It contains the application and JavaFX libraries for Windows, macOS, and Linux.
 A Java 25 runtime is required.
 
 Follow the [User Guide](UserGuide.html) for installation, demo credentials, and

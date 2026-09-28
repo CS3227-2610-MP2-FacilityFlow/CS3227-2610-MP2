@@ -38,9 +38,12 @@ the repository root in PowerShell:
 ```powershell
 ./gradlew.bat test
 ./gradlew.bat check
-./gradlew.bat releaseZip
+./gradlew.bat shadowJar
 ./gradlew.bat run
 ```
+
+The runnable cross-platform JAR is written to
+`build/libs/facilityflow-1.0.0.jar`.
 
 The wrapper downloads Gradle and dependencies on first use; no separate Gradle
 or JavaFX SDK installation is needed. On macOS/Linux use `sh ./gradlew` in place

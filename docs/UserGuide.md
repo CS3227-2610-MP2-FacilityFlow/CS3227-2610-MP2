@@ -19,12 +19,13 @@ requests, one in each request status, so every role can explore its main
 workflow immediately. Existing workspaces are kept and are not reseeded.
 
 FacilityFlow has no native installer. It can be started from the project folder
-or from a platform-specific release archive. Both methods require Java 25.
+or from the cross-platform release JAR. Both methods require Java 25.
 
 ## Setup and launch
 
-1. Install Java Development Kit (JDK) 25. If a launch command cannot find Java,
-   set `JAVA_HOME` to your JDK 25 installation folder.
+1. To run the release JAR, install Java 25. To run FacilityFlow from the source
+   project, install Java Development Kit (JDK) 25. If the source launch cannot
+   find Java, set `JAVA_HOME` to your JDK 25 installation folder.
 2. Use one of the following launch methods.
 
    To run from the project folder, open PowerShell on Windows, or Terminal on
@@ -45,26 +46,23 @@ or from a platform-specific release archive. Both methods require Java 25.
    The first source launch may need an internet connection to download the
    build tools and libraries.
 
-   If your team supplied a release ZIP, first choose the ZIP built for your
-   operating system and extract the complete `FacilityFlow-1.0.0` folder. Do
-   not move files out of its `bin` or `lib` folders. Open PowerShell or Terminal
-   in the folder containing the extracted folder and run:
+   If you downloaded the release JAR, put it in a folder where you can keep it.
+   Open PowerShell or Terminal in that folder and run:
 
    **Windows (PowerShell)**
 
    ```powershell
-   .\FacilityFlow-1.0.0\bin\facilityflow.bat
+   java -jar .\facilityflow-1.0.0.jar
    ```
 
    **macOS or Linux**
 
    ```sh
-   sh ./FacilityFlow-1.0.0/bin/facilityflow
+   java -jar ./facilityflow-1.0.0.jar
    ```
 
-   Release archives include the application and JavaFX libraries, but they do
-   not include Java itself. A ZIP built for one operating system must not be
-   used on another.
+   The JAR includes the application, JavaFX, and native libraries for 64-bit
+   Windows and Linux, and Intel-based Macs. It does not include Java itself.
 3. Sign in with a demo account. The starting password for every account is
    `Welcome123`.
 
@@ -180,21 +178,6 @@ or receive follow-up updates.
 
 If the update cannot be saved, an error appears beside the follow-up box.
 Correct the text or refresh the request and try again.
-
-#### Practise filling out a request
-
-You can open a separate practice form without saving anything:
-
-1. From the project folder, run this command on Windows:
-
-   ```powershell
-   .\gradlew.bat run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"
-   ```
-
-   On macOS or Linux, run
-   `sh ./gradlew run "-PmainClass=sg.edu.nus.facilityflow.RequesterPreviewLauncher"`.
-2. Enter request details and choose **Check details** to see any corrections
-   needed. Closing this form discards your entries.
 
 ### Technician
 
@@ -511,10 +494,11 @@ Safety, and Other. To change the list:
 
 ## Current limitations
 
-- FacilityFlow has no native installer and does not include Java. Install JDK 25
-  before using either the source checkout or a release archive.
-- Release archives contain operating-system-specific JavaFX libraries. Use only
-  the archive built for the same operating system.
+- FacilityFlow has no native installer and does not include Java. Install Java
+  25 before launching the release JAR, or install JDK 25 to run from the source
+  project.
+- This JAR contains Intel macOS JavaFX libraries. Native Apple Silicon JavaFX
+  support has not been verified.
 - Categories cannot be changed while the app is open or through a Manager
   screen. Close FacilityFlow and use `categories.properties` as described above.
 
@@ -525,3 +509,4 @@ Safety, and Other. To change the list:
   retained demo account and change its password, or have a Manager deactivate
   accounts that are not needed.
 - Do not edit, replace, or delete `facilityflow.db` while FacilityFlow is open.
+- Editing `facilityflow.db` or and relevant data files may result in unexpected behaviors or errors in the application, modify with caution.

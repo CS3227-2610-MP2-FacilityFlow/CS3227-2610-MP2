@@ -23,7 +23,7 @@ as a passed run, and generated documentation is not marked as human-approved.
 | AI-session summaries under `logs/` | Present | New completion log and older summaries with “Pending” labels require human verification |
 | Product website source | Present | `docs/index.md` and Pages workflow; deployment still needs GitHub evidence |
 | Operational monitoring | Implemented | Rotating structured logs plus global unexpected-error boundary |
-| Platform-specific release packaging | Implemented locally | `releaseZip` and tag workflow; tagged GitHub release still required |
+| Cross-platform executable JAR packaging | Implemented locally; verification pending | `shadowJar` and tag workflow; tagged GitHub release still required |
 
 ## Final automated verification
 
@@ -32,10 +32,10 @@ branch checks. Do not replace local results with assumptions about CI.
 
 | Check | State | Evidence |
 |---|---|---|
-| Compilation and Checkstyle | Passed locally | `./gradlew clean check`, then `./gradlew releaseZip`, 27 September 2026 |
+| Compilation, tests, Checkstyle, and JAR packaging | Passed locally on Windows | `gradlew.bat clean check shadowJar --no-daemon`, 28 September 2026 |
 | Full unit/integration/JavaFX suite | Passed locally | 250 tests; 0 failures, errors, or skips |
 | Coverage report | Passed project target locally | Model/service/auth/storage: 1,525 of 1,714 lines, 89.0%; JaCoCo report in `build/reports/jacoco/test/html/index.html` |
-| Release ZIP build/content inspection | Passed locally on Apple silicon macOS | 21 MB `FacilityFlow-1.0.0-macos.zip`; archive integrity verified; JAR manifest version/main class, scripts, SQLite, and macOS JavaFX libraries present; shell launcher syntax valid; final local SHA-256 `21db20e9074f637b435df03a13afa780f21a337dfb2adfeb4f6dd0d11556acf9` |
+| Release JAR build/content inspection | Passed locally on Windows | `facilityflow-1.0.0.jar` (26,299,823 bytes); contains JavaFX `Application`, 64-bit Windows/Linux and Intel macOS native libraries, and SQLite JDBC; launched with `java -jar` and stayed open for 15 seconds; SHA-256 `C992BE18316DA4D3BCDE8380EABA1450F3FDDA58AF24112C65A86D05F97E2591` |
 | Development launch/UI smoke test | Pending human | Run the app and complete one primary workflow per role |
 
 ## GitHub and clean-machine release actions
@@ -55,14 +55,12 @@ Public read-only check on 27 September 2026:
 - The saved local GitHub CLI login is expired; authenticated settings such as
   branch protection could not be inspected or changed during this pass.
 
-- [ ] Obtain teammate review and merge the completion pull request into `master`.
-- [ ] Confirm `master` CI passes on Windows, macOS, and Linux for the merge commit.
-- [ ] Confirm GitHub Pages is configured to deploy through GitHub Actions and opens
+- [x] Obtain teammate review and merge the completion pull request into `master`.
+- [x] Confirm `master` CI passes on Windows, macOS, and Linux for the merge commit.
+- [x] Confirm GitHub Pages is configured to deploy through GitHub Actions and opens
       the FacilityFlow product site.
 - [ ] Create and push annotated tag `v1.0.0` from the reviewed `master` commit.
-- [ ] Confirm the Release workflow publishes Windows, macOS, and Linux ZIPs plus
-      `SHA256SUMS.txt` in a formal GitHub release.
-- [ ] Smoke-test the matching release ZIP on clean Windows, macOS, and Linux systems.
+- [ ] Smoke-test the same release JAR on clean Windows, Intel macOS, and Linux systems.
       Record tester, OS/version, artifact name/checksum, workflow performed, and result.
 - [ ] Confirm the organization/repository and release are publicly accessible to a
       signed-out browser.
